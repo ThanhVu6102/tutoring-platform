@@ -11,8 +11,7 @@ const ClassDetail = () => {
   const [quizzes, setQuizzes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
+  const [userRole] = useState(localStorage.getItem('userRole'));  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
   const [studentEmail, setStudentEmail] = useState('');
 
   useEffect(() => {
