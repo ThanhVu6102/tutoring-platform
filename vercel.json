@@ -1,29 +1,30 @@
 {
-    "services": {
-        "frontend": {
-            "root": "frontend",
-            "framework": "create-react-app"
-        },
-        "backend": {
-            "root": "backend",
-            "framework": "express",
-            "entrypoint": "server.js"
-        }
+  "services": {
+    "frontend": {
+      "root": "frontend",
+      "framework": "create-react-app",
+      "buildCommand": "CI=false npm run build"
     },
-    "rewrites": [
-        {
-            "source": "/api(/.*)?",
-            "destination": {
-                "type": "service",
-                "service": "backend"
-            }
-        },
-        {
-            "source": "/(.*)",
-            "destination": {
-                "type": "service",
-                "service": "frontend"
-            }
-        }
-    ]
+    "backend": {
+      "root": "backend",
+      "framework": "express",
+      "entrypoint": "server.js"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api(/.*)?",
+      "destination": {
+        "type": "service",
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "frontend"
+      }
+    }
+  ]
 }
