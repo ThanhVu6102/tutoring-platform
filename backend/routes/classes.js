@@ -32,7 +32,9 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 router.get('/', authMiddleware, async (req, res) => {
   try {
     let classes;
-    if (req.userRole === 'teacher') {
+    if (req.userRole === 'admin') {
+      classes = await Class.find({}).populate('students').populate('teacher');
+    } else if (req.userRole === 'teacher') {
       classes = await Class.find({ teacher: req.userId }).populate('students');
     } else {
       classes = await Class.find({ students: req.userId }).populate('teacher');

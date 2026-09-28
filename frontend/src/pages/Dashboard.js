@@ -52,10 +52,10 @@ const Dashboard = ({ userRole }) => {
   return (
     <div className="main-content">
       <div className="section-header">
-        <h2> {userRole === 'teacher' ? 'Lớp Học Của Tôi' : 'Lớp Học Đã Tham Gia'}</h2>
+        <h2> {userRole === 'admin' ? 'Tất Cả Lớp Học' : userRole === 'teacher' ? 'Lớp Học Của Tôi' : 'Lớp Học Đã Tham Gia'}</h2>
       </div>
 
-      {userRole === 'teacher' && (
+      {(userRole === 'teacher' || userRole === 'admin') && (
         <div style={{ marginBottom: '2rem' }}>
           <button 
             className="btn btn-primary"
@@ -66,7 +66,7 @@ const Dashboard = ({ userRole }) => {
         </div>
       )}
 
-      {activeTab === 'create' && userRole === 'teacher' && (
+      {activeTab === 'create' && (userRole === 'teacher' || userRole === 'admin') && (
         <div className="card" style={{ marginBottom: '2rem' }}>
           <h3>Tạo Lớp Học Mới</h3>
           <form onSubmit={handleCreateClass}>
@@ -175,7 +175,7 @@ const Dashboard = ({ userRole }) => {
         ) : (
           <div className="card" style={{ gridColumn: '1/-1', textAlign: 'center' }}>
             <p style={{ color: '#999' }}>
-              {userRole === 'teacher' ? 'Bạn chưa có lớp học nào. Hãy tạo lớp mới!' : 'Bạn chưa tham gia lớp học nào'}
+              {(userRole === 'teacher' || userRole === 'admin') ? 'Bạn chưa có lớp học nào. Hãy tạo lớp mới!' : 'Bạn chưa tham gia lớp học nào'}
             </p>
           </div>
         )}

@@ -18,10 +18,17 @@ const authMiddleware = (req, res, next) => {
 };
 
 const teacherOnly = (req, res, next) => {
-  if (req.userRole !== 'teacher') {
+  if (req.userRole !== 'teacher' && req.userRole !== 'admin') {
     return res.status(403).json({ message: 'Only teachers can access this' });
   }
   next();
 };
 
-module.exports = { authMiddleware, teacherOnly };
+const adminOnly = (req, res, next) => {
+  if (req.userRole !== 'admin') {
+    return res.status(403).json({ message: 'Only admins can access this' });
+  }
+  next();
+};
+
+module.exports = { authMiddleware, teacherOnly, adminOnly };

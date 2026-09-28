@@ -26,7 +26,7 @@ const Navbar = ({ userRole, onLogout }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
         <img src="/logo1.png" alt="EKLASSES" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
         <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>
-          {userRole === 'teacher' ? 'Giáo viên' : 'Học sinh'}
+          {userRole === 'admin' ? 'Quản trị viên' : userRole === 'teacher' ? 'Giáo viên' : 'Học sinh'}
         </p>
       </div>
       <div className="navbar-user" style={{ position: 'relative', zIndex: 1 }}>

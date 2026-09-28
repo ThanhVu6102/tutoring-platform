@@ -19,12 +19,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Email này đã được đăng ký' });
     }
 
-    // Create new user
+    // Create new user (public register: chỉ teacher/student, không cho tự đăng ký admin)
     const user = new User({
       name,
       email,
       password,
-      role: role || 'student',
+      role: ['teacher', 'student'].includes(role) ? role : 'student',
     });
 
     await user.save();
