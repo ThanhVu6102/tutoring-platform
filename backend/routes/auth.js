@@ -9,10 +9,14 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ họ tên, email và mật khẩu' });
+    }
+
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'Email này đã được đăng ký' });
     }
 
     // Create new user
@@ -43,6 +47,10 @@ router.post('/register', async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Register failed:', error?.message || error);
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Dữ liệu không hợp lệ: ' + error.message });
+    }
     res.status(500).json({ message: error.message });
   }
 });
