@@ -15,7 +15,8 @@ const LoginPage = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/login', {
+      const API_URL = process.env.REACT_APP_API_URL || '';
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password,
       });
@@ -24,7 +25,12 @@ const LoginPage = ({ onLogin }) => {
       onLogin(response.data.token, response.data.user.role);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Lỗi đăng nhập');
+      console.error('Login error:', err.response || err.message || err);
+      if (!err.response) {
+        setError('Không kết nối được tới server backend. Hãy chắc chắn backend đang chạy.');
+      } else {
+        setError(err.response?.data?.message || `Lỗi đăng nhập (${err.response?.status})`);
+      }
     } finally {
       setLoading(false);
     }

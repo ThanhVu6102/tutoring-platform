@@ -12,13 +12,53 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
+// MongoDB Connection (cached for Vercel serverless)
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform';
+    cached.promise = mongoose.connect(uri).then((m) => {
+      console.log('MongoDB connected');
+      return m;
+    });
+  }
+  try {
+    cached.conn = await cached.promise;
+  } catch (err) {
+    cached.promise = null;
+    console.log('MongoDB connection error:', err?.message || err);
+    throw err;
+  }
+  return cached.conn;
+}
+
+// Kết nối ngay khi chạy local (node server.js). Trên Vercel serverless thì connect lazy mỗi request.
+if (require.main === module) {
+  connectDB().catch((err) => console.log('MongoDB connection error:', err?.message || err));
+} else {
+  // Đảm bảo connect khi import (Vercel), nhưng không crash app nếu chưa có URI
+  connectDB().catch(() => {});
+}
+
+// Đảm bảo DB đã connect trước khi xử lý API (quan trọng trên serverless)
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    return res.status(500).json({ message: 'Không kết nối được database. Kiểm tra MONGODB_URI trên Vercel.' });
+  }
+});
+
+// Health check — mở https://domain-cua-ban.vercel.app/api/health để kiểm tra backend sống chưa
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -61,6 +101,10 @@ app.get('/api/docs', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

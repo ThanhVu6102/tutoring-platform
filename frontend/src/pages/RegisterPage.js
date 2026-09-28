@@ -31,7 +31,8 @@ const RegisterPage = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/register', {
+      const API_URL = process.env.REACT_APP_API_URL || '';
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -42,7 +43,12 @@ const RegisterPage = ({ onLogin }) => {
       onLogin(response.data.token, response.data.user.role);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Lỗi đăng ký');
+      console.error('Register error:', err.response || err.message || err);
+      if (!err.response) {
+        setError('Không kết nối được tới server backend. Hãy chắc chắn backend đang chạy (npm run dev trong thư mục backend) hoặc kiểm tra REACT_APP_API_URL.');
+      } else {
+        setError(err.response?.data?.message || `Lỗi đăng ký (${err.response?.status})`);
+      }
     } finally {
       setLoading(false);
     }
