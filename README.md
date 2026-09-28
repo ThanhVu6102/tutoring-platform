@@ -38,7 +38,8 @@ graph TD
 ### 2.1. Xác thực & Phân quyền (`/login`, `/register`)
 * Đăng ký 2 vai trò public: **Học sinh / Giáo viên** (đăng ký `admin` bị chặn ở backend, chỉ tạo qua seed script).
 * Đăng nhập trả về JWT + `{ id, name, email, role }`, lưu `token/userId/userRole` vào localStorage.
-* Seed tài khoản admin: `npm run seed:admin --prefix backend` (đọc `ADMIN_EMAIL/ADMIN_PASSWORD/MONGODB_URI`).
+* Tài khoản admin (không cần seed, không cần tạo trước): set `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tuỳ chọn `ADMIN_NAME`) trên Vercel/local, nhập đúng 2 giá trị đó ở trang đăng nhập là vào quyền admin — backend tự tạo/cập nhật record trong MongoDB.
+* Tạo thủ công (tuỳ chọn): `npm run seed:admin --prefix backend` (đọc `ADMIN_EMAIL/ADMIN_PASSWORD/MONGODB_URI`).
 
 ### 2.2. Dashboard (`/dashboard`)
 * Giáo viên: xem lớp mình dạy + tạo lớp mới (tên, mô tả, môn, khối).
