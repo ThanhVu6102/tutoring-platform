@@ -4,6 +4,41 @@ Chào mừng bạn đến với **EKLASSES** - nền tảng quản lý lớp h�
 
 ---
 
+## 0. LIÊN KẾT WEBSITE (WEBSITE LINKS)
+
+| Môi trường | Địa chỉ | Ghi chú |
+|------------|---------|---------|
+| Production (Vercel) | `https://<domain-cua-ban>.vercel.app` | Frontend + API fullstack chung 1 domain (thay `<domain-cua-ban>` bằng domain thật sau khi deploy) |
+| Health check (production) | `https://<domain-cua-ban>.vercel.app/api/health` | Phải trả về `{"status":"ok"}` thì backend mới sống |
+| API docs (production) | `https://<domain-cua-ban>.vercel.app/api/docs` | Danh sách endpoint rút gọn |
+| Local frontend | `http://localhost:3000` | Chạy bằng `npm start --prefix frontend` |
+| Local backend | `http://localhost:5000` | Chạy bằng `npm run dev --prefix backend` |
+| Health check (local) | `http://localhost:5000/api/health` | Phải trả về `{"status":"ok"}` |
+
+---
+
+## 0.1. TÀI KHOẢN ADMIN MẶC ĐỊNH (DEFAULT ADMIN ACCOUNT)
+
+Tài khoản quản trị gốc **ghi cố định trong backend** (`backend/config/defaultAdmin.js`), là tài khoản mặc định của website:
+
+| Trường | Giá trị |
+|--------|---------|
+| Email đăng nhập | `admin@eklasses.vn` |
+| Mật khẩu | `Admin123!` |
+| Tên hiển thị | `Quản trị viên` |
+| Quyền | `admin` (cao nhất) |
+
+Quy tắc bảo vệ Super Admin gốc:
+* Luôn đăng nhập được, không phụ thuộc biến môi trường hay seed thủ công — backend tự tạo/khôi phục record trong MongoDB mỗi khi kết nối DB (`ensureSuperAdmin()` trong `backend/utils/superAdmin.js`, gọi từ `connectDB()` và `seed-admin.js`).
+* **Không thể bị xóa** (`DELETE /api/users/:id` trả `403` cho email gốc).
+* **Không thể bị thay đổi quyền** (`PUT /api/users/:id/role` trả `403`, hook `pre-save` của model `User` luôn ép `role` về `admin`).
+* **Không thể đăng ký chiếm** (`POST /api/auth/register` trả `400` cho email gốc).
+* **Có quyền cấp/thu hồi admin** cho tài khoản khác qua `PUT /api/users/:id/role` (body `{ role: 'admin' | 'teacher' | 'student' }`) và xem toàn bộ user qua `GET /api/users` — cả hai đều yêu cầu JWT `adminOnly`.
+
+Đăng nhập trang `/login` bằng đúng email + mật khẩu trên là vào quyền admin ngay.
+
+---
+
 ## 1. KIẾN TRÚC HỆ THỐNG (SYSTEM ARCHITECTURE)
 
 Hệ thống chạy theo mô hình **Client-Server**, deploy fullstack trên cùng một domain Vercel (frontend + serverless API), dữ liệu lưu trên MongoDB Atlas.
@@ -36,10 +71,11 @@ graph TD
 ## 2. CÁC TÍNH NĂNG CHÍNH (KEY FEATURES)
 
 ### 2.1. Xác thực & Phân quyền (`/login`, `/register`)
-* Đăng ký 2 vai trò public: **Học sinh / Giáo viên** (đăng ký `admin` bị chặn ở backend, chỉ tạo qua seed script).
+* Đăng ký 2 vai trò public: **Học sinh / Giáo viên** (đăng ký `admin` và email admin gốc bị chặn ở backend).
 * Đăng nhập trả về JWT + `{ id, name, email, role }`, lưu `token/userId/userRole` vào localStorage.
-* Tài khoản admin (không cần seed, không cần tạo trước): set `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tuỳ chọn `ADMIN_NAME`) trên Vercel/local, nhập đúng 2 giá trị đó ở trang đăng nhập là vào quyền admin — backend tự tạo/cập nhật record trong MongoDB.
-* Tạo thủ công (tuỳ chọn): `npm run seed:admin --prefix backend` (đọc `ADMIN_EMAIL/ADMIN_PASSWORD/MONGODB_URI`).
+* Super Admin gốc `admin@eklasses.vn / Admin123!` (chi tiết ở mục 0.1): luôn đăng nhập được, tự tạo/khôi phục record, không thể xóa/hạ quyền, có quyền cấp admin cho tài khoản khác qua `PUT /api/users/:id/role`.
+* Tương thích ngược env cũ: nếu đặt `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tuỳ chọn `ADMIN_NAME`) khác tài khoản gốc thì cặp đó cũng đăng nhập được quyền admin.
+* Tạo thủ công (tuỳ chọn): `npm run seed:admin --prefix backend` (đọc `ADMIN_EMAIL/ADMIN_PASSWORD/MONGODB_URI`, luôn đảm bảo Super Admin gốc tồn tại).
 
 ### 2.2. Dashboard (`/dashboard`)
 * Giáo viên: xem lớp mình dạy + tạo lớp mới (tên, mô tả, môn, khối).
@@ -178,6 +214,17 @@ Sự cố thường gặp: quên Redeploy sau khi thêm env, thiếu `/tutoring-
 
 | Commit | Ngày | Nội dung |
 |--------|------|----------|
+| `f20156e` | 2026-09-30 | feat(auth): hardcoded super admin with admin role management and Vietnamese inline docs |
+| `d992e08` | 2026-09-30 | feat(database): auto-ensure super admin on connectDB with Vietnamese inline docs |
+| `be94610` | 2026-09-30 | docs(models): Vietnamese inline notes for Announcement |
+| `9e8f387` | 2026-09-30 | docs(models): Vietnamese inline notes for Assignment |
+| `618b773` | 2026-09-30 | docs(classes): Vietnamese inline notes for Class model and ClassDetail page |
+| `ee96a96` | 2026-09-30 | docs(models): Vietnamese inline notes for Document |
+| `a52ace3` | 2026-09-30 | docs(quizzes): Vietnamese inline notes for Quiz models and QuizTaking page |
+| `3ca1488` | 2026-09-30 | docs(models): Vietnamese inline notes for Video |
+| `9e7c87b` | 2026-09-30 | docs(ui-auth): Vietnamese inline notes for Login, Register and api config |
+| `50281bf` | 2026-09-30 | docs(ui-setup): Vietnamese inline notes for App, Navbar, Dashboard and CSS |
+| `e955f53` | 2026-09-28 | feat: static admin login via env without seed |
 | `de900b7` | 2026-09-28 | feat: add admin role with seed script |
 | `5bfb933` | 2026-09-28 | fix: resolve api deps and validate register input |
 | `493fc98` | 2026-09-28 | fix: fullstack Vercel deploy and detailed register error |
