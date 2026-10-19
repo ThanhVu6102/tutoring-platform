@@ -10,6 +10,11 @@ const AdminClassDetail = () => {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
+  const [warningStudent, setWarningStudent] = useState(null);
+  const [warningForm, setWarningForm] = useState({ reasonCode: 'spam', policyLevel: '1', details: '' });
+  const [savingWarning, setSavingWarning] = useState(false);
+  const [warningError, setWarningError] = useState('');
+  const [warningSuccess, setWarningSuccess] = useState('');
   const [lockForm, setLockForm] = useState({ reasonCode: 'spam', policyLevel: '1', details: '' });
   const [lockReviewBusy, setLockReviewBusy] = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
@@ -108,6 +113,28 @@ const AdminClassDetail = () => {
     }
   };
 
+  const submitStudentWarning = async (event) => {
+    event.preventDefault();
+    if (!warningStudent) return;
+    setSavingWarning(true);
+    setWarningError('');
+    try {
+      await axios.post(`/api/student-warnings/${warningStudent._id}`, {
+        classId: id,
+        reasonCode: warningForm.reasonCode,
+        policyLevel: Number(warningForm.policyLevel),
+        details: warningForm.details,
+      });
+      setWarningSuccess(`Đã gửi cảnh báo cho ${warningStudent.name}.`);
+      setWarningStudent(null);
+      setWarningForm({ reasonCode: 'spam', policyLevel: '1', details: '' });
+    } catch (requestError) {
+      setWarningError(requestError.response?.data?.message || 'Không thể gửi cảnh báo.');
+    } finally {
+      setSavingWarning(false);
+    }
+  };
+
   if (loading) return <main className="admin-page"><p className="admin-state">Đang tải thông tin lớp...</p></main>;
   if (!classData) {
     return (
@@ -136,6 +163,7 @@ const AdminClassDetail = () => {
     <main className="admin-page">
       <button className="admin-back" onClick={() => navigate('/admin')} type="button">← Danh sách lớp</button>
       {error && <div className="admin-alert" role="alert">{error}</div>}
+      {warningSuccess && <div className="warning-success-banner" role="status">{warningSuccess}</div>}
 
       <section className="admin-detail-heading">
         <div>
@@ -236,6 +264,10 @@ const AdminClassDetail = () => {
                 <div className="admin-student-row" key={student._id || student.email || index}>
                   <span className="student-number">{String(index + 1).padStart(2, '0')}</span>
                   <div><strong>{student.name || 'Học sinh'}</strong><span>{student.email || 'Chưa có email'}</span></div>
+                  <button className="student-warning-trigger" onClick={() => {
+                    setWarningError('');
+                    setWarningStudent(student);
+                  }} type="button">Tạo cảnh báo</button>
                 </div>
               ))}
             </div>
@@ -278,6 +310,37 @@ const AdminClassDetail = () => {
               <div className="policy-modal-actions">
                 <button className="btn btn-secondary" onClick={() => setShowLockDialog(false)} type="button">Hủy</button>
                 <button className="btn btn-danger" disabled={lockReviewBusy} type="submit">{lockReviewBusy ? 'Đang gửi...' : 'Gửi thông báo 24 giờ'}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {warningStudent && (
+        <div className="policy-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setWarningStudent(null); }} role="presentation">
+          <section aria-labelledby="student-warning-title" aria-modal="true" className="policy-modal" role="dialog">
+            <button aria-label="Đóng" className="policy-modal-close" onClick={() => setWarningStudent(null)} type="button">×</button>
+            <p className="admin-eyebrow">HỒ SƠ HỌC SINH · {classData.name}</p>
+            <h2 id="student-warning-title">Cảnh báo {warningStudent.name}</h2>
+            <p>{warningStudent.email} · Học sinh sẽ có 7 ngày để kháng cáo. Cảnh báo chờ kháng cáo chưa được tính.</p>
+            {warningError && <div className="admin-alert" role="alert">{warningError}</div>}
+            <form className="lock-notice-form" onSubmit={submitStudentWarning}>
+              <label>Mức vi phạm
+                <select value={warningForm.policyLevel} onChange={(event) => setWarningForm({ ...warningForm, policyLevel: event.target.value })}>
+                  <option value="1">Mức 1 · Nhẹ</option>
+                  <option value="2">Mức 2 · Trung bình</option>
+                  <option value="3">Mức 3 · Nghiêm trọng</option>
+                </select>
+              </label>
+              <label>Quy định vi phạm
+                <select value={warningForm.reasonCode} onChange={(event) => setWarningForm({ ...warningForm, reasonCode: event.target.value })}>
+                  {Object.entries(policyReasonLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label>Mô tả cụ thể / bằng chứng<textarea maxLength="2000" onChange={(event) => setWarningForm({ ...warningForm, details: event.target.value })} required rows="4" value={warningForm.details} /></label>
+              <div className="policy-modal-actions">
+                <button className="btn btn-secondary" onClick={() => setWarningStudent(null)} type="button">Hủy</button>
+                <button className="btn btn-primary" disabled={savingWarning} type="submit">{savingWarning ? 'Đang gửi...' : 'Gửi cảnh báo'}</button>
               </div>
             </form>
           </section>

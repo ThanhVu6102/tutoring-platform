@@ -930,6 +930,32 @@ input:focus, select:focus, textarea:focus {
   color: #263a33;
 }
 
+.student-warning-trigger {
+  margin-left: auto;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #c77b6f;
+  border-radius: 3px;
+  background: transparent;
+  color: #913c31;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.student-warning-trigger:hover {
+  background: #fff0ed;
+}
+
+.warning-success-banner {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid #39805c;
+  background: #eaf4ee;
+  color: #28583f;
+}
+
 .admin-student-row div span {
   overflow-wrap: anywhere;
   color: #71817b;

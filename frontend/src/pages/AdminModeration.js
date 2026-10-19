@@ -23,11 +23,6 @@ const AdminModeration = () => {
   const [section, setSection] = useState('warnings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showWarningForm, setShowWarningForm] = useState(false);
-  const [savingWarning, setSavingWarning] = useState(false);
-  const [warningForm, setWarningForm] = useState({
-    studentId: '', classId: '', reasonCode: 'spam', policyLevel: '1', details: '',
-  });
   const navigate = useNavigate();
 
   const loadArchive = async () => {
@@ -47,10 +42,6 @@ const AdminModeration = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const eligibleClasses = classes.filter((classItem) =>
-    classItem.status === 'active'
-    && classItem.students?.some((student) => (student._id || student).toString() === warningForm.studentId)
-  );
   const warningStudentIds = new Set(warnings.map((warning) => warning.student?._id).filter(Boolean));
   const affectedStudents = students.filter((student) =>
     warningStudentIds.has(student._id)
@@ -64,27 +55,6 @@ const AdminModeration = () => {
     || (classItem.lockNotice?.status && classItem.lockNotice.status !== 'none')
   );
   const openWarnings = warnings.filter((warning) => ['pending', 'appealed'].includes(warning.status)).length;
-
-  const handleCreateWarning = async (event) => {
-    event.preventDefault();
-    setSavingWarning(true);
-    setError('');
-    try {
-      await axios.post(`/api/student-warnings/${warningForm.studentId}`, {
-        classId: warningForm.classId,
-        reasonCode: warningForm.reasonCode,
-        policyLevel: Number(warningForm.policyLevel),
-        details: warningForm.details,
-      });
-      setWarningForm({ studentId: '', classId: '', reasonCode: 'spam', policyLevel: '1', details: '' });
-      setShowWarningForm(false);
-      await loadArchive();
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Không thể gửi cảnh báo.');
-    } finally {
-      setSavingWarning(false);
-    }
-  };
 
   const handleReviewWarning = async (warning, decision) => {
     const action = decision === 'dismiss' ? 'gỡ cảnh báo' : 'xác nhận vi phạm';
@@ -131,7 +101,6 @@ const AdminModeration = () => {
             <section className="moderation-section">
               <header className="admin-warning-heading">
                 <div><h2>Cảnh báo học sinh</h2><p>Cảnh báo chỉ được tính sau khi Admin xác nhận hoặc hết hạn kháng cáo.</p></div>
-                <button className="btn btn-primary" onClick={() => setShowWarningForm(true)} type="button">Tạo cảnh báo</button>
               </header>
               {warnings.length === 0 ? <p className="admin-state">Chưa có hồ sơ cảnh báo.</p> : (
                 <div className="admin-warning-list">
@@ -205,45 +174,6 @@ const AdminModeration = () => {
         </>
       )}
 
-      {showWarningForm && (
-        <div className="policy-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowWarningForm(false); }} role="presentation">
-          <section aria-labelledby="student-warning-title" aria-modal="true" className="policy-modal" role="dialog">
-            <button aria-label="Đóng" className="policy-modal-close" onClick={() => setShowWarningForm(false)} type="button">×</button>
-            <p className="admin-eyebrow">CẢNH BÁO HỌC SINH</p>
-            <h2 id="student-warning-title">Gửi cảnh báo vi phạm</h2>
-            <p>Học sinh có 7 ngày để kháng cáo. Cảnh báo chờ kháng cáo chưa được tính.</p>
-            <form className="lock-notice-form" onSubmit={handleCreateWarning}>
-              <label>Học sinh
-                <select required value={warningForm.studentId} onChange={(event) => setWarningForm({ ...warningForm, studentId: event.target.value, classId: '' })}>
-                  <option value="">Chọn học sinh</option>
-                  {students.map((student) => <option key={student._id} value={student._id}>{student.name} · {student.email}</option>)}
-                </select>
-              </label>
-              <label>Lớp vi phạm
-                <select required value={warningForm.classId} onChange={(event) => setWarningForm({ ...warningForm, classId: event.target.value })}>
-                  <option value="">Chọn lớp</option>
-                  {eligibleClasses.map((classItem) => <option key={classItem._id} value={classItem._id}>{classItem.name}</option>)}
-                </select>
-              </label>
-              <label>Mức vi phạm
-                <select value={warningForm.policyLevel} onChange={(event) => setWarningForm({ ...warningForm, policyLevel: event.target.value })}>
-                  <option value="1">Mức 1 · Nhẹ</option><option value="2">Mức 2 · Trung bình</option><option value="3">Mức 3 · Nghiêm trọng</option>
-                </select>
-              </label>
-              <label>Quy định vi phạm
-                <select value={warningForm.reasonCode} onChange={(event) => setWarningForm({ ...warningForm, reasonCode: event.target.value })}>
-                  {Object.entries(policyReasonLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <label>Mô tả cụ thể / bằng chứng<textarea maxLength="2000" onChange={(event) => setWarningForm({ ...warningForm, details: event.target.value })} required rows="4" value={warningForm.details} /></label>
-              <div className="policy-modal-actions">
-                <button className="btn btn-secondary" onClick={() => setShowWarningForm(false)} type="button">Hủy</button>
-                <button className="btn btn-primary" disabled={savingWarning} type="submit">{savingWarning ? 'Đang gửi...' : 'Gửi cảnh báo'}</button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
     </main>
   );
 };
