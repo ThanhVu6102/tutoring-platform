@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const AdminClassDetail = () => {
   const { id } = useParams();
@@ -8,6 +9,9 @@ const AdminClassDetail = () => {
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const [lockForm, setLockForm] = useState({ reasonCode: 'spam', policyLevel: '1', details: '' });
+  const [lockReviewBusy, setLockReviewBusy] = useState(false);
   const [joinRequests, setJoinRequests] = useState([]);
   const [error, setError] = useState('');
 
@@ -52,19 +56,55 @@ const AdminClassDetail = () => {
   };
 
   const handleStatusChange = async () => {
-    const nextStatus = classData.status === 'inactive' ? 'active' : 'inactive';
-    const action = nextStatus === 'inactive' ? 'khóa' : 'mở khóa';
-    if (!window.confirm(`Bạn có chắc muốn ${action} lớp "${classData.name}"?`)) return;
+    if (classData.status !== 'inactive') {
+      setShowLockDialog(true);
+      return;
+    }
+    if (!window.confirm(`Mở khóa lớp "${classData.name}"?`)) return;
 
     setSavingStatus(true);
     setError('');
     try {
-      const response = await axios.patch(`/api/classes/${id}/status`, { status: nextStatus });
-      setClassData(response.data);
+      const response = await axios.patch(`/api/classes/${id}/status`, { status: 'active' });
+      setClassData(response.data.class);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || `Không thể ${action} lớp học.`);
+      setError(requestError.response?.data?.message || 'Không thể mở khóa lớp học.');
     } finally {
       setSavingStatus(false);
+    }
+  };
+
+  const submitLockNotice = async (event) => {
+    event.preventDefault();
+    setLockReviewBusy(true);
+    setError('');
+    try {
+      const response = await axios.patch(`/api/classes/${id}/lock-notice`, lockForm);
+      setClassData(response.data.class);
+      setShowLockDialog(false);
+      setLockForm({ reasonCode: 'spam', policyLevel: '1', details: '' });
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không thể gửi thông báo vi phạm.');
+    } finally {
+      setLockReviewBusy(false);
+    }
+  };
+
+  const reviewLockNotice = async (decision) => {
+    const action = decision === 'lock' ? 'khóa lớp chính thức' : 'hủy thông báo khóa';
+    if (!window.confirm(`Xác nhận ${action} "${classData.name}"?`)) return;
+    setLockReviewBusy(true);
+    setError('');
+    try {
+      const response = await axios.patch(`/api/classes/${id}/lock-review`, {
+        decision,
+        response: decision === 'lock' ? 'Thông báo khóa đã được xác nhận.' : 'Thông báo khóa đã được hủy sau khi xem xét.',
+      });
+      setClassData(response.data.class);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không thể cập nhật quyết định khóa lớp.');
+    } finally {
+      setLockReviewBusy(false);
     }
   };
 
@@ -79,6 +119,10 @@ const AdminClassDetail = () => {
   }
 
   const isLocked = classData.status === 'inactive';
+  const lockNotice = classData.lockNotice || {};
+  const appealWindowOpen = lockNotice.status === 'pending'
+    && lockNotice.appealDeadline
+    && new Date(lockNotice.appealDeadline) > new Date();
   const students = classData.students || [];
   const createdDate = classData.createdAt
     ? new Date(classData.createdAt).toLocaleDateString('vi-VN')
@@ -95,21 +139,48 @@ const AdminClassDetail = () => {
 
       <section className="admin-detail-heading">
         <div>
-          <span className={`status-indicator ${isLocked ? 'is-locked' : ''}`}>
-            {isLocked ? 'Đã khóa' : 'Đang hoạt động'}
+          <span className={`status-indicator ${isLocked || ['pending', 'appealed'].includes(lockNotice.status) ? 'is-locked' : ''}`}>
+            {isLocked ? 'Đã khóa chính thức' : lockNotice.status === 'appealed' ? 'Đã nhận kháng cáo' : lockNotice.status === 'pending' ? 'Chờ phản hồi 24 giờ' : 'Đang hoạt động'}
           </span>
           <h1>{classData.name}</h1>
           <p>{classData.description || 'Chưa có mô tả cho lớp học này.'}</p>
         </div>
         <button
           className={`admin-status-button ${isLocked ? 'is-unlock' : 'is-lock'}`}
-          disabled={savingStatus}
+          disabled={savingStatus || ['pending', 'appealed'].includes(lockNotice.status)}
           onClick={handleStatusChange}
           type="button"
         >
-          {savingStatus ? 'Đang cập nhật...' : isLocked ? 'Mở khóa lớp' : 'Khóa lớp'}
+          {savingStatus ? 'Đang cập nhật...' : isLocked ? 'Mở khóa lớp' : ['pending', 'appealed'].includes(lockNotice.status) ? 'Đang xử lý thông báo' : 'Khóa lớp'}
         </button>
       </section>
+
+      {lockNotice.status && lockNotice.status !== 'none' && (
+        <section className="lock-notice-panel">
+          <div className="lock-notice-heading">
+            <div>
+              <p className="admin-eyebrow">HỒ SƠ XỬ LÝ VI PHẠM · MỨC {lockNotice.policyLevel || '—'}</p>
+              <h2>{lockNotice.status === 'pending' ? 'Thông báo khóa lớp đã gửi' : lockNotice.status === 'appealed' ? 'Giáo viên đã kháng cáo' : lockNotice.status === 'locked' ? 'Lớp đã bị khóa chính thức' : 'Thông báo khóa đã được hủy'}</h2>
+            </div>
+            <span className={`status-indicator ${lockNotice.status === 'dismissed' ? '' : 'is-locked'}`}>{lockStatusLabels[lockNotice.status] || lockNotice.status}</span>
+          </div>
+          <dl className="admin-info-list">
+            <div><dt>Lý do</dt><dd>{policyReasonLabels[lockNotice.reasonCode] || 'Chưa ghi'}</dd></div>
+            <div><dt>Chi tiết</dt><dd>{lockNotice.details || '—'}</dd></div>
+            <div><dt>Thông báo lúc</dt><dd>{lockNotice.issuedAt ? new Date(lockNotice.issuedAt).toLocaleString('vi-VN') : '—'}</dd></div>
+            <div><dt>Hạn kháng cáo</dt><dd>{lockNotice.appealDeadline ? new Date(lockNotice.appealDeadline).toLocaleString('vi-VN') : '—'}</dd></div>
+            {lockNotice.appealMessage && <div><dt>Nội dung kháng cáo</dt><dd>{lockNotice.appealMessage}</dd></div>}
+            {lockNotice.adminResponse && <div><dt>Phản hồi Admin</dt><dd>{lockNotice.adminResponse}</dd></div>}
+          </dl>
+          {['pending', 'appealed'].includes(lockNotice.status) && (
+            <div className="lock-review-actions">
+              <button className="btn btn-secondary" disabled={lockReviewBusy || appealWindowOpen} onClick={() => reviewLockNotice('dismiss')} type="button">Hủy thông báo</button>
+              <button className="btn btn-danger" disabled={lockReviewBusy || appealWindowOpen} onClick={() => reviewLockNotice('lock')} type="button">Khóa lớp chính thức</button>
+              {appealWindowOpen && <p>Chờ hết hạn 24 giờ hoặc nhận kháng cáo trước khi chốt quyết định.</p>}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="admin-detail-stats" aria-label="Sĩ số lớp">
         <div><span>Học sinh</span><strong>{students.length}</strong></div>
@@ -171,6 +242,47 @@ const AdminClassDetail = () => {
           )}
         </section>
       </div>
+
+      {showLockDialog && (
+        <div className="policy-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setShowLockDialog(false);
+        }}>
+          <section aria-labelledby="lock-dialog-title" aria-modal="true" className="policy-modal" role="dialog">
+            <button aria-label="Đóng" className="policy-modal-close" onClick={() => setShowLockDialog(false)} type="button">×</button>
+            <p className="admin-eyebrow">THÔNG BÁO TRƯỚC KHI KHÓA</p>
+            <h2 id="lock-dialog-title">Thông báo vi phạm lớp học</h2>
+            <p>Giáo viên sẽ nhận thông báo và có 24 giờ để gửi kháng cáo. Lớp chưa bị khóa trong thời gian này.</p>
+            <form className="lock-notice-form" onSubmit={submitLockNotice}>
+              <label>Mức độ vi phạm
+                <select value={lockForm.policyLevel} onChange={(event) => setLockForm({ ...lockForm, policyLevel: event.target.value })}>
+                  <option value="1">Mức 1 · Nhẹ</option>
+                  <option value="2">Mức 2 · Trung bình</option>
+                  <option value="3">Mức 3 · Nghiêm trọng</option>
+                </select>
+              </label>
+              <label>Chính sách vi phạm
+                <select value={lockForm.reasonCode} onChange={(event) => setLockForm({ ...lockForm, reasonCode: event.target.value })}>
+                  <option value="spam">Spam / quảng cáo / liên kết độc hại</option>
+                  <option value="class_disruption">Gây gián đoạn lớp học</option>
+                  <option value="abusive_content">Ngôn từ xúc phạm / nội dung không phù hợp</option>
+                  <option value="account_sharing">Chia sẻ tài khoản</option>
+                  <option value="copyright">Vi phạm bản quyền</option>
+                  <option value="academic_fraud">Gian lận học tập hoặc hệ thống</option>
+                  <option value="privacy_breach">Vi phạm quyền riêng tư</option>
+                  <option value="financial_misconduct">Vi phạm minh bạch tài chính</option>
+                  <option value="illegal_content">Nội dung trái pháp luật</option>
+                  <option value="other">Khác</option>
+                </select>
+              </label>
+              <label>Mô tả cụ thể / bằng chứng<textarea maxLength="2000" onChange={(event) => setLockForm({ ...lockForm, details: event.target.value })} required rows="4" value={lockForm.details} /></label>
+              <div className="policy-modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowLockDialog(false)} type="button">Hủy</button>
+                <button className="btn btn-danger" disabled={lockReviewBusy} type="submit">{lockReviewBusy ? 'Đang gửi...' : 'Gửi thông báo 24 giờ'}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 };

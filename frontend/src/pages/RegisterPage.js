@@ -31,6 +31,8 @@ const RegisterPage = ({ onLogin }) => {
   const [error, setError] = useState('');
   // State loading: chống bấm nút 2 lần khi đang chờ API.
   const [loading, setLoading] = useState(false);
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const policyRead = sessionStorage.getItem('policy-read-version') === '2026-10-19';
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
@@ -58,6 +60,10 @@ const RegisterPage = ({ onLogin }) => {
       setError('Mật khẩu không trùng khớp');
       return; // dừng, không gọi API.
     }
+    if (!acceptedPolicies || !policyRead) {
+      setError('Hãy đọc chính sách và xác nhận đồng ý trước khi đăng ký.');
+      return;
+    }
 
     setLoading(true); // B3a: bật loading trước khi gọi API.
 
@@ -70,6 +76,7 @@ const RegisterPage = ({ onLogin }) => {
         email: formData.email,
         password: formData.password,
         role: formData.role,
+        acceptedPolicies: true,
       });
 
       // B4a: Lưu _id user mới.
@@ -184,11 +191,24 @@ const RegisterPage = ({ onLogin }) => {
             />
           </div>
 
+          <div className="policy-consent">
+            <label className="policy-consent-label">
+              <input
+                type="checkbox"
+                checked={acceptedPolicies}
+                disabled={!policyRead}
+                onChange={(event) => setAcceptedPolicies(event.target.checked)}
+              />
+              <span>Tôi đã đọc và đồng ý với <Link to="/policies" state={{ returnToRegister: true }}>Chính sách &amp; Quy định ứng xử</Link>.</span>
+            </label>
+            {!policyRead && <p>Vui lòng mở trang chính sách và chọn “Tôi đã đọc” trước.</p>}
+          </div>
+
           {/* Nút đăng ký. */}
           <button
             type="submit"
             className="btn btn-primary btn-block"
-            disabled={loading}
+            disabled={loading || !acceptedPolicies || !policyRead}
           >
             {loading ? 'Đang đăng ký...' : 'Đăng Ký'}
           </button>

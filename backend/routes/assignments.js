@@ -114,4 +114,19 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
   }
 });
 
+router.delete('/:id', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
+  try {
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+    if (req.userRole !== 'admin' && assignment.teacher.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await Assignment.deleteOne({ _id: assignment._id });
+    res.json({ message: 'Assignment deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

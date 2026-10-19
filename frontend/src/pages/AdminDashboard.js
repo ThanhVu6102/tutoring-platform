@@ -37,7 +37,6 @@ const AdminDashboard = () => {
 
   const activeCount = classes.filter((classItem) => classItem.status !== 'inactive').length;
   const lockedCount = classes.length - activeCount;
-
   return (
     <main className="admin-page">
       <header className="admin-heading">
@@ -54,6 +53,10 @@ const AdminDashboard = () => {
       </header>
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
+      <section className="admin-archive-shortcut">
+        <div><h2>Hồ sơ vi phạm</h2><p>Cảnh báo học sinh, kháng cáo, chế tài tài khoản và các lớp có vi phạm được lưu trữ riêng.</p></div>
+        <button className="btn btn-primary" onClick={() => navigate('/admin/moderation')} type="button">Mở hồ sơ vi phạm</button>
+      </section>
       {loading ? (
         <p className="admin-state">Đang tải danh sách lớp...</p>
       ) : classes.length === 0 ? (
@@ -77,8 +80,14 @@ const AdminDashboard = () => {
                     onClick={() => navigate(`/admin/classes/${classItem._id}`)}
                     type="button"
                   >
-                    <span className={`status-indicator ${classItem.status === 'inactive' ? 'is-locked' : ''}`}>
-                      {classItem.status === 'inactive' ? 'Đã khóa' : 'Đang mở'}
+                      <span className={`status-indicator ${classItem.status === 'inactive' || ['pending', 'appealed'].includes(classItem.lockNotice?.status) ? 'is-locked' : ''}`}>
+                        {classItem.status === 'inactive'
+                          ? 'Đã khóa'
+                          : classItem.lockNotice?.status === 'appealed'
+                            ? 'Có kháng cáo'
+                            : classItem.lockNotice?.status === 'pending'
+                              ? 'Chờ 24 giờ'
+                              : 'Đang mở'}
                     </span>
                     <strong>{classItem.name}</strong>
                     <span className="admin-class-meta">

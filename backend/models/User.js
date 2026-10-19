@@ -37,6 +37,21 @@ const userSchema = new mongoose.Schema({
     enum: ['teacher', 'student', 'admin'],
     required: true,
   },
+  policiesAcceptedAt: Date,
+  policyVersion: String,
+  disciplinarySanctions: {
+    type: Number,
+    default: 0,
+  },
+  classRemovalIncidents: {
+    type: Number,
+    default: 0,
+  },
+  suspendedUntil: Date,
+  permanentlyBanned: {
+    type: Boolean,
+    default: false,
+  },
   // Link ảnh đại diện. Mặc định null (chưa có ảnh).
   avatar: {
     type: String,

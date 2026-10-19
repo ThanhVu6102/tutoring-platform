@@ -6,16 +6,30 @@ const QuizSubmission = require('../models/QuizSubmission');
 
 const router = express.Router();
 
+const quizForStudent = (quiz) => {
+  const data = quiz.toObject();
+  data.questions = data.questions.map(({ correctAnswer, ...question }) => question);
+  return data;
+};
+
 // Create quiz (teacher only)
 router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
-    const { title, description, classId, questions, timeLimit, dueDate, allowReview, shuffleQuestions } = req.body;
+    const { title, description, classId, questions, promptImage, timeLimit, dueDate, allowReview, shuffleQuestions } = req.body;
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ message: 'A quiz needs at least one question' });
+    }
+    if (promptImage && (!promptImage.startsWith('data:image/') || promptImage.length > 6_000_000)) {
+      return res.status(400).json({ message: 'Exam image must be an image smaller than 4 MB' });
+    }
 
     const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
 
     const quiz = new Quiz({
       title,
       description,
+      promptImage,
       class: classId,
       teacher: req.userId,
       questions,
@@ -36,8 +50,10 @@ router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (re
 // Get quizzes for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
-    const quizzes = await Quiz.find({ class: req.params.classId });
-    res.json(quizzes);
+    const filter = { class: req.params.classId };
+    if (req.userRole === 'student') filter.status = 'published';
+    const quizzes = await Quiz.find(filter);
+    res.json(req.userRole === 'student' ? quizzes.map(quizForStudent) : quizzes);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -52,7 +68,11 @@ router.get('/:id', authMiddleware, classAvailability(Quiz), async (req, res) => 
       return res.status(404).json({ message: 'Quiz not found' });
     }
 
-    res.json(quiz);
+    if (req.userRole === 'student' && quiz.status !== 'published') {
+      return res.status(404).json({ message: 'Quiz not found' });
+    }
+
+    res.json(req.userRole === 'student' ? quizForStudent(quiz) : quiz);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -66,6 +86,15 @@ router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, 
 
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
+    }
+    if (req.userRole !== 'student') {
+      return res.status(403).json({ message: 'Only students can submit a quiz' });
+    }
+    if (quiz.status !== 'published') {
+      return res.status(403).json({ message: 'This quiz is not published' });
+    }
+    if (!Array.isArray(answers)) {
+      return res.status(400).json({ message: 'Answers must be an array' });
     }
 
     let totalScore = 0;
@@ -96,7 +125,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, 
     const submission = new QuizSubmission({
       quiz: req.params.id,
       student: req.userId,
-      class: classId,
+      class: quiz.class,
       answers: submittedAnswers,
       totalScore,
       maxScore: quiz.totalPoints,
@@ -164,10 +193,32 @@ router.put('/:id/publish', authMiddleware, classAvailability(Quiz), teacherOnly,
       return res.status(403).json({ message: 'Not authorized' });
     }
 
+    if (!quiz.questions.length) {
+      return res.status(400).json({ message: 'Add at least one question before publishing' });
+    }
+
     quiz.status = 'published';
     await quiz.save();
 
     res.json({ message: 'Quiz published' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/:id', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
+  try {
+    const quiz = await Quiz.findById(req.params.id);
+    if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+    if (req.userRole !== 'admin' && quiz.teacher.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await Promise.all([
+      Quiz.deleteOne({ _id: quiz._id }),
+      QuizSubmission.deleteMany({ quiz: quiz._id }),
+    ]);
+    res.json({ message: 'Quiz and submissions deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

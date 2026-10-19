@@ -53,6 +53,10 @@ const quizSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  promptImage: {
+    type: String,
+    default: '',
+  },
   // Lớp áp dụng: ObjectId tham chiếu Class. Bắt buộc.
   class: {
     type: mongoose.Schema.Types.ObjectId,

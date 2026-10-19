@@ -90,7 +90,7 @@ router.put('/:id', authMiddleware, classAvailability(Announcement), teacherOnly,
       return res.status(404).json({ message: 'Announcement not found' });
     }
 
-    if (announcement.teacher.toString() !== req.userId) {
+    if (req.userRole !== 'admin' && announcement.teacher.toString() !== req.userId) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

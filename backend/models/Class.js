@@ -10,6 +10,23 @@
 // Nạp mongoose để định nghĩa schema/model MongoDB.
 const mongoose = require('mongoose');
 
+const lockNoticeSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['none', 'pending', 'appealed', 'locked', 'dismissed'],
+    default: 'none',
+  },
+  reasonCode: String,
+  policyLevel: { type: Number, min: 1, max: 3 },
+  details: String,
+  issuedAt: Date,
+  appealDeadline: Date,
+  appealMessage: String,
+  appealedAt: Date,
+  resolvedAt: Date,
+  adminResponse: String,
+}, { _id: false });
+
 // Tạo schema cho 1 lớp học.
 const classSchema = new mongoose.Schema({
   // Tên lớp. Bắt buộc (ví dụ: "Toán 12 - Ôn thi THPT").
@@ -34,6 +51,22 @@ const classSchema = new mongoose.Schema({
   students: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+  }],
+  joinCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+  },
+  joinRequests: [{
+    student: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
   }],
   // Môn học. Bắt buộc (ví dụ: "Toán", "Lý", "Anh").
   // Dùng để lọc/tìm kiếm ở Dashboard.
@@ -70,6 +103,10 @@ const classSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active',
   },
+  lockNotice: {
+    type: lockNoticeSchema,
+    default: () => ({}),
+  },
   // Ngày tạo lớp. Mặc định hiện tại.
   createdAt: {
     type: Date,
@@ -81,6 +118,8 @@ const classSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+classSchema.index({ joinCode: 1 }, { unique: true, sparse: true });
 
 // Xuất model 'Class' để routes dùng: tạo lớp, ghi danh, phân quyền xem lớp...
 module.exports = mongoose.model('Class', classSchema);

@@ -5,10 +5,36 @@ const Video = require('../models/Video');
 
 const router = express.Router();
 
+const getYoutubeThumbnail = (videoUrl) => {
+  try {
+    const parsedUrl = new URL(videoUrl);
+    const host = parsedUrl.hostname.replace(/^www\./, '').toLowerCase();
+    let videoId = '';
+    if (host === 'youtu.be') videoId = parsedUrl.pathname.slice(1).split('/')[0];
+    if (['youtube.com', 'm.youtube.com', 'youtube-nocookie.com'].includes(host)) {
+      videoId = parsedUrl.searchParams.get('v') || parsedUrl.pathname.split('/').filter(Boolean).pop();
+    }
+    return /^[a-zA-Z0-9_-]{11}$/.test(videoId)
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      : null;
+  } catch (_) {
+    return null;
+  }
+};
+
 // Upload video (teacher only)
 router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, videoUrl, duration, thumbnail } = req.body;
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(videoUrl);
+    } catch (_) {
+      return res.status(400).json({ message: 'Video URL is invalid' });
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ message: 'Video URL must use HTTP or HTTPS' });
+    }
 
     const video = new Video({
       title,
@@ -17,7 +43,7 @@ router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (r
       teacher: req.userId,
       videoUrl,
       duration,
-      thumbnail,
+      thumbnail: getYoutubeThumbnail(videoUrl) || thumbnail || null,
     });
 
     await video.save();
@@ -94,7 +120,7 @@ router.delete('/:id', authMiddleware, classAvailability(Video), teacherOnly, asy
       return res.status(404).json({ message: 'Video not found' });
     }
 
-    if (video.teacher.toString() !== req.userId) {
+    if (req.userRole !== 'admin' && video.teacher.toString() !== req.userId) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

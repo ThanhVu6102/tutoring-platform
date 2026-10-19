@@ -12,14 +12,25 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Component Navbar nhận 2 props từ App.js.
-const Navbar = ({ userRole, onLogout }) => {
+const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
   // Hàm điều hướng (ví dụ navigate('/dashboard')).
   const navigate = useNavigate();
+  const roleLogo = userRole === 'teacher'
+    ? '/GiaoVienLogo.png'
+    : userRole === 'student'
+      ? '/HocSinhLogo.png'
+      : '/logo1.png';
+  const roleLogoAlt = userRole === 'teacher'
+    ? 'EKLASSES Giáo viên'
+    : userRole === 'student'
+      ? 'EKLASSES Học sinh'
+      : 'EKLASSES';
 
   // HÀM: handleLogout - xử lý khi bấm "Đăng xuất".
   // - B1: Gọi onLogout() của App để xóa token/userRole khỏi storage + state.
   // - B2: Chuyển về trang /login.
   const handleLogout = () => {
+    if (!window.confirm('Bạn có chắc chắn muốn đăng xuất phiên này không ?')) return;
     onLogout(); // xóa phiên đăng nhập.
     navigate('/login'); // đá về trang đăng nhập.
   };
@@ -29,37 +40,44 @@ const Navbar = ({ userRole, onLogout }) => {
     <nav className="navbar">
       {/* Cụm icon trang trí giữa navbar (chỉ để đẹp, aria-hidden để bỏ qua đọc màn hình). */}
       <div className="nav-icon-group" aria-hidden="true">
-        {/* Icon trái. */}
-        <div className="nav-decor nav-decor-left">
-          <img src="/icon1.png" alt="" />
-        </div>
         {/* Icon giữa (to hơn). */}
         <div className="nav-decor nav-decor-center">
-          <img src="/icon3.jpg" alt="" />
-        </div>
-        {/* Icon phải. */}
-        <div className="nav-decor nav-decor-right">
-          <img src="/icon2.png" alt="" />
+          <img src="/centerlogo.png" alt="" />
         </div>
       </div>
 
       {/* Cụm trái: logo + nhãn vai trò. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
         {/* Logo EKLASSES. */}
-        <img src="/logo1.png" alt="EKLASSES" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+        <img
+          src={isAuthenticated ? roleLogo : '/logo1.png'}
+          alt={isAuthenticated ? roleLogoAlt : 'EKLASSES'}
+          className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'}
+        />
         {/* Hiện tên vai trò theo userRole: admin -> Quản trị viên, teacher -> Giáo viên, còn lại -> Học sinh. */}
-        <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>
-          {userRole === 'admin' ? 'Quản trị viên' : userRole === 'teacher' ? 'Giáo viên' : 'Học sinh'}
-        </p>
+        {(!isAuthenticated || userRole === 'admin') && (
+          <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+            {isAuthenticated ? 'ADMIN' : ''}
+          </p>
+        )}
       </div>
       {/* Cụm phải: 2 nút điều hướng. */}
       <div className="navbar-user" style={{ position: 'relative', zIndex: 1 }}>
-        {/* Nút về Dashboard. */}
-        <button onClick={() => navigate(userRole === 'admin' ? '/admin' : '/dashboard')}>
-          {userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}
-        </button>
-        {/* Nút đăng xuất, gọi handleLogout ở trên. */}
-        <button onClick={handleLogout}>Đăng xuất</button>
+        <button onClick={() => navigate('/policies')}>Chính sách</button>
+        {isAuthenticated ? (
+          <>
+            <button onClick={() => navigate(userRole === 'admin' ? '/admin' : '/dashboard')}>
+              {userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}
+            </button>
+            {userRole === 'admin' && <button onClick={() => navigate('/admin/moderation')}>Hồ sơ vi phạm</button>}
+            <button onClick={handleLogout}>Đăng xuất</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => navigate('/login')}>Đăng nhập</button>
+            <button onClick={() => navigate('/register')}>Đăng ký</button>
+          </>
+        )}
       </div>
     </nav>
   );

@@ -12,6 +12,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 // Nạp model User để truy vấn MongoDB (tìm user, tạo user mới).
 const User = require('../models/User');
+const StudentWarning = require('../models/StudentWarning');
 // Nạp cấu hình admin cố định (email/password mặc định của Super Admin).
 const DEFAULT_ADMIN = require('../config/defaultAdmin');
 // Nạp 3 hàm tiện ích Super Admin: check email, check password, (ensure dự phòng).
@@ -23,6 +24,7 @@ const {
 
 // Tạo router riêng cho nhóm API /api/auth.
 const router = express.Router();
+const POLICY_VERSION = '2026-10-19';
 
 // ----------------------------------------------------------------------------
 // API: POST /api/auth/register
@@ -38,11 +40,14 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     // B1: Bóc dữ liệu người dùng gửi lên từ form đăng ký.
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, acceptedPolicies } = req.body;
 
     // B2: Ràng buộc bắt buộc: phải có đủ họ tên + email + mật khẩu.
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Vui lòng nhập đầy đủ họ tên, email và mật khẩu' });
+    }
+    if (acceptedPolicies !== true) {
+      return res.status(400).json({ message: 'Bạn cần đọc và đồng ý với chính sách trước khi đăng ký' });
     }
 
     // B3: Bảo vệ Super Admin: không cho ai đăng ký chiếm email admin gốc.
@@ -64,6 +69,8 @@ router.post('/register', async (req, res) => {
       email,
       password, // mật khẩu thô, sẽ được hash trong hook pre-save của model.
       role: ['teacher', 'student'].includes(role) ? role : 'student',
+      policiesAcceptedAt: new Date(),
+      policyVersion: POLICY_VERSION,
     });
 
     // B6a: Lưu user mới xuống MongoDB.
@@ -252,6 +259,36 @@ router.post('/login', async (req, res) => {
     // Sai mật khẩu -> báo 401.
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
+    }
+
+    if (user.permanentlyBanned) {
+      const latestWarning = await StudentWarning.findOne({ student: user._id, violationCounted: true })
+        .populate('class', 'name')
+        .sort({ resolvedAt: -1 });
+      return res.status(403).json({
+        message: 'Tài khoản đã bị khóa vĩnh viễn do tái phạm chính sách.',
+        restriction: latestWarning ? {
+          className: latestWarning.class?.name,
+          reasonCode: latestWarning.reasonCode,
+          details: latestWarning.details,
+          sanction: 'Khóa tài khoản vĩnh viễn',
+        } : undefined,
+      });
+    }
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      const latestWarning = await StudentWarning.findOne({ student: user._id, accountSanction: { $ne: 'none' } })
+        .populate('class', 'name')
+        .sort({ resolvedAt: -1 });
+      return res.status(423).json({
+        message: 'Tài khoản đang bị đình chỉ.',
+        suspendedUntil: user.suspendedUntil,
+        restriction: latestWarning ? {
+          className: latestWarning.class?.name,
+          reasonCode: latestWarning.reasonCode,
+          details: latestWarning.details,
+          sanction: latestWarning.accountSanction === 'suspension_7_days' ? 'Đình chỉ 7 ngày' : 'Đình chỉ 1 tháng',
+        } : undefined,
+      });
     }
 
     // Đúng cả hai -> ký JWT với role thật trong DB.

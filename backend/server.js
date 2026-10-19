@@ -25,7 +25,7 @@ const app = express();
 // Cho phép mọi domain gọi API (có thể siết lại origin khi lên production).
 app.use(cors());
 // Tự parse body JSON (frontend gửi axios.post(url, {email, password})).
-app.use(express.json());
+app.use(express.json({ limit: '7mb' }));
 // Cho phép parse form urlencoded dung lượng lớn (tối đa 50mb cho nội dung học liệu).
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -121,6 +121,7 @@ app.get('/api/health', (req, res) => {
 // Mỗi dòng gắn 1 module router vào tiền tố URL tương ứng.
 app.use('/api/auth', require('./routes/auth')); // đăng ký/đăng nhập.
 app.use('/api/users', require('./routes/users')); // profile + quản trị admin.
+app.use('/api/student-warnings', require('./routes/studentWarnings'));
 app.use('/api/classes', require('./routes/classes')); // lớp học.
 app.use('/api/videos', require('./routes/videos')); // video bài giảng.
 app.use('/api/documents', require('./routes/documents')); // tài liệu.
@@ -153,7 +154,10 @@ app.get('/api/docs', (req, res) => {
         update: 'PUT /api/classes/:id', // sửa lớp.
         delete: 'DELETE /api/classes/:id', // xóa lớp.
         enroll: 'POST /api/classes/:id/enroll', // thêm học sinh bằng email.
-        getStudents: 'GET /api/classes/:id/students' // danh sách học sinh.
+        getStudents: 'GET /api/classes/:id/students', // danh sách học sinh.
+        lookupByCode: 'GET /api/classes/lookup/:joinCode',
+        requestToJoin: 'POST /api/classes/join/:joinCode/request',
+        reviewJoinRequest: 'PATCH /api/classes/:id/join-requests/:studentId'
       },
       quizzes: {
         create: 'POST /api/quizzes', // tạo bài kiểm tra.

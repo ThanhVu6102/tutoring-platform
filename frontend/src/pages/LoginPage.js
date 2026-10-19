@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // Nạp axios để gọi API backend.
 import axios from 'axios';
+import { policyReasonLabels } from '../config/policyLabels';
 
 // Component trang đăng nhập.
 const LoginPage = ({ onLogin }) => {
@@ -23,6 +24,7 @@ const LoginPage = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   // State error: thông báo lỗi hiện trong hộp đỏ (rỗng = không hiện).
   const [error, setError] = useState('');
+  const [restrictionNotice, setRestrictionNotice] = useState(null);
   // State loading: true khi đang chờ API (để disable nút, chống bấm 2 lần).
   const [loading, setLoading] = useState(false);
   // Hàm chuyển trang.
@@ -38,6 +40,7 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault(); // B1a: chặn trình duyệt tải lại trang khi submit form.
     setError(''); // B1b: xóa lỗi cũ.
+    setRestrictionNotice(null);
     setLoading(true); // B1c: bật trạng thái đang tải.
 
     try {
@@ -64,6 +67,9 @@ const LoginPage = ({ onLogin }) => {
       } else {
         // B4c: Có response = server trả lỗi (401 sai MK...), hiện message backend gửi về.
         setError(err.response?.data?.message || `Lỗi đăng nhập (${err.response?.status})`);
+        setRestrictionNotice(err.response?.data?.restriction
+          ? { ...err.response.data.restriction, suspendedUntil: err.response.data.suspendedUntil }
+          : null);
       }
     } finally {
       // B5: Dù thành công hay lỗi cũng tắt loading để bấm lại được.
@@ -93,6 +99,16 @@ const LoginPage = ({ onLogin }) => {
             marginBottom: '1rem'
           }}>
             {error}
+          </div>
+        )}
+        {restrictionNotice && (
+          <div className="login-restriction-notice" role="alert">
+            <strong>{restrictionNotice.sanction}</strong>
+            {restrictionNotice.className && <p>Lớp: {restrictionNotice.className}</p>}
+            {restrictionNotice.reasonCode && <p>Quy định: {policyReasonLabels[restrictionNotice.reasonCode] || restrictionNotice.reasonCode}</p>}
+            {restrictionNotice.details && <p>Chi tiết: {restrictionNotice.details}</p>}
+            {restrictionNotice.suspendedUntil && <p>Thời hạn đến: {new Date(restrictionNotice.suspendedUntil).toLocaleString('vi-VN')}</p>}
+            <p>Nếu cần trao đổi về quyết định, liên hệ <a href="mailto:admin@eklasses.vn">admin@eklasses.vn</a>.</p>
           </div>
         )}
 

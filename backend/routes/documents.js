@@ -9,6 +9,15 @@ const router = express.Router();
 router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, fileUrl, fileType, fileSize } = req.body;
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(fileUrl);
+    } catch (_) {
+      return res.status(400).json({ message: 'Document URL is invalid' });
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return res.status(400).json({ message: 'Document URL must use HTTP or HTTPS' });
+    }
 
     const document = new Document({
       title,
@@ -79,7 +88,7 @@ router.delete('/:id', authMiddleware, classAvailability(Document), teacherOnly, 
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    if (document.teacher.toString() !== req.userId) {
+    if (req.userRole !== 'admin' && document.teacher.toString() !== req.userId) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

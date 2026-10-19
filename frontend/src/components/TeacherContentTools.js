@@ -203,7 +203,7 @@ const TeacherContentTools = ({ classId, onCreated }) => {
     <section className="teacher-tools">
       <div className="teacher-tools-heading">
         <div>
-          <h3>Học liệu lớp học</h3>
+          <h3>Thao tác cho lớp học</h3>
           <p>Đăng video, tài liệu hoặc tạo bài kiểm tra.</p>
         </div>
         <div className="teacher-tools-actions">
