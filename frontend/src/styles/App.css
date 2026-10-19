@@ -615,3 +615,349 @@ input:focus, select:focus, textarea:focus {
 .hidden {
   display: none;
 }
+
+.admin-page {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 68px);
+  padding: 2.5rem clamp(1rem, 4vw, 4rem);
+  background: #f3f6f4;
+  color: #172622;
+}
+
+.admin-heading,
+.admin-detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #cbd6d1;
+}
+
+.admin-eyebrow {
+  margin-bottom: 0.65rem;
+  color: #447465;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.admin-heading h1,
+.admin-detail-heading h1 {
+  margin-bottom: 0.55rem;
+  color: #172622;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.admin-intro,
+.admin-detail-heading p {
+  max-width: 620px;
+  color: #5c6d67;
+  line-height: 1.6;
+}
+
+.admin-summary,
+.admin-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 1px;
+  min-width: min(390px, 100%);
+  background: #cbd6d1;
+  border: 1px solid #cbd6d1;
+}
+
+.admin-summary div,
+.admin-detail-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  background: #fff;
+}
+
+.admin-summary span,
+.admin-detail-stats span {
+  color: #60716a;
+  font-size: 0.78rem;
+}
+
+.admin-summary strong,
+.admin-detail-stats strong {
+  color: #234d40;
+  font-size: 1.5rem;
+}
+
+.teacher-groups {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.teacher-group-heading,
+.admin-student-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.teacher-group-heading h2,
+.admin-detail-section h2 {
+  color: #234d40;
+  font-size: 1.15rem;
+}
+
+.teacher-group-heading p,
+.teacher-group-heading > span,
+.admin-student-heading > span {
+  margin-top: 0.3rem;
+  color: #71817b;
+  font-size: 0.85rem;
+}
+
+.admin-class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 0.85rem;
+}
+
+.admin-class-tile {
+  display: flex;
+  min-height: 174px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #d4ded9;
+  border-top: 3px solid #6f9c89;
+  border-radius: 4px;
+  background: #fff;
+  color: #172622;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-class-tile:hover,
+.admin-class-tile:focus-visible {
+  transform: translateY(-2px);
+  border-color: #6f9c89;
+  box-shadow: 0 8px 18px rgba(35, 77, 64, 0.1);
+  outline: none;
+}
+
+.admin-class-tile > strong {
+  font-size: 1.08rem;
+}
+
+.admin-class-meta {
+  color: #60716a;
+  font-size: 0.88rem;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.25rem 0.5rem;
+  background: #e4f1e9;
+  color: #286044;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-indicator.is-locked {
+  background: #fbe9e5;
+  color: #a23b2c;
+}
+
+.admin-class-footer {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.7rem;
+  border-top: 1px solid #e5ebe8;
+  color: #60716a;
+  font-size: 0.8rem;
+}
+
+.admin-class-footer b {
+  color: #286044;
+}
+
+.admin-state {
+  padding: 1.5rem 0;
+  color: #60716a;
+}
+
+.admin-alert {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid #b54535;
+  background: #fff0ed;
+  color: #8a3025;
+}
+
+.admin-back {
+  margin-bottom: 1.5rem;
+  padding: 0.4rem 0;
+  border: 0;
+  background: transparent;
+  color: #286044;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.admin-detail-heading {
+  align-items: center;
+}
+
+.admin-detail-heading .status-indicator {
+  margin-bottom: 0.7rem;
+}
+
+.admin-status-button {
+  min-width: 150px;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 3px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.admin-status-button.is-lock {
+  background: #a23b2c;
+}
+
+.admin-status-button.is-unlock {
+  background: #286044;
+}
+
+.admin-status-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.admin-detail-stats {
+  margin: 1.5rem 0;
+}
+
+.admin-detail-columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+}
+
+.admin-detail-section {
+  min-width: 0;
+  padding: 1.2rem;
+  border: 1px solid #d4ded9;
+  background: #fff;
+}
+
+.admin-detail-section > header {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #e5ebe8;
+}
+
+.admin-info-list > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.admin-info-list dt {
+  color: #71817b;
+  font-size: 0.85rem;
+}
+
+.admin-info-list dd {
+  overflow-wrap: anywhere;
+  color: #263a33;
+  font-weight: 600;
+}
+
+.admin-student-list {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.admin-student-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.student-number {
+  color: #82928b;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-student-row div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admin-student-row strong {
+  color: #263a33;
+}
+
+.admin-student-row div span {
+  overflow-wrap: anywhere;
+  color: #71817b;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 760px) {
+  .admin-heading,
+  .admin-detail-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-summary {
+    width: 100%;
+  }
+
+  .admin-detail-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-detail-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-status-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-summary div,
+  .admin-detail-stats div {
+    padding: 0.75rem 0.6rem;
+  }
+
+  .admin-summary span,
+  .admin-detail-stats span {
+    font-size: 0.7rem;
+  }
+
+  .admin-summary strong,
+  .admin-detail-stats strong {
+    font-size: 1.25rem;
+  }
+}

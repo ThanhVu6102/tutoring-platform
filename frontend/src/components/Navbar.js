@@ -55,7 +55,9 @@ const Navbar = ({ userRole, onLogout }) => {
       {/* Cụm phải: 2 nút điều hướng. */}
       <div className="navbar-user" style={{ position: 'relative', zIndex: 1 }}>
         {/* Nút về Dashboard. */}
-        <button onClick={() => navigate('/dashboard')}>Trang chủ</button>
+        <button onClick={() => navigate(userRole === 'admin' ? '/admin' : '/dashboard')}>
+          {userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}
+        </button>
         {/* Nút đăng xuất, gọi handleLogout ở trên. */}
         <button onClick={handleLogout}>Đăng xuất</button>
       </div>

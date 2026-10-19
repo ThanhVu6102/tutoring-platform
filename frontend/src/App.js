@@ -20,6 +20,8 @@ import './config/api';
 import LoginPage from './pages/LoginPage'; // trang đăng nhập /login.
 import RegisterPage from './pages/RegisterPage'; // trang đăng ký /register.
 import Dashboard from './pages/Dashboard'; // trang tổng quan lớp học /dashboard.
+import AdminDashboard from './pages/AdminDashboard';
+import AdminClassDetail from './pages/AdminClassDetail';
 import ClassDetail from './pages/ClassDetail'; // trang chi tiết 1 lớp /class/:id.
 import QuizTaking from './pages/QuizTaking'; // trang làm bài kiểm tra /quiz/:quizId/take.
 
@@ -105,13 +107,15 @@ const App = () => {
           {isAuthenticated ? (
             <>
               {/* Dashboard: truyền userRole để hiện "Tất cả lớp / Lớp của tôi / Lớp đã tham gia". */}
-              <Route path="/dashboard" element={<Dashboard userRole={userRole} />} />
+              <Route path="/admin" element={userRole === 'admin' ? <AdminDashboard /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/admin/classes/:id" element={userRole === 'admin' ? <AdminClassDetail /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={userRole === 'admin' ? <Navigate to="/admin" replace /> : <Dashboard userRole={userRole} />} />
               {/* Chi tiết lớp: :id là _id lớp trên URL. */}
               <Route path="/class/:id" element={<ClassDetail />} />
               {/* Làm bài quiz: :quizId là _id đề thi. */}
               <Route path="/quiz/:quizId/take" element={<QuizTaking />} />
               {/* Vào / thì tự đá sang /dashboard. */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to={userRole === 'admin' ? '/admin' : '/dashboard'} replace />} />
             </>
           ) : (
             // Nếu CHƯA đăng nhập mà vào bất kỳ đường nào khác thì đá về /login.

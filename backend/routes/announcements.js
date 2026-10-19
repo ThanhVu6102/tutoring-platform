@@ -1,11 +1,12 @@
 const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const classAvailability = require('../middleware/classAvailability');
 const Announcement = require('../models/Announcement');
 
 const router = express.Router();
 
 // Create announcement (teacher only)
-router.post('/', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/', authMiddleware, classAvailability(Announcement), teacherOnly, async (req, res) => {
   try {
     const { title, content, classId, priority } = req.body;
 
@@ -25,7 +26,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Get announcements for a class
-router.get('/class/:classId', authMiddleware, async (req, res) => {
+router.get('/class/:classId', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
     const announcements = await Announcement.find({ class: req.params.classId })
       .populate('teacher')
@@ -38,7 +39,7 @@ router.get('/class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get announcement by ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id).populate('teacher');
 
@@ -53,7 +54,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Mark announcement as read
-router.post('/:id/read', authMiddleware, async (req, res) => {
+router.post('/:id/read', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
 
@@ -80,7 +81,7 @@ router.post('/:id/read', authMiddleware, async (req, res) => {
 });
 
 // Update announcement (teacher only)
-router.put('/:id', authMiddleware, teacherOnly, async (req, res) => {
+router.put('/:id', authMiddleware, classAvailability(Announcement), teacherOnly, async (req, res) => {
   try {
     const { title, content, priority } = req.body;
     const announcement = await Announcement.findById(req.params.id);
@@ -107,7 +108,7 @@ router.put('/:id', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Delete announcement (teacher only)
-router.delete('/:id', authMiddleware, teacherOnly, async (req, res) => {
+router.delete('/:id', authMiddleware, classAvailability(Announcement), teacherOnly, async (req, res) => {
   try {
     const announcement = await Announcement.findById(req.params.id);
 

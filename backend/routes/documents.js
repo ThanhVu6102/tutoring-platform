@@ -1,11 +1,12 @@
 const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const classAvailability = require('../middleware/classAvailability');
 const Document = require('../models/Document');
 
 const router = express.Router();
 
 // Upload document (teacher only)
-router.post('/', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, fileUrl, fileType, fileSize } = req.body;
 
@@ -27,7 +28,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Get documents for a class
-router.get('/class/:classId', authMiddleware, async (req, res) => {
+router.get('/class/:classId', authMiddleware, classAvailability(Document), async (req, res) => {
   try {
     const documents = await Document.find({ class: req.params.classId });
     res.json(documents);
@@ -37,7 +38,7 @@ router.get('/class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get document by ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, classAvailability(Document), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id).populate('teacher');
 
@@ -52,7 +53,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Record download
-router.post('/:id/download', authMiddleware, async (req, res) => {
+router.post('/:id/download', authMiddleware, classAvailability(Document), async (req, res) => {
   try {
     const document = await Document.findById(req.params.id);
 
@@ -70,7 +71,7 @@ router.post('/:id/download', authMiddleware, async (req, res) => {
 });
 
 // Delete document (teacher only)
-router.delete('/:id', authMiddleware, teacherOnly, async (req, res) => {
+router.delete('/:id', authMiddleware, classAvailability(Document), teacherOnly, async (req, res) => {
   try {
     const document = await Document.findById(req.params.id);
 

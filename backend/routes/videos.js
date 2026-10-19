@@ -1,11 +1,12 @@
 const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const classAvailability = require('../middleware/classAvailability');
 const Video = require('../models/Video');
 
 const router = express.Router();
 
 // Upload video (teacher only)
-router.post('/', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, videoUrl, duration, thumbnail } = req.body;
 
@@ -27,7 +28,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Get videos for a class
-router.get('/class/:classId', authMiddleware, async (req, res) => {
+router.get('/class/:classId', authMiddleware, classAvailability(Video), async (req, res) => {
   try {
     const videos = await Video.find({ class: req.params.classId });
     res.json(videos);
@@ -37,7 +38,7 @@ router.get('/class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get video by ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, classAvailability(Video), async (req, res) => {
   try {
     const video = await Video.findById(req.params.id).populate('teacher');
 
@@ -52,7 +53,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Mark video as viewed
-router.post('/:id/view', authMiddleware, async (req, res) => {
+router.post('/:id/view', authMiddleware, classAvailability(Video), async (req, res) => {
   try {
     const { duration } = req.body;
     const video = await Video.findById(req.params.id);
@@ -85,7 +86,7 @@ router.post('/:id/view', authMiddleware, async (req, res) => {
 });
 
 // Delete video (teacher only)
-router.delete('/:id', authMiddleware, teacherOnly, async (req, res) => {
+router.delete('/:id', authMiddleware, classAvailability(Video), teacherOnly, async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
 

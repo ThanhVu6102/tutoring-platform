@@ -1,12 +1,13 @@
 const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const classAvailability = require('../middleware/classAvailability');
 const Quiz = require('../models/Quiz');
 const QuizSubmission = require('../models/QuizSubmission');
 
 const router = express.Router();
 
 // Create quiz (teacher only)
-router.post('/', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, questions, timeLimit, dueDate, allowReview, shuffleQuestions } = req.body;
 
@@ -33,7 +34,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Get quizzes for a class
-router.get('/class/:classId', authMiddleware, async (req, res) => {
+router.get('/class/:classId', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
     const quizzes = await Quiz.find({ class: req.params.classId });
     res.json(quizzes);
@@ -43,7 +44,7 @@ router.get('/class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get quiz by ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id).populate('teacher');
 
@@ -58,7 +59,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Submit quiz answers
-router.post('/:id/submit', authMiddleware, async (req, res) => {
+router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
     const { answers, classId } = req.body;
     const quiz = await Quiz.findById(req.params.id);
@@ -112,7 +113,7 @@ router.post('/:id/submit', authMiddleware, async (req, res) => {
 });
 
 // Get student submissions for a quiz
-router.get('/:id/submissions', authMiddleware, teacherOnly, async (req, res) => {
+router.get('/:id/submissions', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
     const submissions = await QuizSubmission.find({ quiz: req.params.id }).populate('student');
     res.json(submissions);
@@ -122,7 +123,7 @@ router.get('/:id/submissions', authMiddleware, teacherOnly, async (req, res) => 
 });
 
 // Grade essay/short-answer question
-router.post('/:quizId/submission/:submissionId/grade', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/:quizId/submission/:submissionId/grade', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
     const { questionIndex, score, feedback } = req.body;
     const submission = await QuizSubmission.findById(req.params.submissionId);
@@ -151,7 +152,7 @@ router.post('/:quizId/submission/:submissionId/grade', authMiddleware, teacherOn
 });
 
 // Publish quiz (teacher only)
-router.put('/:id/publish', authMiddleware, teacherOnly, async (req, res) => {
+router.put('/:id/publish', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
 

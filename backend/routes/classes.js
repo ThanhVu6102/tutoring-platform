@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const { authMiddleware, teacherOnly, adminOnly } = require('../middleware/auth');
 const Class = require('../models/Class');
 const User = require('../models/User');
 
@@ -33,13 +33,44 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     let classes;
     if (req.userRole === 'admin') {
-      classes = await Class.find({}).populate('students').populate('teacher');
+      classes = await Class.find({})
+        .populate('students', 'name email role')
+        .populate('teacher', 'name email role');
     } else if (req.userRole === 'teacher') {
       classes = await Class.find({ teacher: req.userId }).populate('students');
     } else {
-      classes = await Class.find({ students: req.userId }).populate('teacher');
+      classes = await Class.find({ students: req.userId, status: 'active' }).populate('teacher');
     }
     res.json(classes);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/:id/status', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be active or inactive' });
+    }
+
+    const classData = await Class.findByIdAndUpdate(
+      req.params.id,
+      { status, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    )
+      .populate('teacher', 'name email role')
+      .populate('students', 'name email role');
+
+    if (!classData) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    if (classData.status === 'inactive' && req.userRole !== 'admin') {
+      return res.status(423).json({ message: 'This class is locked by an administrator' });
+    }
+
+    res.json(classData);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -49,8 +80,8 @@ router.get('/', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const classData = await Class.findById(req.params.id)
-      .populate('teacher')
-      .populate('students');
+      .populate('teacher', 'name email role')
+      .populate('students', 'name email role');
 
     if (!classData) {
       return res.status(404).json({ message: 'Class not found' });
@@ -75,7 +106,10 @@ router.put('/:id', authMiddleware, teacherOnly, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this class' });
     }
 
-    Object.assign(classData, req.body);
+    const editableFields = ['name', 'description', 'subject', 'grade', 'capacity', 'schedule', 'thumbnail'];
+    editableFields.forEach((field) => {
+      if (req.body[field] !== undefined) classData[field] = req.body[field];
+    });
     await classData.save();
 
     res.json({ message: 'Class updated successfully', class: classData });
@@ -91,6 +125,10 @@ router.delete('/:id', authMiddleware, teacherOnly, async (req, res) => {
 
     if (!classData) {
       return res.status(404).json({ message: 'Class not found' });
+    }
+
+    if (classData.status === 'inactive') {
+      return res.status(423).json({ message: 'This class is locked by an administrator' });
     }
 
     if (classData.teacher.toString() !== req.userId) {
@@ -150,6 +188,10 @@ router.get('/:id/students', authMiddleware, async (req, res) => {
 
     if (!classData) {
       return res.status(404).json({ message: 'Class not found' });
+    }
+
+    if (classData.status === 'inactive' && req.userRole !== 'admin') {
+      return res.status(423).json({ message: 'This class is locked by an administrator' });
     }
 
     res.json(classData.students);

@@ -54,7 +54,7 @@ const LoginPage = ({ onLogin }) => {
       // B3b: Báo cho App lưu token + role (App sẽ hiện Navbar + cho vào route bảo vệ).
       onLogin(response.data.token, response.data.user.role);
       // B3c: Chuyển vào Dashboard.
-      navigate('/dashboard');
+      navigate(response.data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       // B4a: In lỗi ra console để dev debug.
       console.error('Login error:', err.response || err.message || err);

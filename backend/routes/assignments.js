@@ -1,11 +1,12 @@
 const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
+const classAvailability = require('../middleware/classAvailability');
 const Assignment = require('../models/Assignment');
 
 const router = express.Router();
 
 // Create assignment (teacher only)
-router.post('/', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
   try {
     const { title, description, classId, dueDate, totalPoints } = req.body;
 
@@ -26,7 +27,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 });
 
 // Get assignments for a class
-router.get('/class/:classId', authMiddleware, async (req, res) => {
+router.get('/class/:classId', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
     const assignments = await Assignment.find({ class: req.params.classId });
     res.json(assignments);
@@ -36,7 +37,7 @@ router.get('/class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get assignment by ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id).populate('teacher');
 
@@ -51,7 +52,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Submit assignment
-router.post('/:id/submit', authMiddleware, async (req, res) => {
+router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
     const { fileUrl } = req.body;
     const assignment = await Assignment.findById(req.params.id);
@@ -87,7 +88,7 @@ router.post('/:id/submit', authMiddleware, async (req, res) => {
 });
 
 // Grade assignment submission
-router.post('/:id/grade', authMiddleware, teacherOnly, async (req, res) => {
+router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
   try {
     const { studentId, score, feedback } = req.body;
     const assignment = await Assignment.findById(req.params.id);
