@@ -8,6 +8,7 @@ const AdminClassDetail = () => {
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -22,8 +23,33 @@ const AdminClassDetail = () => {
       }
     };
 
+    const loadJoinRequests = async () => {
+      try {
+        const response = await axios.get(`/api/classes/${id}/join-requests`);
+        setJoinRequests(response.data);
+      } catch (requestError) {
+        setError(requestError.response?.data?.message || 'Không tải được yêu cầu tham gia.');
+      }
+    };
+
     loadClass();
+    loadJoinRequests();
   }, [id]);
+
+  const handleJoinRequest = async (studentId, action) => {
+    setError('');
+    try {
+      await axios.patch(`/api/classes/${id}/join-requests/${studentId}`, { action });
+      const [classResponse, requestsResponse] = await Promise.all([
+        axios.get(`/api/classes/${id}`),
+        axios.get(`/api/classes/${id}/join-requests`),
+      ]);
+      setClassData(classResponse.data);
+      setJoinRequests(requestsResponse.data);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Không thể xử lý yêu cầu tham gia.');
+    }
+  };
 
   const handleStatusChange = async () => {
     const nextStatus = classData.status === 'inactive' ? 'active' : 'inactive';
@@ -89,6 +115,28 @@ const AdminClassDetail = () => {
         <div><span>Học sinh</span><strong>{students.length}</strong></div>
         <div><span>Sức chứa</span><strong>{classData.capacity || 50}</strong></div>
         <div><span>Còn chỗ</span><strong>{Math.max((classData.capacity || 50) - students.length, 0)}</strong></div>
+      </section>
+
+      <section className="admin-detail-section admin-join-requests">
+        <header className="admin-student-heading">
+          <h2>Yêu cầu tham gia</h2>
+          <span>{joinRequests.length} đang chờ</span>
+        </header>
+        {joinRequests.length === 0 ? (
+          <p className="admin-state">Không có yêu cầu cần duyệt.</p>
+        ) : joinRequests.map((request) => (
+          <div className="join-request-row" key={request._id || request.student?._id}>
+            <div className="join-request-person">
+              <strong>{request.student?.name || 'Học sinh'}</strong>
+              <span>{request.student?.email || 'Chưa có email'}</span>
+              <small>Gửi lúc {request.requestedAt ? new Date(request.requestedAt).toLocaleString('vi-VN') : 'vừa xong'}</small>
+            </div>
+            <div className="join-request-actions">
+              <button className="btn btn-success" type="button" onClick={() => handleJoinRequest(request.student?._id, 'approve')}>Duyệt</button>
+              <button className="btn btn-danger" type="button" onClick={() => handleJoinRequest(request.student?._id, 'reject')}>Từ chối</button>
+            </div>
+          </div>
+        ))}
       </section>
 
       <div className="admin-detail-columns">

@@ -30,13 +30,20 @@ const Dashboard = ({ userRole }) => {
   });
   // State loading: chống bấm "Tạo Lớp" 2 lần.
   const [loading, setLoading] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinResult, setJoinResult] = useState(null);
+  const [joinMessage, setJoinMessage] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState([]);
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
   // useEffect: tự tải danh sách lớp 1 lần khi mở Dashboard.
   useEffect(() => {
     fetchClasses();
-  }, []); // mảng rỗng = chỉ chạy lúc mount.
+    if (userRole === 'student') fetchPendingRequests();
+  }, [userRole]);
 
   // HÀM: fetchClasses - lấy danh sách lớp từ backend.
   // - Lấy token trong localStorage để gắn Authorization.
@@ -52,6 +59,47 @@ const Dashboard = ({ userRole }) => {
     } catch (error) {
       // Lỗi (hết token, mất mạng) thì log để debug, giữ danh sách cũ.
       console.error('Error fetching classes:', error);
+    }
+  };
+
+  const fetchPendingRequests = async () => {
+    try {
+      const response = await axios.get('/api/classes/join-requests/mine');
+      setPendingRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching pending join requests:', error);
+    }
+  };
+
+  const handleLookupClass = async (event) => {
+    event.preventDefault();
+    setJoinMessage('');
+    setJoinError('');
+    setJoinResult(null);
+    setJoinLoading(true);
+    try {
+      const response = await axios.get(`/api/classes/lookup/${encodeURIComponent(joinCode.trim())}`);
+      setJoinResult(response.data);
+    } catch (error) {
+      setJoinError(error.response?.data?.message || 'Không tìm thấy lớp học.');
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
+  const handleRequestJoin = async () => {
+    if (!joinResult) return;
+    setJoinLoading(true);
+    setJoinError('');
+    try {
+      await axios.post(`/api/classes/join/${encodeURIComponent(joinCode.trim())}/request`);
+      setJoinMessage('Đã gửi yêu cầu. Bạn sẽ thấy lớp trong danh sách sau khi giáo viên hoặc quản trị viên duyệt.');
+      setJoinResult((current) => ({ ...current, requestPending: true }));
+      fetchPendingRequests();
+    } catch (error) {
+      setJoinError(error.response?.data?.message || 'Không thể gửi yêu cầu tham gia.');
+    } finally {
+      setJoinLoading(false);
     }
   };
 
@@ -90,6 +138,53 @@ const Dashboard = ({ userRole }) => {
       <div className="section-header">
         <h2> {userRole === 'admin' ? 'Tất Cả Lớp Học' : userRole === 'teacher' ? 'Lớp Học Của Tôi' : 'Lớp Học Đã Tham Gia'}</h2>
       </div>
+
+      {userRole === 'student' && (
+        <section className="class-join-panel">
+          <div className="class-join-heading">
+            <div><h3>Tham gia lớp học</h3><p>Nhập mã lớp do giáo viên cung cấp.</p></div>
+          </div>
+          <form className="class-code-form" onSubmit={handleLookupClass}>
+            <input
+              aria-label="Mã lớp học"
+              autoComplete="off"
+              maxLength="12"
+              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+              placeholder="Ví dụ: A7K4M9Q2"
+              value={joinCode}
+              required
+            />
+            <button className="btn btn-primary" disabled={joinLoading} type="submit">
+              {joinLoading ? 'Đang tìm...' : 'Tìm lớp'}
+            </button>
+          </form>
+          {joinError && <p className="join-feedback is-error" role="alert">{joinError}</p>}
+          {joinMessage && <p className="join-feedback" role="status">{joinMessage}</p>}
+          {joinResult && (
+            <div className="join-result">
+              <div>
+                <h4>{joinResult.name}</h4>
+                <p>{[joinResult.subject, joinResult.grade].filter(Boolean).join(' · ') || 'Lớp học'}</p>
+                <p>Giáo viên: {joinResult.teacher?.name || 'Chưa cập nhật'} · {joinResult.studentCount}/{joinResult.capacity} học sinh</p>
+              </div>
+              <button className="btn btn-primary" disabled={joinLoading || joinResult.requestPending} onClick={handleRequestJoin} type="button">
+                {joinResult.requestPending ? 'Đang chờ duyệt' : 'Gửi yêu cầu tham gia'}
+              </button>
+            </div>
+          )}
+          {pendingRequests.length > 0 && (
+            <div className="pending-join-list">
+              <h4>Yêu cầu đang chờ</h4>
+              {pendingRequests.map((request) => (
+                <div key={request._id}>
+                  <span><strong>{request.name}</strong>{request.subject ? ` · ${request.subject}` : ''}</span>
+                  <span>Chờ {request.teacher?.name || 'giáo viên'} duyệt</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Nút mở/đóng form tạo lớp: chỉ teacher + admin thấy. */}
       {(userRole === 'teacher' || userRole === 'admin') && (
@@ -216,6 +311,9 @@ const Dashboard = ({ userRole }) => {
               }}>
                 <strong>Học sinh:</strong> {cls.students?.length || 0}
               </div>
+              {userRole === 'teacher' && cls.joinRequests?.length > 0 && (
+                <p className="pending-class-count">{cls.joinRequests.length} yêu cầu tham gia đang chờ duyệt</p>
+              )}
               {/* Nút vào chi tiết lớp /class/<id>. */}
               <button
                 className="btn btn-primary btn-block"
