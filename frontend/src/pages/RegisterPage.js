@@ -238,6 +238,7 @@ const RegisterPage = ({ onLogin }) => {
           <button
             type="submit"
             className="btn btn-primary btn-block"
+            style={{ marginTop: '24px' }}
             disabled={loading || !acceptedPolicies || !policyRead}
           >
             {loading ? 'Đang đăng ký...' : 'Đăng Ký'}
