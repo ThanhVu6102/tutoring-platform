@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-const POLICY_VERSION = '0.1.1';
+import { POLICY_VERSION } from '../config/policyLabels';
 
 const PolicySection = ({ title, items }) => (
   <section className="policy-section">
@@ -10,17 +9,21 @@ const PolicySection = ({ title, items }) => (
   </section>
 );
 
-const PoliciesPage = () => {
+const PoliciesPage = ({ embedded = false, onRead }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const returnToRegister = location.state?.returnToRegister;
 
   const markAsRead = () => {
     sessionStorage.setItem('policy-read-version', POLICY_VERSION);
+    if (onRead) {
+      onRead();
+      return;
+    }
     if (returnToRegister) navigate('/register');
   };
 
-  return (
+  const pageContent = (
     <main className="policy-page">
       <header className="policy-header">
         <p className="policy-eyebrow">EKLASSES · PHIÊN BẢN {POLICY_VERSION}</p>
@@ -95,10 +98,20 @@ const PoliciesPage = () => {
       <footer className="policy-footer">
         <p>Chính sách có hiệu lực từ ngày 19/10/2026. Khi có cập nhật quan trọng, người dùng sẽ được yêu cầu xác nhận lại.</p>
         <button className="btn btn-primary" onClick={markAsRead} type="button">
-          {returnToRegister ? 'Tôi đã đọc, quay lại đăng ký' : 'Tôi đã đọc chính sách'}
+          {embedded || returnToRegister ? 'Tôi đã đọc, quay lại đăng ký' : 'Tôi đã đọc chính sách'}
         </button>
       </footer>
     </main>
+  );
+
+  if (!embedded) return pageContent;
+
+  return (
+    <div className="policy-modal-backdrop policy-reader-backdrop" role="presentation">
+      <div aria-label="Chính sách và quy định ứng xử" aria-modal="true" className="policy-reader-modal" role="dialog">
+        {pageContent}
+      </div>
+    </div>
   );
 };
 

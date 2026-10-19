@@ -24,7 +24,7 @@ const {
 
 // Tạo router riêng cho nhóm API /api/auth.
 const router = express.Router();
-const POLICY_VERSION = '2026-10-19';
+const POLICY_VERSION = '0.1.1';
 
 // ----------------------------------------------------------------------------
 // API: POST /api/auth/register

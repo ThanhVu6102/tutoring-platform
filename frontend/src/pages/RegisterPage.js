@@ -14,6 +14,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // Nạp axios gọi API.
 import axios from 'axios';
+import PoliciesPage from './PoliciesPage';
+import { POLICY_VERSION } from '../config/policyLabels';
 
 // Component trang đăng ký.
 const RegisterPage = ({ onLogin }) => {
@@ -31,8 +33,11 @@ const RegisterPage = ({ onLogin }) => {
   const [error, setError] = useState('');
   // State loading: chống bấm nút 2 lần khi đang chờ API.
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
-  const policyRead = sessionStorage.getItem('policy-read-version') === '2026-10-19';
+  const [policyRead, setPolicyRead] = useState(sessionStorage.getItem('policy-read-version') === POLICY_VERSION);
+  const [showPolicies, setShowPolicies] = useState(false);
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
@@ -42,6 +47,12 @@ const RegisterPage = ({ onLogin }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePolicyRead = () => {
+    setPolicyRead(true);
+    setAcceptedPolicies(true);
+    setShowPolicies(false);
   };
 
   // HÀM: handleSubmit - chạy khi bấm "Đăng Ký".
@@ -168,40 +179,59 @@ const RegisterPage = ({ onLogin }) => {
           {/* Ô mật khẩu. */}
           <div className="form-group">
             <label>Mật khẩu</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Nhập mật khẩu"
-              required
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Nhập mật khẩu"
+                required
+              />
+              <button aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} className="password-visibility-button" onClick={() => setShowPassword((visible) => !visible)} title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} type="button">
+                {showPassword ? 'Ẩn' : 'Hiện'}
+              </button>
+            </div>
           </div>
 
           {/* Ô nhập lại mật khẩu để xác nhận. */}
           <div className="form-group">
             <label>Xác nhận mật khẩu</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Xác nhận mật khẩu"
-              required
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Xác nhận mật khẩu"
+                required
+              />
+              <button aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} className="password-visibility-button" onClick={() => setShowConfirmPassword((visible) => !visible)} title={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} type="button">
+                {showConfirmPassword ? 'Ẩn' : 'Hiện'}
+              </button>
+            </div>
           </div>
 
           <div className="policy-consent">
-            <label className="policy-consent-label">
+            <div className="policy-consent-label">
               <input
+                id="policy-consent-checkbox"
                 type="checkbox"
                 checked={acceptedPolicies}
-                disabled={!policyRead}
-                onChange={(event) => setAcceptedPolicies(event.target.checked)}
+                onChange={(event) => {
+                  if (event.target.checked && !policyRead) {
+                    setShowPolicies(true);
+                    return;
+                  }
+                  setAcceptedPolicies(event.target.checked);
+                }}
               />
-              <span>Tôi đã đọc và đồng ý với <Link to="/policies" state={{ returnToRegister: true }}>Chính sách &amp; Quy định ứng xử</Link>.</span>
-            </label>
-            {!policyRead && <p>Vui lòng mở trang chính sách và chọn “Tôi đã đọc” trước.</p>}
+              <div className="policy-consent-copy">
+                <label htmlFor="policy-consent-checkbox">Tôi đã đọc và đồng ý với</label>
+                <button className="policy-open-link" onClick={() => setShowPolicies(true)} type="button">Chính sách &amp; Quy định ứng xử</button>.
+              </div>
+            </div>
+            {!policyRead && <p>Đọc chính sách để bật xác nhận đăng ký.</p>}
           </div>
 
           {/* Nút đăng ký. */}
@@ -219,6 +249,7 @@ const RegisterPage = ({ onLogin }) => {
           Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
         </div>
       </div>
+      {showPolicies && <PoliciesPage embedded onRead={handlePolicyRead} />}
     </div>
   );
 };

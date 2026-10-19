@@ -1,3 +1,5 @@
+export const POLICY_VERSION = '0.1.1';
+
 export const policyReasonLabels = {
   spam: 'Spam, quảng cáo hoặc liên kết độc hại',
   abusive_content: 'Ngôn từ xúc phạm hoặc nội dung không phù hợp',

@@ -22,6 +22,7 @@ const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   // State password: giá trị ô Mật khẩu.
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   // State error: thông báo lỗi hiện trong hộp đỏ (rỗng = không hiện).
   const [error, setError] = useState('');
   const [restrictionNotice, setRestrictionNotice] = useState(null);
@@ -129,13 +130,24 @@ const LoginPage = ({ onLogin }) => {
           {/* Ô nhập Mật khẩu. */}
           <div className="form-group">
             <label>Mật khẩu</label>
-            <input
-              type="password" // ẩn ký tự thành dấu chấm.
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nhập mật khẩu"
-              required
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nhập mật khẩu"
+                required
+              />
+              <button
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                className="password-visibility-button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                type="button"
+              >
+                {showPassword ? 'Ẩn' : 'Hiện'}
+              </button>
+            </div>
           </div>
 
           {/* Nút submit: disable khi loading để chống spam. */}
