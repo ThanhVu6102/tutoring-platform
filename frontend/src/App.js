@@ -26,6 +26,7 @@ import AdminClassDetail from './pages/AdminClassDetail';
 import ClassDetail from './pages/ClassDetail'; // trang chi tiết 1 lớp /class/:id.
 import QuizTaking from './pages/QuizTaking'; // trang làm bài kiểm tra /quiz/:quizId/take.
 import PoliciesPage from './pages/PoliciesPage';
+import ProfilePage from './pages/ProfilePage';
 
 // Nạp thanh điều hướng trên cùng.
 import Navbar from './components/Navbar';
@@ -114,6 +115,7 @@ const App = () => {
               <Route path="/admin/moderation" element={userRole === 'admin' ? <AdminModeration /> : <Navigate to="/dashboard" replace />} />
               <Route path="/admin/classes/:id" element={userRole === 'admin' ? <AdminClassDetail /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={userRole === 'admin' ? <Navigate to="/admin" replace /> : <Dashboard userRole={userRole} />} />
+              <Route path="/profile" element={['student', 'teacher'].includes(userRole) ? <ProfilePage /> : <Navigate to="/admin" replace />} />
               {/* Chi tiết lớp: :id là _id lớp trên URL. */}
               <Route path="/class/:id" element={<ClassDetail />} />
               {/* Làm bài quiz: :quizId là _id đề thi. */}

@@ -14,7 +14,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // Nạp axios gọi API backend.
 import axios from 'axios';
-import { policyReasonLabels } from '../config/policyLabels';
 
 // Component Dashboard.
 const Dashboard = ({ userRole }) => {
@@ -38,9 +37,6 @@ const Dashboard = ({ userRole }) => {
   const [joinLoading, setJoinLoading] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [accountRestriction, setAccountRestriction] = useState(null);
-  const [studentWarnings, setStudentWarnings] = useState([]);
-  const [warningAppeals, setWarningAppeals] = useState({});
-  const [appealingWarningId, setAppealingWarningId] = useState('');
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
@@ -49,11 +45,9 @@ const Dashboard = ({ userRole }) => {
     fetchClasses();
     if (userRole === 'student') {
       fetchPendingRequests();
-      fetchStudentWarnings();
       const refreshTimer = window.setInterval(() => {
         fetchClasses();
         fetchPendingRequests();
-        fetchStudentWarnings();
       }, 30000);
       return () => window.clearInterval(refreshTimer);
     }
@@ -93,43 +87,6 @@ const Dashboard = ({ userRole }) => {
     } catch (error) {
       console.error('Error fetching pending join requests:', error);
     }
-  };
-
-  const fetchStudentWarnings = async () => {
-    try {
-      const response = await axios.get('/api/student-warnings/mine');
-      setStudentWarnings(response.data);
-    } catch (error) {
-      console.error('Error fetching student warnings:', error);
-    }
-  };
-
-  const handleWarningAppeal = async (event, warningId) => {
-    event.preventDefault();
-    const message = warningAppeals[warningId]?.trim();
-    if (!message) return;
-    setAppealingWarningId(warningId);
-    try {
-      await axios.post(`/api/student-warnings/${warningId}/appeal`, { message });
-      setWarningAppeals((current) => ({ ...current, [warningId]: '' }));
-      await fetchStudentWarnings();
-    } catch (error) {
-      window.alert(error.response?.data?.message || 'Không thể gửi kháng cáo.');
-    } finally {
-      setAppealingWarningId('');
-    }
-  };
-
-  const warningStatusText = {
-    pending: 'Chờ Admin xem xét · chưa tính lần vi phạm',
-    appealed: 'Đã gửi kháng cáo · chờ kết quả',
-    confirmed: 'Vi phạm đã được xác nhận',
-    dismissed: 'Kháng cáo được chấp thuận · cảnh báo đã gỡ',
-  };
-  const sanctionText = {
-    suspension_7_days: 'Tài khoản bị đình chỉ 7 ngày.',
-    suspension_1_month: 'Tài khoản bị đình chỉ 1 tháng.',
-    permanent_ban: 'Tài khoản bị khóa vĩnh viễn.',
   };
 
   const handleLookupClass = async (event) => {
@@ -253,42 +210,6 @@ const Dashboard = ({ userRole }) => {
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {userRole === 'student' && studentWarnings.length > 0 && (
-        <section className="student-warning-panel">
-          <header><h3>Cảnh báo và kháng cáo</h3><p>Mỗi cảnh báo được tính khi Admin xác nhận hoặc hết hạn 7 ngày mà không có kháng cáo.</p></header>
-          <div className="warning-escalation-summary">
-            3 cảnh báo đã xác nhận trong cùng lớp: bị gỡ khỏi lớp. Nếu tiếp tục tái phạm sau lần gỡ đầu tiên: đình chỉ tài khoản 7 ngày, lần tiếp theo 1 tháng, sau đó khóa vĩnh viễn.
-          </div>
-          {studentWarnings.map((warning) => {
-            const canAppeal = warning.status === 'pending' && new Date(warning.appealDeadline) > new Date();
-            return (
-              <article className="student-warning-card" key={warning._id}>
-                <div className="student-warning-card-heading">
-                  <div><strong>{warning.class?.name || 'Lớp học'}</strong><span>Mức {warning.policyLevel} · {policyReasonLabels[warning.reasonCode] || warning.reasonCode}</span></div>
-                  <span className={`status-indicator ${['pending', 'appealed'].includes(warning.status) ? 'is-locked' : ''}`}>
-                    {warningStatusText[warning.status] || warning.status}
-                  </span>
-                </div>
-                <p className="student-warning-details">{warning.details}</p>
-                <p className="student-warning-deadline">Hạn kháng cáo: {new Date(warning.appealDeadline).toLocaleString('vi-VN')}</p>
-                {canAppeal && (
-                  <form className="student-warning-appeal" onSubmit={(event) => handleWarningAppeal(event, warning._id)}>
-                    <label htmlFor={`appeal-${warning._id}`}>Trình bày kháng cáo rõ lý do và thông tin/bằng chứng liên quan</label>
-                    <textarea id={`appeal-${warning._id}`} maxLength="3000" onChange={(event) => setWarningAppeals((current) => ({ ...current, [warning._id]: event.target.value }))} required rows="3" value={warningAppeals[warning._id] || ''} />
-                    <button className="btn btn-primary" disabled={appealingWarningId === warning._id} type="submit">{appealingWarningId === warning._id ? 'Đang gửi...' : 'Gửi kháng cáo'}</button>
-                  </form>
-                )}
-                {warning.appealMessage && <p className="student-warning-details"><strong>Kháng cáo của bạn:</strong> {warning.appealMessage}</p>}
-                {warning.adminResponse && <p className="student-warning-details"><strong>Phản hồi Admin:</strong> {warning.adminResponse}</p>}
-                {warning.violationCounted && <p className="warning-counted-note">Đã tính {warning.classWarningCount}/3 cảnh báo trong lớp này.</p>}
-                {warning.classRemovalApplied && <p className="warning-counted-note">Bạn đã bị gỡ khỏi lớp sau khi đủ 3 cảnh báo được xác nhận.</p>}
-                {warning.accountSanction && <p className="warning-counted-note">{sanctionText[warning.accountSanction] || warning.accountSanction}</p>}
-              </article>
-            );
-          })}
         </section>
       )}
 

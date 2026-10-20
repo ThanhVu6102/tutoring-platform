@@ -107,6 +107,7 @@ const classSchema = new mongoose.Schema({
     type: lockNoticeSchema,
     default: () => ({}),
   },
+  lockNoticeHistory: [lockNoticeSchema],
   // Ngày tạo lớp. Mặc định hiện tại.
   createdAt: {
     type: Date,

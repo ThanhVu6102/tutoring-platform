@@ -10,6 +10,7 @@
 import React from 'react';
 // Nạp hook useNavigate để chuyển trang bằng code (không cần thẻ Link).
 import { useNavigate } from 'react-router-dom';
+import NotificationsBell from './NotificationsBell';
 
 // Component Navbar nhận 2 props từ App.js.
 const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
@@ -66,6 +67,12 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
         <button onClick={() => navigate('/policies')}>Chính sách</button>
         {isAuthenticated ? (
           <>
+            {['student', 'teacher'].includes(userRole) && (
+              <>
+                <NotificationsBell userRole={userRole} />
+                <button onClick={() => navigate('/profile')}>Cá nhân</button>
+              </>
+            )}
             <button onClick={() => navigate(userRole === 'admin' ? '/admin' : '/dashboard')}>
               {userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}
             </button>

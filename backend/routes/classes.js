@@ -218,10 +218,16 @@ router.patch('/:id/status', authMiddleware, adminOnly, async (req, res) => {
       return res.status(404).json({ message: 'Class not found' });
     }
 
+    if (classData.lockNotice?.status && classData.lockNotice.status !== 'none') {
+      classData.lockNoticeHistory.push({
+        ...classData.lockNotice.toObject(),
+        status: 'dismissed',
+        resolvedAt: new Date(),
+        adminResponse: 'Class reopened by administrator',
+      });
+    }
     classData.status = 'active';
-    classData.lockNotice.status = 'dismissed';
-    classData.lockNotice.resolvedAt = new Date();
-    classData.lockNotice.adminResponse = 'Class reopened by administrator';
+    classData.lockNotice = { status: 'none' };
     classData.updatedAt = new Date();
     await classData.save();
 
@@ -255,6 +261,10 @@ router.patch('/:id/lock-notice', authMiddleware, adminOnly, async (req, res) => 
     }
     if (['pending', 'appealed'].includes(classData.lockNotice?.status)) {
       return res.status(409).json({ message: 'This class already has an unresolved lock notice' });
+    }
+
+    if (classData.lockNotice?.status && classData.lockNotice.status !== 'none') {
+      classData.lockNoticeHistory.push(classData.lockNotice.toObject());
     }
 
     const issuedAt = new Date();
@@ -332,6 +342,10 @@ router.patch('/:id/lock-review', authMiddleware, adminOnly, async (req, res) => 
     classData.lockNotice.status = decision === 'lock' ? 'locked' : 'dismissed';
     classData.lockNotice.resolvedAt = new Date();
     classData.lockNotice.adminResponse = response?.trim() || '';
+    if (decision === 'dismiss') {
+      classData.lockNoticeHistory.push(classData.lockNotice.toObject());
+      classData.lockNotice = { status: 'none' };
+    }
     classData.updatedAt = new Date();
     await classData.save();
     res.json({ message: decision === 'lock' ? 'Class formally locked' : 'Lock notice dismissed', class: classData });
