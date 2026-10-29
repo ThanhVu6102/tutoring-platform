@@ -63,5 +63,9 @@ const documentSchema = new mongoose.Schema({
   },
 });
 
+// INDEX: tăng tốc lấy tài liệu theo lớp (mới nhất trước) và theo giáo viên.
+documentSchema.index({ class: 1, uploadedAt: -1 });
+documentSchema.index({ teacher: 1 });
+
 // Xuất model 'Document' để routes dùng: thêm tài liệu, đếm lượt tải...
 module.exports = mongoose.model('Document', documentSchema);

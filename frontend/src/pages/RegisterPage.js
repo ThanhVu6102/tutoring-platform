@@ -90,11 +90,22 @@ const RegisterPage = ({ onLogin }) => {
         acceptedPolicies: true,
       });
 
-      // B4a: Lưu _id user mới.
+      // B4a: LUỒNG GIÁO VIÊN CHỜ DUYỆT: backend trả 202 kèm thông báo,
+      // KHÔNG có token -> không đăng nhập luôn, về /login rồi tự đăng nhập sau khi được duyệt.
+      if (!response.data.token) {
+        // Không gọi onLogin khi chưa có JWT: App sẽ lưu chuỗi "null" và
+        // đánh dấu đã đăng nhập nếu truyền null vào callback này.
+        navigate('/login', {
+          state: { notice: response.data.message || 'Đăng ký thành công, hãy đợi quản trị viên duyệt rồi đăng nhập.' },
+        });
+        return;
+      }
+
+      // B4b: Lưu _id user mới.
       localStorage.setItem('userId', response.data.user.id);
-      // B4b: Báo App lưu token + role (đăng nhập luôn sau đăng ký).
+      // B4c: Báo App lưu token + role (đăng nhập luôn sau đăng ký).
       onLogin(response.data.token, response.data.user.role);
-      // B4c: Vào Dashboard.
+      // B4d: Vào Dashboard.
       navigate('/dashboard');
     } catch (err) {
       // B5a: Log để debug.

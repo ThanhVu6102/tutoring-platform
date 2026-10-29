@@ -28,6 +28,8 @@ const questionSchema = new mongoose.Schema({
   question: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 5000,
   },
   // Các lựa chọn cho trắc nghiệm (mảng chuỗi). Tự luận/bỏ trống thì để rỗng.
   options: [String],
@@ -38,6 +40,7 @@ const questionSchema = new mongoose.Schema({
   points: {
     type: Number,
     default: 1,
+    min: 0,
   },
 });
 
@@ -112,6 +115,11 @@ const quizSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// INDEX: lấy đề theo lớp, theo giáo viên và lọc theo trạng thái.
+quizSchema.index({ class: 1, createdAt: -1 });
+quizSchema.index({ teacher: 1 });
+quizSchema.index({ status: 1 });
 
 // Xuất model 'Quiz' để routes dùng: tạo đề, lấy đề, chấm auto trắc nghiệm...
 module.exports = mongoose.model('Quiz', quizSchema);
