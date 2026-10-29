@@ -10,8 +10,9 @@
 
 // Nạp React + hook useState (lưu giá trị form, lỗi, trạng thái tải).
 import React, { useState } from 'react';
-// Nạp useNavigate (chuyển trang sau login) + Link (link sang /register).
-import { useNavigate, Link } from 'react-router-dom';
+// Nạp useNavigate (chuyển trang sau login) + Link (link sang /register)
+// + useLocation (đọc thông báo truyền từ trang đăng ký nếu có).
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 // Nạp axios để gọi API backend.
 import axios from 'axios';
 
@@ -25,6 +26,14 @@ const LoginPage = ({ onLogin }) => {
   const [error, setError] = useState('');
   // State loading: true khi đang chờ API (để disable nút, chống bấm 2 lần).
   const [loading, setLoading] = useState(false);
+  // Đọc state được navigate('/login', { state: {...} }) gắn kèm từ RegisterPage.
+  const locationState = useLocation().state;
+  // State notice: thông báo xanh (ví dụ "đăng ký xong, chờ duyệt" từ RegisterPage).
+  const [notice, setNotice] = useState(
+    locationState?.notice ? String(locationState.notice) : ''
+  );
+  // Xóa notice sau khi đăng nhập thành công (tránh hiện lại khi quay về login).
+  const clearNotice = () => setNotice('');
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
@@ -52,6 +61,7 @@ const LoginPage = ({ onLogin }) => {
       // B3a: Lưu _id user để các trang khác dùng (ví dụ nộp bài cần student id).
       localStorage.setItem('userId', response.data.user.id);
       // B3b: Báo cho App lưu token + role (App sẽ hiện Navbar + cho vào route bảo vệ).
+      clearNotice();
       onLogin(response.data.token, response.data.user.role);
       // B3c: Chuyển vào Dashboard.
       navigate('/dashboard');
@@ -82,6 +92,19 @@ const LoginPage = ({ onLogin }) => {
         </div>
         {/* Tiêu đề trang. */}
         <h2>Đăng Nhập</h2>
+
+        {/* Hộp thông báo xanh: notice từ RegisterPage (đăng ký xong, chờ duyệt). */}
+        {notice && (
+          <div style={{
+            padding: '1rem',
+            background: '#D5F5E3',
+            color: '#1E8449',
+            borderRadius: '5px',
+            marginBottom: '1rem'
+          }}>
+            {notice}
+          </div>
+        )}
 
         {/* Hộp báo lỗi đỏ: chỉ hiện khi error khác rỗng. */}
         {error && (
