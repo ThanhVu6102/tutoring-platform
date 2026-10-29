@@ -71,6 +71,9 @@ router.put('/profile', authMiddleware, async (req, res) => {
     }
 
     if (avatar !== undefined && avatar) {
+      if (typeof avatar !== 'string') {
+        return res.status(400).json({ message: 'Avatar phải là chuỗi URL hoặc ảnh base64' });
+      }
       if (avatar.startsWith('data:image/')) {
         if (!/^data:image\/(png|jpeg|webp);base64,/.test(avatar) || avatar.length > 3_000_000) {
           return res.status(400).json({ message: 'Avatar must be PNG, JPG or WebP and smaller than 2 MB' });

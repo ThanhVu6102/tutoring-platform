@@ -16,6 +16,7 @@ const User = require('../models/User');
 const { checkClassAccess } = require('../utils/classAccess');
 const { writeAudit } = require('../utils/audit');
 const { sendError } = require('../utils/respond');
+const { activeAccountFilter } = require('../utils/accountAccess');
 
 const router = express.Router();
 const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -189,7 +190,7 @@ router.patch('/:id/join-requests/:studentId', authMiddleware, async (req, res) =
       if (classData.students.length >= classData.capacity) {
         return res.status(409).json({ message: 'Class is full' });
       }
-      const student = await User.findOne({ _id: req.params.studentId, role: 'student' });
+      const student = await User.findOne({ _id: req.params.studentId, role: 'student', ...activeAccountFilter() });
       if (!student) return res.status(404).json({ message: 'Student not found' });
       classData.students.addToSet(student._id);
       student.enrolledClasses.addToSet(classData._id);
@@ -498,7 +499,7 @@ router.post('/:id/enroll', authMiddleware, teacherOnly, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    if (!studentEmail) {
+    if (typeof studentEmail !== 'string' || !studentEmail.trim()) {
       return res.status(400).json({ message: 'Vui lòng nhập email học sinh' });
     }
     if (classData.status !== 'active') {
@@ -509,9 +510,7 @@ router.post('/:id/enroll', authMiddleware, teacherOnly, async (req, res) => {
     const student = await User.findOne({
       email: String(studentEmail).trim().toLowerCase(),
       role: 'student',
-      status: 'active',
-      isBlocked: false,
-      deletedAt: null,
+      ...activeAccountFilter(),
     });
     if (!student) {
       return res.status(404).json({ message: 'Không tìm thấy học sinh hợp lệ (hoặc tài khoản đang không hoạt động)' });

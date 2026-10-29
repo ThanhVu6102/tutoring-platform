@@ -3,6 +3,7 @@ const User = require('../models/User');
 const ClassSession = require('../models/ClassSession');
 const { transaction } = require('./transaction');
 const { fail, objectId, text, sessionInput } = require('./sessionValidation');
+const { activeAccountFilter } = require('./accountAccess');
 
 function canManage(cls, actor) {
   return actor.role === 'admin' || (actor.role === 'teacher' && String(cls.teacher) === actor.id);
@@ -15,6 +16,8 @@ async function accessibleClass(classId, actor, managerOnly = false) {
   const manager = canManage(cls, actor);
   const student = actor.role === 'student' && cls.students.some((id) => String(id) === actor.id);
   if (!manager && (managerOnly || !student)) fail(403, 'Bạn không có quyền truy cập lớp này');
+  // Không cho API mới đi vòng qua chính sách khóa lớp của main.
+  if (cls.status === 'inactive' && (student || managerOnly)) fail(423, 'Lớp đã bị khóa hoặc lưu trữ');
   return { cls, manager };
 }
 
@@ -38,7 +41,7 @@ async function createSession(classId, actor, body) {
     // Cùng gia sư phải ghi cùng document trước khi kiểm tra lịch. Transaction
     // cạnh tranh gặp WriteConflict sẽ được withTransaction thử lại từ snapshot mới.
     const tutor = await User.findOneAndUpdate(
-      { _id: cls.teacher, role: { $in: ['teacher', 'admin'] }, status: 'active', isBlocked: false, deletedAt: null },
+      { _id: cls.teacher, role: { $in: ['teacher', 'admin'] }, ...activeAccountFilter() },
       { $inc: { scheduleRevision: 1 } }, { session, new: true }
     );
     if (!tutor) fail(409, 'Giáo viên phụ trách không hoạt động');

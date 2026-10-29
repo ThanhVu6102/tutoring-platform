@@ -13,7 +13,7 @@ const handle = (fn) => async (req, res) => {
   try {
     await fn(req, res);
   } catch (error) {
-    if ([400, 403, 404, 409, 503].includes(error.statusCode)) {
+    if ([400, 403, 404, 409, 423, 503].includes(error.statusCode)) {
       return res.status(error.statusCode).json({ message: error.message });
     }
     return sendError(res, error);
