@@ -9,6 +9,9 @@
 
 // Nạp jsonwebtoken để giải mã và xác thực token do API login cấp.
 const jwt = require('jsonwebtoken');
+// Nạp model User để đối chiếu trạng thái mới nhất trong DB với token.
+// (Token cũ có thể còn hạn 7 ngày dù admin vừa khóa / xóa / hạ quyền.)
+const User = require('../models/User');
 
 // ----------------------------------------------------------------------------
 // MIDDLEWARE: authMiddleware(req, res, next)
@@ -19,29 +22,60 @@ const jwt = require('jsonwebtoken');
 //  - B3: Giải mã token bằng JWT_SECRET (phải khớp khóa lúc ký ở auth.js).
 //  - B4: Gắn userId + userRole vào req để các handler phía sau dùng.
 //  - B5: Token hết hạn / sai chữ ký -> trả 401.
+//  - B6: Đối chiếu DB: user phải còn tồn tại, chưa xóa mềm, không bị khóa và
+//        status là 'active' (hoặc admin) mới cho qua. Role lấy từ DB thay vì
+//        token để chống token cũ leo quyền (mục 5.4/5.5 tài liệu luồng xử lý).
 // ----------------------------------------------------------------------------
-const authMiddleware = (req, res, next) => {
-  // B1: Đọc header Authorization, cắt bỏ tiền tố 'Bearer ' để lấy token thô.
+const authMiddleware = async (req, res, next) => {
+  // B1: Đọc header Authorization, cắt tiền tố 'Bearer ' (không phân biệt hoa/thường).
   // Dùng ?. để không crash khi header vắng mặt.
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  const token = req.header('Authorization')?.replace(/^Bearer\s+/i, '').trim();
 
   // B2: Không gửi token -> chưa đăng nhập.
   if (!token) {
     return res.status(401).json({ message: 'No token provided' });
   }
 
+  let decoded;
   try {
     // B3: Giải mã + xác thực chữ ký token. Sai khóa / hết hạn sẽ ném lỗi.
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    // B4a: Lưu _id user vào request để handler biết đang là ai.
-    req.userId = decoded.userId;
-    // B4b: Lưu role (student/teacher/admin) để middleware phân quyền phía sau dùng.
-    req.userRole = decoded.role;
-    // B5: Qua cổng, cho chạy tiếp tới handler chính.
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    // Token phải chứa userId và role hợp lệ thì mới xem xét tiếp.
+    if (typeof decoded?.userId !== 'string' || !/^[a-f\d]{24}$/i.test(decoded.userId)) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
   } catch (error) {
     // Token giả / hết hạn 7 ngày / sai secret -> chặn lại.
     return res.status(401).json({ message: 'Invalid token' });
+  }
+
+  try {
+    // B6: Đối chiếu trạng thái tài khoản với DB (mục 5.5: kiểm tra quyền ở backend).
+    const user = await User.findById(decoded.userId).select('role status isBlocked deletedAt').lean();
+
+    // Không còn trong DB hoặc đã xóa mềm -> token cũ không còn giá trị.
+    if (!user || user.deletedAt) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    // Bị khóa -> chặn 403 nhắc lý do.
+    if (user.isBlocked) {
+      return res.status(403).json({ message: 'Tài khoản đã bị khóa, liên hệ quản trị viên' });
+    }
+    // Chỉ 'active' (hoặc admin) được giữ phiên. Lưu: token cũ khi user bị
+    // chuyển 'inactive'/'left'/'rejected' cũng tự mất quyền mà không cần chờ hết hạn.
+    if (user.status !== 'active' || !['teacher', 'student', 'admin'].includes(user.role)) {
+      return res.status(403).json({ message: 'Tài khoản đang không hoạt động, vui lòng đăng nhập lại' });
+    }
+
+    // Gắn danh tính + role MỚI NHẤT từ DB để handler/middleware phía sau dùng.
+    req.userId = decoded.userId;
+    req.userRole = user.role;
+    // Qua cổng, cho chạy tiếp tới handler chính.
+    next();
+  } catch (error) {
+    // Lỗi DB (mất kết nối...) -> 500, không xem như sai token.
+    console.error('authMiddleware DB error:', error?.message || error);
+    return res.status(500).json({ message: 'Lỗi xác thực, vui lòng thử lại' });
   }
 };
 
