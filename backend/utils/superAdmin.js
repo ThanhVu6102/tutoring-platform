@@ -60,7 +60,8 @@ async function ensureSuperAdmin() {
   // Chuẩn hóa email gốc về chữ thường để truy vấn nhất quán.
   const email = DEFAULT_ADMIN.email.toLowerCase();
   // Tìm admin gốc trong collection users.
-  let admin = await User.findOne({ email });
+  // Cần +password để comparePassword kiểm tra mật khẩu hiện tại.
+  let admin = await User.findOne({ email }).select('+password');
   // TRƯỜNG HỢP 1: Chưa có trong DB -> tạo mới.
   if (!admin) {
     // Tạo document mới: tên lấy từ env ADMIN_NAME (nếu có), còn không lấy tên mặc định.
@@ -80,6 +81,19 @@ async function ensureSuperAdmin() {
     // Nếu role bị đổi thành teacher/student thì ép về 'admin'.
     if (admin.role !== 'admin') {
       admin.role = 'admin';
+      changed = true;
+    }
+    // Đảm bảo Super Admin luôn active, không bị khóa, không bị xóa mềm.
+    if (admin.status !== 'active') {
+      admin.status = 'active';
+      changed = true;
+    }
+    if (admin.isBlocked) {
+      admin.isBlocked = false;
+      changed = true;
+    }
+    if (admin.deletedAt) {
+      admin.deletedAt = null;
       changed = true;
     }
     // Kiểm tra password trong DB có khớp mật khẩu cố định không (dùng bcrypt so sánh).

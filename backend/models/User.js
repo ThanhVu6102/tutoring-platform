@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 200,
   },
   // Email đăng nhập. Bắt buộc, duy nhất (unique) để không trùng tài khoản.
   // Được chuẩn hóa về chữ thường ở hook pre-save bên dưới.
@@ -24,11 +26,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    trim: true,
+    lowercase: true,
+    maxlength: 255,
   },
   // Mật khẩu đã hash bằng bcrypt. Khi tạo/sửa, gán mật khẩu thô rồi hook tự hash.
+  // select:false -> mọi truy vấn mặc định KHÔNG lấy password, tránh lộ hash.
+  // Nơi cần kiểm tra mật khẩu (login, ensureSuperAdmin) phải .select('+password').
   password: {
     type: String,
     required: true,
+    select: false,
   },
   // Vai trò: student (học sinh), teacher (giáo viên), admin (quản trị).
   // Super Admin gốc luôn bị ép về 'admin'.
@@ -37,20 +45,56 @@ const userSchema = new mongoose.Schema({
     enum: ['teacher', 'student', 'admin'],
     required: true,
   },
+  // Trạng thái tài khoản theo vòng đời (mục 3.1 tài liệu luồng xử lý):
+  // - pending:  mới đăng ký, chờ admin duyệt (giáo viên).
+  // - active:   đang hoạt động.
+  // - inactive: tạm nghỉ (tự chuyển về active qua block/unblock hợp lý).
+  // - left:     đã rời trung tâm.
+  // - rejected: hồ sơ bị admin từ chối.
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'inactive', 'left', 'rejected'],
+    default: 'active',
+  },
+  // Cờ khóa đăng nhập, tách riêng khỏi status (mục 1 tài liệu):
+  // tài khoản còn 'active' nhưng bị khóa thì vẫn không đăng nhập được.
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
+  // Lưu quyết định ngay trên tài khoản để trạng thái và dấu vết duyệt
+  // được cập nhật nguyên tử, kể cả khi MongoDB local không có replica set.
+  review: {
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date,
+    note: { type: String, maxlength: 2000 },
+  },
+  // Khóa ghi dùng cho transaction xếp lịch; không trả ra client.
+  scheduleRevision: { type: Number, default: 0, select: false },
+  // Thời điểm xóa mềm. Có giá trị -> tài khoản coi như đã xóa, không đủ điều kiện
+  // đăng nhập, nhưng dữ liệu lịch sử (lớp, nộp bài...) vẫn giữ nguyên vẹn.
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
   // Link ảnh đại diện. Mặc định null (chưa có ảnh).
   avatar: {
     type: String,
     default: null,
+    maxlength: 2000,
   },
   // Giới thiệu bản thân. Mặc định chuỗi rỗng.
   bio: {
     type: String,
     default: '',
+    maxlength: 2000,
   },
   // Số điện thoại. Mặc định chuỗi rỗng.
   phone: {
     type: String,
     default: '',
+    trim: true,
+    maxlength: 30,
   },
   // Danh sách lớp đã tham gia (mảng ObjectId tham chiếu sang collection Class).
   enrolledClasses: [{
@@ -125,6 +169,17 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   // bcrypt tự tách salt trong hash cũ để so sánh an toàn.
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// ----------------------------------------------------------------------------
+// INDEX: tăng tốc truy vấn danh sách/phân quyền thường dùng.
+// - email đã có unique index ở khai báo trường.
+// - (role, createdAt): lọc user theo vai trò + sắp xếp mới nhất.
+// - enrolledClasses: tìm user thuộc 1 lớp (đồng bộ ngược từ Class.students).
+// ----------------------------------------------------------------------------
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ enrolledClasses: 1 });
+// Hỗ trợ lọc trạng thái + xóa mềm và tìm kiếm admin nhanh.
+userSchema.index({ status: 1, isBlocked: 1, deletedAt: 1 });
 
 // Xuất model 'User' để các file khác dùng: User.findOne, new User, ...
 module.exports = mongoose.model('User', userSchema);
