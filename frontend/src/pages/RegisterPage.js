@@ -93,7 +93,8 @@ const RegisterPage = ({ onLogin }) => {
       // B4a: LUỒNG GIÁO VIÊN CHỜ DUYỆT: backend trả 202 kèm thông báo,
       // KHÔNG có token -> không đăng nhập luôn, về /login rồi tự đăng nhập sau khi được duyệt.
       if (!response.data.token) {
-        onLogin(null, response.data.user?.role || 'teacher');
+        // Không gọi onLogin khi chưa có JWT: App sẽ lưu chuỗi "null" và
+        // đánh dấu đã đăng nhập nếu truyền null vào callback này.
         navigate('/login', {
           state: { notice: response.data.message || 'Đăng ký thành công, hãy đợi quản trị viên duyệt rồi đăng nhập.' },
         });
