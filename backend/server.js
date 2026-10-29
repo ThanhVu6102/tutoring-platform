@@ -21,6 +21,11 @@ dotenv.config();
 // Tạo app Express (trung tâm hứng mọi request).
 const app = express();
 
+// Giảm rò rỉ thông tin phiên bản và tránh query lạ ngoài schema.
+// (LƯU Ý: phải đặt sau khi khai báo app, trước đó gây ReferenceError khi start.)
+app.disable('x-powered-by');
+mongoose.set('strictQuery', true);
+
 // ----- Middleware toàn cục -----
 // Cho phép mọi domain gọi API (có thể siết lại origin khi lên production).
 app.use(cors());
@@ -123,6 +128,9 @@ app.use('/api/auth', require('./routes/auth')); // đăng ký/đăng nhập.
 app.use('/api/users', require('./routes/users')); // profile + quản trị admin.
 app.use('/api/student-warnings', require('./routes/studentWarnings'));
 app.use('/api/classes', require('./routes/classes')); // lớp học.
+const sessionRoutes = require('./routes/sessions');
+app.use('/api/classes', sessionRoutes.classRouter); // lịch buổi học của lớp.
+app.use('/api/sessions', sessionRoutes.sessionRouter); // trạng thái và điểm danh.
 app.use('/api/videos', require('./routes/videos')); // video bài giảng.
 app.use('/api/documents', require('./routes/documents')); // tài liệu.
 app.use('/api/quizzes', require('./routes/quizzes')); // kiểm tra.
@@ -159,6 +167,14 @@ app.get('/api/docs', (req, res) => {
         requestToJoin: 'POST /api/classes/join/:joinCode/request',
         reviewJoinRequest: 'PATCH /api/classes/:id/join-requests/:studentId'
       },
+      sessions: {
+        create: 'POST /api/classes/:id/sessions (giáo viên phụ trách/admin)',
+        list: 'GET /api/classes/:id/sessions?page=1&limit=20',
+        detail: 'GET /api/sessions/:id',
+        updateStatus: 'PUT /api/sessions/:id/status (body: {status})',
+        attendances: 'GET /api/sessions/:id/attendances',
+        checkIn: 'POST /api/sessions/:id/check-in (body: {student_id, status, note})'
+      },
       quizzes: {
         create: 'POST /api/quizzes', // tạo bài kiểm tra.
         getAll: 'GET /api/quizzes', // lấy danh sách.
@@ -166,6 +182,26 @@ app.get('/api/docs', (req, res) => {
       }
     }
   });
+});
+
+// ----- Bắt route không tồn tại (tránh treo request) -----
+app.use((req, res) => {
+  res.status(404).json({ message: 'API không tồn tại' });
+});
+
+// ----- Xử lý lỗi tập trung -----
+// Các route đã tự bắt lỗi; handler này là lưới an toàn cho lỗi phát sinh ngoài
+// handler (middleware, JSON hỏng, body quá lớn...) để luôn trả JSON thay vì HTML.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'Dữ liệu gửi lên quá lớn' });
+  }
+  if (err instanceof SyntaxError && err.status === 400) {
+    return res.status(400).json({ message: 'JSON không hợp lệ' });
+  }
+  console.error('[SERVER ERROR]', err);
+  return res.status(500).json({ message: 'Đã có lỗi xảy ra, vui lòng thử lại' });
 });
 
 // ----- Khởi động HTTP server khi chạy local -----
