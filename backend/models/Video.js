@@ -73,5 +73,9 @@ const videoSchema = new mongoose.Schema({
   },
 });
 
+// INDEX: tăng tốc lấy video theo lớp (mới nhất trước) và theo giáo viên.
+videoSchema.index({ class: 1, uploadedAt: -1 });
+videoSchema.index({ teacher: 1 });
+
 // Xuất model 'Video' để routes dùng: thêm video, đếm view...
 module.exports = mongoose.model('Video', videoSchema);
