@@ -9,11 +9,13 @@
 // ============================================================================
 
 // Nạp React + hook useState/useEffect.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Nạp useParams để lấy :id lớp trên URL.
 import { useParams } from 'react-router-dom';
 // Nạp axios gọi API.
 import axios from 'axios';
+import TeacherContentTools from '../components/TeacherContentTools';
+import { policyReasonLabels } from '../config/policyLabels';
 
 // Component chi tiết lớp.
 const ClassDetail = () => {
@@ -21,6 +23,7 @@ const ClassDetail = () => {
   const { id } = useParams();
   // State classData: thông tin lớp (null = đang tải).
   const [classData, setClassData] = useState(null);
+  const [classError, setClassError] = useState('');
   // State activeTab: tab đang mở ('overview' mặc định).
   const [activeTab, setActiveTab] = useState('overview');
   // Các state mảng học liệu của lớp.
@@ -30,38 +33,35 @@ const ClassDetail = () => {
   const [assignments, setAssignments] = useState([]); // bài tập.
   const [announcements, setAnnouncements] = useState([]); // thông báo.
   // State userRole: đọc 1 lần từ localStorage để phân quyền nút teacher.
-  const [userRole] = useState(localStorage.getItem('userRole'));  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
+  const [userRole] = useState(localStorage.getItem('userRole'));
+  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
+  const [joinRequests, setJoinRequests] = useState([]);
+  const [deletingResource, setDeletingResource] = useState('');
+  const [appealMessage, setAppealMessage] = useState('');
+  const [submittingAppeal, setSubmittingAppeal] = useState(false);
   // State newAnnouncement: form đăng thông báo {title, content, priority}.
   // State studentEmail: ô nhập email khi thêm học sinh.
   const [studentEmail, setStudentEmail] = useState('');
-
-  // useEffect: khi id lớp đổi thì tải lại toàn bộ dữ liệu 6 loại.
-  useEffect(() => {
-    fetchClassDetails(); // thông tin lớp + danh sách học sinh.
-    fetchVideos(); // video của lớp.
-    fetchDocuments(); // tài liệu của lớp.
-    fetchQuizzes(); // quiz của lớp.
-    fetchAssignments(); // bài tập của lớp.
-    fetchAnnouncements(); // thông báo của lớp.
-  }, [id]);
 
   // Lấy token 1 lần để gắn vào mọi request bên dưới.
   const token = localStorage.getItem('token');
 
   // HÀM: fetchClassDetails - GET /api/classes/:id -> lưu vào classData.
-  const fetchClassDetails = async () => {
+  const fetchClassDetails = useCallback(async () => {
     try {
       const response = await axios.get(`/api/classes/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClassData(response.data);
+      setClassError('');
     } catch (error) {
       console.error('Error fetching class:', error);
+      setClassError(error.response?.data?.message || 'Không thể tải thông tin lớp học.');
     }
-  };
+  }, [id, token]);
 
   // HÀM: fetchVideos - GET /api/videos/class/:id -> lưu vào videos.
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       const response = await axios.get(`/api/videos/class/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -70,10 +70,10 @@ const ClassDetail = () => {
     } catch (error) {
       console.error('Error fetching videos:', error);
     }
-  };
+  }, [id, token]);
 
   // HÀM: fetchDocuments - GET /api/documents/class/:id -> lưu vào documents.
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const response = await axios.get(`/api/documents/class/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -82,10 +82,10 @@ const ClassDetail = () => {
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
-  };
+  }, [id, token]);
 
   // HÀM: fetchQuizzes - GET /api/quizzes/class/:id -> lưu vào quizzes.
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = useCallback(async () => {
     try {
       const response = await axios.get(`/api/quizzes/class/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -94,10 +94,10 @@ const ClassDetail = () => {
     } catch (error) {
       console.error('Error fetching quizzes:', error);
     }
-  };
+  }, [id, token]);
 
   // HÀM: fetchAssignments - GET /api/assignments/class/:id -> lưu vào assignments.
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async () => {
     try {
       const response = await axios.get(`/api/assignments/class/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -106,10 +106,10 @@ const ClassDetail = () => {
     } catch (error) {
       console.error('Error fetching assignments:', error);
     }
-  };
+  }, [id, token]);
 
   // HÀM: fetchAnnouncements - GET /api/announcements/class/:id -> lưu vào announcements.
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       const response = await axios.get(`/api/announcements/class/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -117,6 +117,93 @@ const ClassDetail = () => {
       setAnnouncements(response.data);
     } catch (error) {
       console.error('Error fetching announcements:', error);
+    }
+  }, [id, token]);
+
+  const fetchJoinRequests = useCallback(async () => {
+    try {
+      const response = await axios.get(`/api/classes/${id}/join-requests`);
+      setJoinRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching class join requests:', error);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchClassDetails();
+    fetchVideos();
+    fetchDocuments();
+    fetchQuizzes();
+    fetchAssignments();
+    fetchAnnouncements();
+    if (userRole === 'teacher' || userRole === 'admin') fetchJoinRequests();
+  }, [
+    fetchAnnouncements,
+    fetchAssignments,
+    fetchClassDetails,
+    fetchDocuments,
+    fetchJoinRequests,
+    fetchQuizzes,
+    fetchVideos,
+    userRole,
+  ]);
+
+  useEffect(() => {
+    if (userRole !== 'teacher') return undefined;
+    const refreshTimer = window.setInterval(fetchClassDetails, 30000);
+    return () => window.clearInterval(refreshTimer);
+  }, [fetchClassDetails, userRole]);
+
+  const handleJoinRequest = async (studentId, action) => {
+    try {
+      await axios.patch(`/api/classes/${id}/join-requests/${studentId}`, { action });
+      await Promise.all([fetchClassDetails(), fetchJoinRequests()]);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể xử lý yêu cầu tham gia.');
+    }
+  };
+
+  const handlePublishQuiz = async (quizId) => {
+    try {
+      await axios.put(`/api/quizzes/${quizId}/publish`);
+      fetchQuizzes();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể xuất bản bài kiểm tra.');
+    }
+  };
+
+  const handleDeleteResource = async (resourceType, resource, setItems) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa "${resource.title}" khỏi lớp?`)) return;
+    const resourceKey = `${resourceType}:${resource._id}`;
+    setDeletingResource(resourceKey);
+    try {
+      await axios.delete(`/api/${resourceType}/${resource._id}`);
+      setItems((currentItems) => currentItems.filter((item) => item._id !== resource._id));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể xóa nội dung này.');
+    } finally {
+      setDeletingResource('');
+    }
+  };
+
+  const handleSubmitLockAppeal = async (event) => {
+    event.preventDefault();
+    setSubmittingAppeal(true);
+    try {
+      await axios.post(`/api/classes/${id}/lock-appeal`, { message: appealMessage });
+      setClassData((currentClass) => ({
+        ...currentClass,
+        lockNotice: {
+          ...currentClass.lockNotice,
+          status: 'appealed',
+          appealMessage,
+          appealedAt: new Date().toISOString(),
+        },
+      }));
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể gửi kháng cáo.');
+    } finally {
+      setSubmittingAppeal(false);
     }
   };
 
@@ -159,8 +246,16 @@ const ClassDetail = () => {
 
   // Khi chưa tải xong lớp thì hiện chữ chờ (tránh crash khi classData null).
   if (!classData) {
-    return <div className="main-content"><p>Đang tải...</p></div>;
+    return (
+      <div className="main-content">
+        <p role={classError ? 'alert' : 'status'}>{classError || 'Đang tải...'}</p>
+        {classError && <button className="btn btn-primary mt-2" onClick={fetchClassDetails} type="button">Thử tải lại</button>}
+      </div>
+    );
   }
+
+  const visibleTabs = ['overview', 'videos', 'documents', 'quizzes', 'assignments', 'announcements', 'students']
+    .filter((tab) => tab !== 'students' || userRole === 'teacher' || userRole === 'admin');
 
   return (
     <div className="main-content">
@@ -169,6 +264,41 @@ const ClassDetail = () => {
         <h2>{classData.name}</h2>
         <p>{classData.description}</p>
       </div>
+
+      {userRole === 'teacher' && classData.lockNotice?.status && classData.lockNotice.status !== 'none' && (
+        <section className={`teacher-lock-notice ${classData.lockNotice.status === 'locked' ? 'is-locked' : ''}`}>
+          <p className="admin-eyebrow">THÔNG BÁO TỪ QUẢN TRỊ VIÊN · MỨC {classData.lockNotice.policyLevel || '—'}</p>
+          <h3>{classData.lockNotice.status === 'pending' ? 'Lớp học có thông báo vi phạm' : classData.lockNotice.status === 'appealed' ? 'Kháng cáo đang chờ Admin xem xét' : classData.lockNotice.status === 'locked' ? 'Lớp đã bị khóa chính thức' : 'Thông báo khóa lớp đã được hủy'}</h3>
+          <p><strong>Lý do:</strong> {policyReasonLabels[classData.lockNotice.reasonCode] || '—'}</p>
+          <p><strong>Chi tiết:</strong> {classData.lockNotice.details || '—'}</p>
+          {classData.lockNotice.status === 'pending' && (
+            <>
+              <p className="appeal-deadline">Hạn gửi kháng cáo: {classData.lockNotice.appealDeadline ? new Date(classData.lockNotice.appealDeadline).toLocaleString('vi-VN') : '24 giờ kể từ lúc nhận thông báo'}. Lớp chưa bị khóa trong thời gian chờ.</p>
+              <form className="teacher-appeal-form" onSubmit={handleSubmitLockAppeal}>
+                <label htmlFor="class-lock-appeal">Nội dung kháng cáo</label>
+                <textarea id="class-lock-appeal" maxLength="3000" onChange={(event) => setAppealMessage(event.target.value)} required rows="3" value={appealMessage} />
+                <button className="btn btn-primary" disabled={submittingAppeal} type="submit">{submittingAppeal ? 'Đang gửi...' : 'Gửi kháng cáo'}</button>
+              </form>
+            </>
+          )}
+          {classData.lockNotice.status === 'appealed' && <p><strong>Kháng cáo:</strong> {classData.lockNotice.appealMessage}</p>}
+          {classData.lockNotice.status === 'locked' && (
+            <p>Lớp không thể truy cập nội dung. Muốn yêu cầu mở lại, hãy liên hệ <a href="mailto:admin@eklasses.vn">admin@eklasses.vn</a>.</p>
+          )}
+          {classData.lockNotice.adminResponse && <p><strong>Phản hồi Admin:</strong> {classData.lockNotice.adminResponse}</p>}
+        </section>
+      )}
+
+      {(userRole === 'teacher' || userRole === 'admin') && (
+        <TeacherContentTools
+          classId={id}
+          onCreated={(kind) => {
+            if (kind === 'videos') fetchVideos();
+            if (kind === 'documents') fetchDocuments();
+            if (kind === 'quizzes') fetchQuizzes();
+          }}
+        />
+      )}
 
       {/* Thanh Tabs: 7 nút chuyển activeTab, nút active tô đỏ. */}
       <div style={{
@@ -180,7 +310,7 @@ const ClassDetail = () => {
         flexWrap: 'wrap'
       }}>
         {/* Duyệt mảng tên tab, vẽ mỗi tab 1 nút. */}
-        {['overview', 'videos', 'documents', 'quizzes', 'assignments', 'announcements', 'students'].map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)} // bấm -> đổi tab hiển thị.
@@ -233,47 +363,34 @@ const ClassDetail = () => {
         </div>
       )}
 
-      {/* TAB Video: lưới thẻ video (tiêu đề, mô tả, views, thời lượng). */}
+      {/* TAB Video: danh sách thumbnail nhỏ và thông tin video. */}
       {activeTab === 'videos' && (
-        <div>
-          <div className="grid grid-2">
-            {videos.length > 0 ? (
-              videos.map(video => (
-                <div key={video._id} className="card">
-                  <h3>{video.title}</h3>
-                  <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-                    {video.description}
-                  </p>
-                  {/* Khung giả video player (hiện placeholder, chưa nhúng player thật). */}
-                  <div style={{
-                    background: '#F0F0F0',
-                    padding: '1rem',
-                    borderRadius: '5px',
-                    marginBottom: '1rem',
-                    textAlign: 'center',
-                    minHeight: '100px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <p style={{ color: '#999' }}>Video Player</p>
-                  </div>
-                  {/* Lượt xem + thời lượng (giây -> phút). */}
-                  <small style={{ display: 'block', marginBottom: '1rem', color: '#666' }}>
-                    {video.views} lượt xem | {Math.floor(video.duration / 60)} phút
-                  </small>
-                  <button className="btn btn-primary btn-block">
-                    Xem Video
-                  </button>
-                </div>
-              ))
-            ) : (
-              // Trống thì hiện câu báo.
-              <div className="card" style={{ gridColumn: '1/-1' }}>
-                <p style={{ color: '#999', textAlign: 'center' }}>Chưa có video bài giảng</p>
+        <div className="video-list">
+          {videos.length > 0 ? videos.map((video) => (
+            <article key={video._id} className="video-row">
+              <a className="video-row-thumbnail" href={video.videoUrl} target="_blank" rel="noreferrer" aria-label={`Mở video ${video.title}`}>
+                {video.thumbnail ? <img src={video.thumbnail} alt="" /> : <span>Video</span>}
+                <span className="video-play-mark" aria-hidden="true">▶</span>
+              </a>
+              <div className="video-row-content">
+                <a className="video-row-title" href={video.videoUrl} target="_blank" rel="noreferrer">{video.title}</a>
+                <p className="video-row-description">{video.description || 'Chưa có mô tả.'}</p>
+                <small>{video.views || 0} lượt xem · {Math.floor((video.duration || 0) / 60)} phút</small>
               </div>
-            )}
-          </div>
+              {(userRole === 'teacher' || userRole === 'admin') && (
+                <button
+                  className="resource-delete-button"
+                  disabled={deletingResource === `videos:${video._id}`}
+                  onClick={() => handleDeleteResource('videos', video, setVideos)}
+                  type="button"
+                >
+                  {deletingResource === `videos:${video._id}` ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              )}
+            </article>
+          )) : (
+            <div className="card"><p className="empty-inline">Chưa có video bài giảng.</p></div>
+          )}
         </div>
       )}
 
@@ -298,7 +415,14 @@ const ClassDetail = () => {
                     <small style={{ color: '#666' }}>
                       {doc.downloads} lượt tải | {doc.fileType.toUpperCase()}
                     </small>
-                    <button className="btn btn-secondary">Tải</button>
+                    <div className="resource-actions">
+                      <a className="btn btn-secondary resource-link" href={doc.fileUrl} target="_blank" rel="noreferrer">Mở tài liệu</a>
+                      {(userRole === 'teacher' || userRole === 'admin') && (
+                        <button className="resource-delete-button" disabled={deletingResource === `documents:${doc._id}`} onClick={() => handleDeleteResource('documents', doc, setDocuments)} type="button">
+                          {deletingResource === `documents:${doc._id}` ? 'Đang xóa...' : 'Xóa'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -324,8 +448,10 @@ const ClassDetail = () => {
                   </p>
                   <div style={{ marginBottom: '1rem' }}>
                     <small style={{ display: 'block', color: '#666', marginBottom: '0.5rem' }}>
-                      {quiz.questions.length} câu hỏi | {quiz.totalPoints} điểm
+                      {quiz.questions?.length || 0} câu hỏi | {quiz.totalPoints} điểm
                     </small>
+                    {quiz.promptImage && <small className="quiz-image-label">Có ảnh đề đính kèm</small>}
+                    {userRole === 'teacher' && <small className="quiz-status-label">{quiz.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</small>}
                     {/* Chỉ hiện giới hạn giờ nếu đề có timeLimit. */}
                     {quiz.timeLimit && (
                       <small style={{ display: 'block', color: '#666' }}>
@@ -333,10 +459,24 @@ const ClassDetail = () => {
                       </small>
                     )}
                   </div>
-                  {/* Teacher xem chi tiết, học sinh bấm làm bài (hiện chỉ là nhãn, chưa gắn link). */}
-                  <button className="btn btn-primary btn-block">
-                    {userRole === 'teacher' ? 'Xem Chi Tiết' : 'Làm Bài'}
-                  </button>
+                  {userRole === 'teacher' ? (
+                    <div className="resource-actions resource-actions-stacked">
+                      {quiz.status === 'published' ? (
+                        <button className="btn btn-secondary btn-block" type="button" disabled>Đã xuất bản</button>
+                      ) : (
+                        <button className="btn btn-primary btn-block" type="button" onClick={() => handlePublishQuiz(quiz._id)}>Xuất bản cho học sinh</button>
+                      )}
+                      <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz, setQuizzes)} type="button">
+                        {deletingResource === `quizzes:${quiz._id}` ? 'Đang xóa...' : 'Xóa bài kiểm tra'}
+                      </button>
+                    </div>
+                  ) : userRole === 'student' ? (
+                    <a className="btn btn-primary btn-block resource-link" href={`/quiz/${quiz._id}/take`}>Làm bài</a>
+                  ) : userRole === 'admin' ? (
+                    <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz, setQuizzes)} type="button">
+                      {deletingResource === `quizzes:${quiz._id}` ? 'Đang xóa...' : 'Xóa bài kiểm tra'}
+                    </button>
+                  ) : null}
                 </div>
               ))
             ) : (
@@ -368,9 +508,16 @@ const ClassDetail = () => {
                       Hạn: {new Date(assign.dueDate).toLocaleDateString('vi-VN')}
                     </small>
                   </div>
-                  <button className="btn btn-primary btn-block">
-                    {userRole === 'teacher' ? 'Xem Nộp Bài' : 'Nộp Bài'}
-                  </button>
+                  <div className="resource-actions resource-actions-stacked">
+                    <button className="btn btn-primary btn-block" type="button">
+                      {userRole === 'teacher' ? 'Xem Nộp Bài' : 'Nộp Bài'}
+                    </button>
+                    {(userRole === 'teacher' || userRole === 'admin') && (
+                      <button className="resource-delete-button" disabled={deletingResource === `assignments:${assign._id}`} onClick={() => handleDeleteResource('assignments', assign, setAssignments)} type="button">
+                        {deletingResource === `assignments:${assign._id}` ? 'Đang xóa...' : 'Xóa bài tập'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
@@ -437,7 +584,7 @@ const ClassDetail = () => {
             {announcements.length > 0 ? (
               announcements.map(ann => (
                 <div key={ann._id} className="card" style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
                     <div>
                       <h3>{ann.title}</h3>
                       <p style={{ marginTop: '0.5rem', lineHeight: '1.6' }}>{ann.content}</p>
@@ -449,6 +596,13 @@ const ClassDetail = () => {
                       </span>
                     )}
                   </div>
+                  {(userRole === 'teacher' || userRole === 'admin') && (
+                    <div className="resource-card-actions">
+                      <button className="resource-delete-button" disabled={deletingResource === `announcements:${ann._id}`} onClick={() => handleDeleteResource('announcements', ann, setAnnouncements)} type="button">
+                        {deletingResource === `announcements:${ann._id}` ? 'Đang xóa...' : 'Xóa thông báo'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -461,8 +615,26 @@ const ClassDetail = () => {
       )}
 
       {/* TAB Học sinh: chỉ teacher thấy; form thêm + bảng danh sách. */}
-      {activeTab === 'students' && userRole === 'teacher' && (
+      {activeTab === 'students' && (userRole === 'teacher' || userRole === 'admin') && (
         <div>
+          <div className="class-code-panel">
+            <div><span>Mã tham gia lớp</span><strong>{classData.joinCode || 'Chưa có mã'}</strong></div>
+            <p>Học sinh dùng mã này để gửi yêu cầu tham gia. Lớp chỉ hiện trong tài khoản sau khi được duyệt.</p>
+          </div>
+
+          <div className="card" style={{ marginBottom: '2rem' }}>
+            <h3>Yêu cầu tham gia đang chờ ({joinRequests.length})</h3>
+            {joinRequests.length > 0 ? joinRequests.map((request) => (
+              <div className="join-request-row" key={request._id || request.student?._id}>
+                <div><strong>{request.student?.name}</strong><span>{request.student?.email}</span></div>
+                <div className="join-request-actions">
+                  <button className="btn btn-success" type="button" onClick={() => handleJoinRequest(request.student?._id, 'approve')}>Duyệt</button>
+                  <button className="btn btn-danger" type="button" onClick={() => handleJoinRequest(request.student?._id, 'reject')}>Từ chối</button>
+                </div>
+              </div>
+            )) : <p className="empty-inline">Chưa có yêu cầu mới.</p>}
+          </div>
+
           {/* Form thêm học sinh bằng email. */}
           <div className="card" style={{ marginBottom: '2rem' }}>
             <h3>Thêm Học Sinh</h3>

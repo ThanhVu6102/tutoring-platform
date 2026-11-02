@@ -42,11 +42,14 @@ const assignmentSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 255,
   },
   // Mô tả / đề bài chi tiết. Mặc định rỗng.
   description: {
     type: String,
     default: '',
+    maxlength: 10000,
   },
   // Lớp được giao: ObjectId tham chiếu Class. Bắt buộc.
   class: {
@@ -69,6 +72,7 @@ const assignmentSchema = new mongoose.Schema({
   totalPoints: {
     type: Number,
     default: 100,
+    min: 0,
   },
   // Mảng các lượt nộp (nhúng submissionSchema ở trên).
   submissions: [submissionSchema],
@@ -78,6 +82,10 @@ const assignmentSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// INDEX: lấy bài tập theo lớp/hạn nộp và theo giáo viên.
+assignmentSchema.index({ class: 1, dueDate: 1 });
+assignmentSchema.index({ teacher: 1 });
 
 // Xuất model 'Assignment' để routes dùng: tạo bài, nộp bài, chấm điểm...
 module.exports = mongoose.model('Assignment', assignmentSchema);

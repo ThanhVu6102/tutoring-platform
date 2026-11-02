@@ -51,11 +51,18 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     // B6: Đối chiếu trạng thái tài khoản với DB (mục 5.5: kiểm tra quyền ở backend).
-    const user = await User.findById(decoded.userId).select('role status isBlocked deletedAt').lean();
+    const user = await User.findById(decoded.userId)
+      .select('role status isBlocked deletedAt suspendedUntil permanentlyBanned').lean();
 
     // Không còn trong DB hoặc đã xóa mềm -> token cũ không còn giá trị.
     if (!user || user.deletedAt) {
       return res.status(401).json({ message: 'Invalid token' });
+    }
+    if (user.permanentlyBanned) {
+      return res.status(403).json({ message: 'Tài khoản đã bị khóa vĩnh viễn do tái phạm chính sách.' });
+    }
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      return res.status(423).json({ message: 'Tài khoản đang bị đình chỉ.', suspendedUntil: user.suspendedUntil });
     }
     // Bị khóa -> chặn 403 nhắc lý do.
     if (user.isBlocked) {
@@ -63,7 +70,8 @@ const authMiddleware = async (req, res, next) => {
     }
     // Chỉ 'active' (hoặc admin) được giữ phiên. Lưu: token cũ khi user bị
     // chuyển 'inactive'/'left'/'rejected' cũng tự mất quyền mà không cần chờ hết hạn.
-    if (user.status !== 'active' || !['teacher', 'student', 'admin'].includes(user.role)) {
+    // Tài khoản trên main trước khi thêm vòng đời chưa có trường status.
+    if ((user.status || 'active') !== 'active' || !['teacher', 'student', 'admin'].includes(user.role)) {
       return res.status(403).json({ message: 'Tài khoản đang không hoạt động, vui lòng đăng nhập lại' });
     }
 

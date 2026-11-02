@@ -22,7 +22,7 @@ async function checkClassAccess(classId, userId, role) {
   }
 
   // Chỉ lấy 2 cột cần thiết để kiểm tra quyền -> nhanh và nhẹ.
-  const cls = await Class.findById(classId).select('teacher students').lean();
+  const cls = await Class.findById(classId).select('teacher students status').lean();
   if (!cls) {
     return { ok: false, status: 404, message: 'Không tìm thấy lớp học' };
   }
@@ -35,6 +35,9 @@ async function checkClassAccess(classId, userId, role) {
   const uid = String(userId);
   const isTeacher = String(cls.teacher) === uid;
   const isStudent = (cls.students || []).some((id) => String(id) === uid);
+  if (role === 'student' && cls.status === 'inactive') {
+    return { ok: false, status: 423, message: 'Lớp đã bị khóa hoặc lưu trữ' };
+  }
 
   if (!isTeacher && !isStudent) {
     return {

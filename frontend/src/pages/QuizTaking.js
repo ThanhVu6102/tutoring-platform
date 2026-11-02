@@ -8,7 +8,7 @@
 // ============================================================================
 
 // Nạp React + hook: useState (đề, đáp án, giờ, trạng thái) + useEffect (tải đề, timer).
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Nạp useParams (lấy quizId trên URL) + useNavigate (quay lại sau khi nộp).
 import { useParams, useNavigate } from 'react-router-dom';
 // Nạp axios gọi API.
@@ -33,58 +33,8 @@ const QuizTaking = () => {
   // Lấy token để gắn Authorization cho mọi API quiz.
   const token = localStorage.getItem('token');
 
-  // useEffect 1: tải đề + gắn nghe sự kiện chuyển tab.
-  // - Chạy lại khi quizId đổi hoặc submitted đổi.
-  useEffect(() => {
-    fetchQuiz(); // tải đề thi.
-
-    // HÀM: handleVisibilityChange - phát hiện chuyển tab / thu nhỏ cửa sổ.
-    // - document.hidden = true nghĩa là tab không còn hiển thị.
-    // - Nếu chưa nộp mà ẩn tab thì bật cờ cảnh báo gian lận.
-    const handleVisibilityChange = () => {
-      if (document.hidden && !submitted) {
-        setTabSwitched(true);
-      }
-    };
-
-    // Đăng ký nghe sự kiện đổi hiển thị tab.
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    // Dọn dẹp khi unmount để tránh rò rỉ listener.
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [quizId, submitted]);
-
-  // useEffect 2: khi có đề + chưa nộp thì tính giờ còn lại từ timeLimit (phút -> giây).
-  useEffect(() => {
-    if (quiz?.timeLimit && !submitted) {
-      setTimeLeft(quiz.timeLimit * 60);
-    }
-  }, [quiz, submitted]);
-
-  // useEffect 3: vòng lặp đếm ngược mỗi giây.
-  // - Nếu chưa có giờ hoặc đã nộp thì không chạy.
-  // - Mỗi giây trừ 1; về <=1 thì tự gọi handleSubmit() và dừng ở 0.
-  useEffect(() => {
-    if (timeLeft === null || submitted) return; // chưa cần đếm.
-
-    // Tạo interval 1 giây.
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        // Hết giờ -> tự nộp bài.
-        if (prev <= 1) {
-          handleSubmit();
-          return 0;
-        }
-        // Còn giờ -> trừ 1 giây.
-        return prev - 1;
-      });
-    }, 1000);
-
-    // Dọn interval khi timeLeft/submitted đổi hoặc unmount.
-    return () => clearInterval(timer);
-  }, [timeLeft, submitted]);
-
   // HÀM: fetchQuiz - tải chi tiết đề từ GET /api/quizzes/:quizId.
-  const fetchQuiz = async () => {
+  const fetchQuiz = useCallback(async () => {
     try {
       const response = await axios.get(`/api/quizzes/${quizId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -93,7 +43,7 @@ const QuizTaking = () => {
     } catch (error) {
       console.error('Error fetching quiz:', error);
     }
-  };
+  }, [quizId, token]);
 
   // HÀM: handleAnswerChange(questionIndex, value) - lưu đáp án 1 câu.
   // - Giữ nguyên các câu khác (...answers), chỉ cập nhật câu vừa sửa.
@@ -109,7 +59,7 @@ const QuizTaking = () => {
   //  - B1: Chuyển object answers thành mảng [{questionId: index, answer}].
   //  - B2: POST /api/quizzes/:quizId/submit kèm answers + classId.
   //  - B3: Đánh dấu submitted, báo thành công, quay lại trang trước.
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
       // B1: Biến đổi định dạng cho backend dễ chấm.
       const submissionAnswers = Object.entries(answers).map(([index, data]) => ({
@@ -132,7 +82,34 @@ const QuizTaking = () => {
       console.error('Error submitting quiz:', error);
       alert('Lỗi khi nộp bài');
     }
-  };
+  }, [answers, navigate, quiz, quizId, token]);
+
+  useEffect(() => {
+    fetchQuiz();
+    const handleVisibilityChange = () => {
+      if (document.hidden && !submitted) setTabSwitched(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchQuiz, submitted]);
+
+  useEffect(() => {
+    if (quiz?.timeLimit && !submitted) setTimeLeft(quiz.timeLimit * 60);
+  }, [quiz?.timeLimit, submitted]);
+
+  useEffect(() => {
+    if (timeLeft === null || submitted) return undefined;
+    const timer = setInterval(() => {
+      setTimeLeft((previousTime) => {
+        if (previousTime <= 1) {
+          handleSubmit();
+          return 0;
+        }
+        return previousTime - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [handleSubmit, submitted, timeLeft]);
 
   // Nếu phát hiện chuyển tab thì chặn toàn màn hình bằng cảnh báo (chống gian lận).
   if (tabSwitched) {
@@ -183,6 +160,13 @@ const QuizTaking = () => {
           </div>
         )}
       </div>
+
+      {quiz.promptImage && (
+        <figure className="quiz-prompt-image">
+          <img src={quiz.promptImage} alt="Ảnh đề bài kiểm tra" />
+          <figcaption>Ảnh đề bài</figcaption>
+        </figure>
+      )}
 
       {/* Form bài làm: submit cũng gọi handleSubmit (chặn reload). */}
       <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>

@@ -12,6 +12,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 // Nạp model User để truy vấn MongoDB (tìm user, tạo user mới).
 const User = require('../models/User');
+const StudentWarning = require('../models/StudentWarning');
 // Nạp cấu hình admin cố định (email/password mặc định của Super Admin).
 const DEFAULT_ADMIN = require('../config/defaultAdmin');
 // Nạp 3 hàm tiện ích Super Admin: check email, check password, (ensure dự phòng).
@@ -25,6 +26,7 @@ const { sendError } = require('../utils/respond');
 
 // Tạo router riêng cho nhóm API /api/auth.
 const router = express.Router();
+const POLICY_VERSION = '0.1.1';
 
 // ----------------------------------------------------------------------------
 // API: POST /api/auth/register
@@ -40,13 +42,16 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     // B1: Bóc + chuẩn hóa dữ liệu người dùng gửi lên từ form đăng ký.
-    const { password, role } = req.body;
+    const { password, role, acceptedPolicies } = req.body;
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
 
     // B2: Ràng buộc bắt buộc: phải có đủ họ tên + email + mật khẩu.
     if (!name || !email || typeof password !== 'string' || !password) {
       return res.status(400).json({ message: 'Vui lòng nhập đầy đủ họ tên, email và mật khẩu' });
+    }
+    if (acceptedPolicies !== true) {
+      return res.status(400).json({ message: 'Bạn cần đọc và đồng ý với chính sách trước khi đăng ký' });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || name.length > 200 || email.length > 255) {
       return res.status(400).json({ message: 'Họ tên hoặc email không hợp lệ' });
@@ -79,6 +84,8 @@ router.post('/register', async (req, res) => {
       email,
       password, // mật khẩu thô, sẽ được hash trong hook pre-save của model.
       role: ['teacher', 'student'].includes(role) ? role : 'student',
+      policiesAcceptedAt: new Date(),
+      policyVersion: POLICY_VERSION,
       status: role === 'teacher' ? 'pending' : 'active',
     });
 
@@ -282,12 +289,40 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
     }
 
-    // ===== KIỂM TRA VÒNG ĐỜI TÀI KHOẢN (mục 5.4 tài liệu) =====
-    // Chỉ thực hiện sau khi mật khẩu đúng để không tiết lộ trạng thái cho người dò.
-    // B1: Đã xóa mềm -> coi như không tồn tại, báo lỗi đăng nhập chung.
     if (user.deletedAt) {
       return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
     }
+    if (user.permanentlyBanned) {
+      const latestWarning = await StudentWarning.findOne({ student: user._id, violationCounted: true })
+        .populate('class', 'name')
+        .sort({ resolvedAt: -1 });
+      return res.status(403).json({
+        message: 'Tài khoản đã bị khóa vĩnh viễn do tái phạm chính sách.',
+        restriction: latestWarning ? {
+          className: latestWarning.class?.name,
+          reasonCode: latestWarning.reasonCode,
+          details: latestWarning.details,
+          sanction: 'Khóa tài khoản vĩnh viễn',
+        } : undefined,
+      });
+    }
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      const latestWarning = await StudentWarning.findOne({ student: user._id, accountSanction: { $ne: 'none' } })
+        .populate('class', 'name')
+        .sort({ resolvedAt: -1 });
+      return res.status(423).json({
+        message: 'Tài khoản đang bị đình chỉ.',
+        suspendedUntil: user.suspendedUntil,
+        restriction: latestWarning ? {
+          className: latestWarning.class?.name,
+          reasonCode: latestWarning.reasonCode,
+          details: latestWarning.details,
+          sanction: latestWarning.accountSanction === 'suspension_7_days' ? 'Đình chỉ 7 ngày' : 'Đình chỉ 1 tháng',
+        } : undefined,
+      });
+    }
+    // ===== KIỂM TRA VÒNG ĐỜI TÀI KHOẢN (mục 5.4 tài liệu) =====
+    // Chỉ thực hiện sau khi mật khẩu đúng để không tiết lộ trạng thái cho người dò.
     // B2: Bị khóa đăng nhập -> 403 kèm lý do rõ ràng.
     if (user.isBlocked) {
       return res.status(403).json({ message: 'Tài khoản đã bị khóa, liên hệ quản trị viên' });

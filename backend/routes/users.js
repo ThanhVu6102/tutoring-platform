@@ -38,7 +38,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
       deletedAt: null, // chỉ nhìn thấy chính mình khi chưa bị xóa mềm.
     })
       .select('-password')
-      .populate('enrolledClasses');
+      .populate('enrolledClasses', 'name subject grade');
 
     // Không thấy (có thể đã bị xóa mềm) -> 404.
     if (!user) {
@@ -70,9 +70,29 @@ router.put('/profile', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    if (avatar !== undefined && avatar) {
+      if (typeof avatar !== 'string') {
+        return res.status(400).json({ message: 'Avatar phải là chuỗi URL hoặc ảnh base64' });
+      }
+      if (avatar.startsWith('data:image/')) {
+        if (!/^data:image\/(png|jpeg|webp);base64,/.test(avatar) || avatar.length > 3_000_000) {
+          return res.status(400).json({ message: 'Avatar must be PNG, JPG or WebP and smaller than 2 MB' });
+        }
+      } else {
+        try {
+          const avatarUrl = new URL(avatar);
+          if (!['http:', 'https:'].includes(avatarUrl.protocol)) {
+            return res.status(400).json({ message: 'Avatar URL must use HTTP or HTTPS' });
+          }
+        } catch (_) {
+          return res.status(400).json({ message: 'Avatar URL is invalid' });
+        }
+      }
+    }
+
     // Chỉ gán khi client có gửi giá trị (tránh ghi đè rỗng).
     if (name) user.name = name; // cập nhật họ tên.
-    if (avatar) user.avatar = avatar; // cập nhật link ảnh đại diện.
+    if (avatar !== undefined) user.avatar = avatar; // cập nhật hoặc xóa ảnh.
     if (bio) user.bio = bio; // cập nhật giới thiệu bản thân.
     if (phone) user.phone = phone; // cập nhật số điện thoại.
 
@@ -81,10 +101,18 @@ router.put('/profile', authMiddleware, async (req, res) => {
     // Lưu xuống DB (hook pre-save tự bỏ qua hash lại vì password không đổi).
     await user.save();
 
-    // Trả về thông báo + user mới cho frontend hiển thị lại (ẩn password).
-    const safeUser = user.toObject();
-    safeUser.password = undefined;
-    res.json({ message: 'Profile updated successfully', user: safeUser });
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio,
+        phone: user.phone,
+      },
+    });
   } catch (error) {
     return sendError(res, error);
   }

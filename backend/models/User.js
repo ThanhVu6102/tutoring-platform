@@ -45,6 +45,21 @@ const userSchema = new mongoose.Schema({
     enum: ['teacher', 'student', 'admin'],
     required: true,
   },
+  policiesAcceptedAt: Date,
+  policyVersion: String,
+  disciplinarySanctions: {
+    type: Number,
+    default: 0,
+  },
+  classRemovalIncidents: {
+    type: Number,
+    default: 0,
+  },
+  suspendedUntil: Date,
+  permanentlyBanned: {
+    type: Boolean,
+    default: false,
+  },
   // Trạng thái tài khoản theo vòng đời (mục 3.1 tài liệu luồng xử lý):
   // - pending:  mới đăng ký, chờ admin duyệt (giáo viên).
   // - active:   đang hoạt động.
@@ -81,7 +96,8 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     default: null,
-    maxlength: 2000,
+    // Giữ hỗ trợ ảnh base64 từ trang chỉnh sửa hồ sơ trên main.
+    maxlength: 3000000,
   },
   // Giới thiệu bản thân. Mặc định chuỗi rỗng.
   bio: {
