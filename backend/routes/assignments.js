@@ -4,6 +4,9 @@ const classAvailability = require('../middleware/classAvailability');
 const Assignment = require('../models/Assignment');
 
 const router = express.Router();
+// Lọc hồ sơ giáo viên/học sinh lồng trong bài tập, không thay đổi quyền truy cập bài.
+router.use(require('../middleware/userPrivacy'));
+const { USER_POPULATE_FIELDS } = require('../utils/userPrivacy');
 
 // Create assignment (teacher only)
 router.post('/', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
@@ -39,7 +42,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Assignment), asy
 // Get assignment by ID
 router.get('/:id', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
-    const assignment = await Assignment.findById(req.params.id).populate('teacher');
+    const assignment = await Assignment.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });

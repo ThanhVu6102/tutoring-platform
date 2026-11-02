@@ -4,6 +4,9 @@ const classAvailability = require('../middleware/classAvailability');
 const Video = require('../models/Video');
 
 const router = express.Router();
+// Ẩn dữ liệu cá nhân của giáo viên trong response video đối với người khác.
+router.use(require('../middleware/userPrivacy'));
+const { USER_POPULATE_FIELDS } = require('../utils/userPrivacy');
 
 const getYoutubeThumbnail = (videoUrl) => {
   try {
@@ -66,7 +69,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Video), async (r
 // Get video by ID
 router.get('/:id', authMiddleware, classAvailability(Video), async (req, res) => {
   try {
-    const video = await Video.findById(req.params.id).populate('teacher');
+    const video = await Video.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!video) {
       return res.status(404).json({ message: 'Video not found' });

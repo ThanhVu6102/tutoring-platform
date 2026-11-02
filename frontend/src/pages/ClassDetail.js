@@ -626,7 +626,8 @@ const ClassDetail = () => {
             <h3>Yêu cầu tham gia đang chờ ({joinRequests.length})</h3>
             {joinRequests.length > 0 ? joinRequests.map((request) => (
               <div className="join-request-row" key={request._id || request.student?._id}>
-                <div><strong>{request.student?.name}</strong><span>{request.student?.email}</span></div>
+                {/* Email chỉ dành cho admin; giáo viên duyệt theo tên và ID học sinh. */}
+                <div><strong>{request.student?.name}</strong>{userRole === 'admin' && <span>{request.student?.email}</span>}</div>
                 <div className="join-request-actions">
                   <button className="btn btn-success" type="button" onClick={() => handleJoinRequest(request.student?._id, 'approve')}>Duyệt</button>
                   <button className="btn btn-danger" type="button" onClick={() => handleJoinRequest(request.student?._id, 'reject')}>Từ chối</button>
@@ -662,16 +663,17 @@ const ClassDetail = () => {
                   <thead>
                     <tr style={{ borderBottom: '2px solid #eee' }}>
                       <th style={{ padding: '1rem', textAlign: 'left' }}>Tên</th>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Email</th>
+                      {/* Đồng bộ với backend: giáo viên không xem email của học sinh. */}
+                      {userRole === 'admin' && <th style={{ padding: '1rem', textAlign: 'left' }}>Email</th>}
                       <th style={{ padding: '1rem', textAlign: 'center' }}>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Mỗi học sinh 1 hàng: tên, email, nút Xóa (hiện chưa gắn API xóa). */}
+                    {/* Mỗi học sinh 1 hàng; cột email chỉ hiển thị cho admin. */}
                     {classData.students.map(student => (
                       <tr key={student._id} style={{ borderBottom: '1px solid #eee' }}>
                         <td style={{ padding: '1rem' }}>{student.name}</td>
-                        <td style={{ padding: '1rem' }}>{student.email}</td>
+                        {userRole === 'admin' && <td style={{ padding: '1rem' }}>{student.email}</td>}
                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                           <button className="btn btn-danger" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                             Xóa

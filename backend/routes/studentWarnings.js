@@ -6,6 +6,8 @@ const User = require('../models/User');
 const { confirmStudentWarning, finalizeExpiredStudentWarnings } = require('../utils/studentWarnings');
 
 const router = express.Router();
+// Học sinh xem cảnh báo của mình nhưng không nhận email riêng của người phát hành.
+router.use(require('../middleware/userPrivacy'));
 const validReasons = [
   'spam', 'abusive_content', 'copyright', 'account_sharing', 'academic_fraud',
   'illegal_content', 'privacy_breach', 'financial_misconduct', 'class_disruption', 'other',
