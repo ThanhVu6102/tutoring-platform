@@ -14,6 +14,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // Nạp axios gọi API.
 import axios from 'axios';
+import PoliciesPage from './PoliciesPage';
+import { POLICY_VERSION } from '../config/policyLabels';
 
 // Component trang đăng ký.
 const RegisterPage = ({ onLogin }) => {
@@ -31,6 +33,11 @@ const RegisterPage = ({ onLogin }) => {
   const [error, setError] = useState('');
   // State loading: chống bấm nút 2 lần khi đang chờ API.
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const [policyRead, setPolicyRead] = useState(sessionStorage.getItem('policy-read-version') === POLICY_VERSION);
+  const [showPolicies, setShowPolicies] = useState(false);
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
@@ -40,6 +47,12 @@ const RegisterPage = ({ onLogin }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePolicyRead = () => {
+    setPolicyRead(true);
+    setAcceptedPolicies(true);
+    setShowPolicies(false);
   };
 
   // HÀM: handleSubmit - chạy khi bấm "Đăng Ký".
@@ -58,6 +71,10 @@ const RegisterPage = ({ onLogin }) => {
       setError('Mật khẩu không trùng khớp');
       return; // dừng, không gọi API.
     }
+    if (!acceptedPolicies || !policyRead) {
+      setError('Hãy đọc chính sách và xác nhận đồng ý trước khi đăng ký.');
+      return;
+    }
 
     setLoading(true); // B3a: bật loading trước khi gọi API.
 
@@ -70,13 +87,25 @@ const RegisterPage = ({ onLogin }) => {
         email: formData.email,
         password: formData.password,
         role: formData.role,
+        acceptedPolicies: true,
       });
 
-      // B4a: Lưu _id user mới.
+      // B4a: LUỒNG GIÁO VIÊN CHỜ DUYỆT: backend trả 202 kèm thông báo,
+      // KHÔNG có token -> không đăng nhập luôn, về /login rồi tự đăng nhập sau khi được duyệt.
+      if (!response.data.token) {
+        // Không gọi onLogin khi chưa có JWT: App sẽ lưu chuỗi "null" và
+        // đánh dấu đã đăng nhập nếu truyền null vào callback này.
+        navigate('/login', {
+          state: { notice: response.data.message || 'Đăng ký thành công, hãy đợi quản trị viên duyệt rồi đăng nhập.' },
+        });
+        return;
+      }
+
+      // B4b: Lưu _id user mới.
       localStorage.setItem('userId', response.data.user.id);
-      // B4b: Báo App lưu token + role (đăng nhập luôn sau đăng ký).
+      // B4c: Báo App lưu token + role (đăng nhập luôn sau đăng ký).
       onLogin(response.data.token, response.data.user.role);
-      // B4c: Vào Dashboard.
+      // B4d: Vào Dashboard.
       navigate('/dashboard');
     } catch (err) {
       // B5a: Log để debug.
@@ -161,34 +190,67 @@ const RegisterPage = ({ onLogin }) => {
           {/* Ô mật khẩu. */}
           <div className="form-group">
             <label>Mật khẩu</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Nhập mật khẩu"
-              required
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Nhập mật khẩu"
+                required
+              />
+              <button aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} className="password-visibility-button" onClick={() => setShowPassword((visible) => !visible)} title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} type="button">
+                {showPassword ? 'Ẩn' : 'Hiện'}
+              </button>
+            </div>
           </div>
 
           {/* Ô nhập lại mật khẩu để xác nhận. */}
           <div className="form-group">
             <label>Xác nhận mật khẩu</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Xác nhận mật khẩu"
-              required
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Xác nhận mật khẩu"
+                required
+              />
+              <button aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} className="password-visibility-button" onClick={() => setShowConfirmPassword((visible) => !visible)} title={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'} type="button">
+                {showConfirmPassword ? 'Ẩn' : 'Hiện'}
+              </button>
+            </div>
+          </div>
+
+          <div className="policy-consent">
+            <div className="policy-consent-label">
+              <input
+                id="policy-consent-checkbox"
+                type="checkbox"
+                checked={acceptedPolicies}
+                onChange={(event) => {
+                  if (event.target.checked && !policyRead) {
+                    setShowPolicies(true);
+                    return;
+                  }
+                  setAcceptedPolicies(event.target.checked);
+                }}
+              />
+              <div className="policy-consent-copy">
+                <label htmlFor="policy-consent-checkbox">Tôi đã đọc và đồng ý với</label>
+                <button className="policy-open-link" onClick={() => setShowPolicies(true)} type="button">Chính sách &amp; Quy định ứng xử</button>.
+              </div>
+            </div>
+            {!policyRead && <p>Đọc chính sách để bật xác nhận đăng ký.</p>}
           </div>
 
           {/* Nút đăng ký. */}
           <button
             type="submit"
             className="btn btn-primary btn-block"
-            disabled={loading}
+            style={{ marginTop: '24px' }}
+            disabled={loading || !acceptedPolicies || !policyRead}
           >
             {loading ? 'Đang đăng ký...' : 'Đăng Ký'}
           </button>
@@ -199,6 +261,7 @@ const RegisterPage = ({ onLogin }) => {
           Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
         </div>
       </div>
+      {showPolicies && <PoliciesPage embedded onRead={handlePolicyRead} />}
     </div>
   );
 };

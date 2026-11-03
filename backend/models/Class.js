@@ -10,17 +10,37 @@
 // Nạp mongoose để định nghĩa schema/model MongoDB.
 const mongoose = require('mongoose');
 
+const lockNoticeSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    enum: ['none', 'pending', 'appealed', 'locked', 'dismissed'],
+    default: 'none',
+  },
+  reasonCode: String,
+  policyLevel: { type: Number, min: 1, max: 3 },
+  details: String,
+  issuedAt: Date,
+  appealDeadline: Date,
+  appealMessage: String,
+  appealedAt: Date,
+  resolvedAt: Date,
+  adminResponse: String,
+}, { _id: false });
+
 // Tạo schema cho 1 lớp học.
 const classSchema = new mongoose.Schema({
   // Tên lớp. Bắt buộc (ví dụ: "Toán 12 - Ôn thi THPT").
   name: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 255,
   },
   // Mô tả lớp. Mặc định rỗng.
   description: {
     type: String,
     default: '',
+    maxlength: 5000,
   },
   // Giáo viên phụ trách: ObjectId tham chiếu User. Bắt buộc.
   // Admin tạo lớp thì teacher là chính admin đó (hoặc giáo viên được chỉ định).
@@ -35,22 +55,45 @@ const classSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
+  joinCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+  },
+  joinRequests: [{
+    student: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   // Môn học. Bắt buộc (ví dụ: "Toán", "Lý", "Anh").
   // Dùng để lọc/tìm kiếm ở Dashboard.
   subject: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 100,
   },
   // Khối / trình độ (ví dụ: "12", "IELTS"). Mặc định rỗng.
   grade: {
     type: String,
     default: '',
+    trim: true,
+    maxlength: 100,
   },
   // Sĩ số tối đa. Mặc định 50. API enroll chặn khi vượt quá.
   capacity: {
     type: Number,
     default: 50,
+    min: 1,
+    max: 1000,
   },
+  sessionRevision: { type: Number, default: 0, select: false },
   // Lịch học: thứ trong tuần + giờ bắt đầu/kết thúc (chuỗi, ví dụ "19:00").
   // Lưu gọn trong object con, không cần collection riêng.
   schedule: {
@@ -70,6 +113,11 @@ const classSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active',
   },
+  lockNotice: {
+    type: lockNoticeSchema,
+    default: () => ({}),
+  },
+  lockNoticeHistory: [lockNoticeSchema],
   // Ngày tạo lớp. Mặc định hiện tại.
   createdAt: {
     type: Date,
@@ -81,6 +129,17 @@ const classSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+classSchema.index({ joinCode: 1 }, { unique: true, sparse: true });
+// ----------------------------------------------------------------------------
+// INDEX: các truy vấn chính của Dashboard/chi tiết lớp.
+// - { teacher, createdAt }: giáo viên xem lớp mình dạy, mới nhất trước.
+// - { students }: học sinh xem lớp đã tham gia.
+// - { status }: lọc lớp đang hoạt động.
+// ----------------------------------------------------------------------------
+classSchema.index({ teacher: 1, createdAt: -1 });
+classSchema.index({ students: 1 });
+classSchema.index({ status: 1 });
 
 // Xuất model 'Class' để routes dùng: tạo lớp, ghi danh, phân quyền xem lớp...
 module.exports = mongoose.model('Class', classSchema);

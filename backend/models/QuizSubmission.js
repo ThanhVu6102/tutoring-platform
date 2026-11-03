@@ -65,6 +65,7 @@ const quizSubmissionSchema = new mongoose.Schema({
   maxScore: {
     type: Number,
     required: true,
+    min: 0,
   },
   // Phần trăm = totalScore / maxScore * 100. Mặc định 0.
   percentage: {
@@ -90,6 +91,11 @@ const quizSubmissionSchema = new mongoose.Schema({
   // Nhận xét chung của giáo viên cho cả bài làm.
   feedback: String,
 });
+
+// INDEX: chống nộp trùng (quiz + student), lọc bài nộp theo đề/lớp/học sinh.
+quizSubmissionSchema.index({ quiz: 1, student: 1 });
+quizSubmissionSchema.index({ class: 1, submittedAt: -1 });
+quizSubmissionSchema.index({ student: 1, submittedAt: -1 });
 
 // Xuất model 'QuizSubmission' để routes dùng: bắt đầu thi, nộp bài, chấm...
 module.exports = mongoose.model('QuizSubmission', quizSubmissionSchema);

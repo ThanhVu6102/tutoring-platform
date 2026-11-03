@@ -49,8 +49,8 @@ async function main() {
   // ===== B2: LUÔN ĐẢM BẢO SUPER ADMIN GỐC TỒN TẠI =====
   // Email gốc chuẩn chữ thường để truy vấn nhất quán.
   const rootEmail = DEFAULT_ADMIN.email.toLowerCase();
-  // Tìm Super Admin gốc trong DB.
-  let root = await User.findOne({ email: rootEmail });
+  // Tìm Super Admin gốc trong DB (cần +password để kiểm tra mật khẩu hiện tại).
+  let root = await User.findOne({ email: rootEmail }).select('+password');
   // Trường hợp đã có -> khôi phục cho đúng chuẩn.
   if (root) {
     // Ép role về admin (phòng khi bị hạ quyền thủ công).

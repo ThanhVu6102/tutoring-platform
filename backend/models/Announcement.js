@@ -15,11 +15,14 @@ const announcementSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
+    trim: true,
+    maxlength: 255,
   },
   // Nội dung chi tiết. Bắt buộc nhập (ví dụ: "Thứ 6 nộp bài...").
   content: {
     type: String,
     required: true,
+    maxlength: 10000,
   },
   // Lớp áp dụng: ObjectId tham chiếu sang collection Class.
   // Bắt buộc vì thông báo luôn thuộc về 1 lớp cụ thể.
@@ -63,6 +66,10 @@ const announcementSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// INDEX: lấy thông báo theo lớp, mới nhất trước.
+announcementSchema.index({ class: 1, createdAt: -1 });
+announcementSchema.index({ teacher: 1 });
 
 // Xuất model 'Announcement' để routes dùng: find, tạo mới, cập nhật readBy...
 module.exports = mongoose.model('Announcement', announcementSchema);
