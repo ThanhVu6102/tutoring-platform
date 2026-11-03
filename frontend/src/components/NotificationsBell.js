@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const READ_KEY = 'read-role-notifications';
@@ -37,9 +38,9 @@ const NotificationsBell = ({ userRole }) => {
               href: '/profile',
             })));
         } else if (userRole === 'teacher') {
-          const response = await axios.get('/api/classes');
+          const classes = await getAllPages('/api/classes', { view: 'notifications' });
           if (!isMounted) return;
-          setItems(response.data
+          setItems(classes
             .filter((classItem) => ['pending', 'appealed', 'locked'].includes(classItem.lockNotice?.status))
             .map((classItem) => ({
               id: `${classItem._id}-${classItem.lockNotice.issuedAt || classItem.lockNotice.status}`,

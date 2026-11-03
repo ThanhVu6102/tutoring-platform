@@ -138,6 +138,10 @@ classSchema.index({ joinCode: 1 }, { unique: true, sparse: true });
 // - { status }: lọc lớp đang hoạt động.
 // ----------------------------------------------------------------------------
 classSchema.index({ teacher: 1, createdAt: -1 });
+// Index khớp filter quyền và sort phân trang ổn định bằng _id.
+classSchema.index({ createdAt: -1, _id: -1 });
+classSchema.index({ teacher: 1, createdAt: -1, _id: -1 });
+classSchema.index({ students: 1, status: 1, createdAt: -1, _id: -1 });
 classSchema.index({ students: 1 });
 classSchema.index({ status: 1 });
 

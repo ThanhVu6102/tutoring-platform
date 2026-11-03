@@ -2633,3 +2633,5 @@ input:focus, select:focus, textarea:focus {
     align-items: start;
   }
 }
+/* Điều hướng danh sách có giới hạn, giữ nút và trạng thái dễ dùng trên mobile. */
+.pagination-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0; }

@@ -118,6 +118,9 @@ const quizSchema = new mongoose.Schema({
 
 // INDEX: lấy đề theo lớp, theo giáo viên và lọc theo trạng thái.
 quizSchema.index({ class: 1, createdAt: -1 });
+// Danh sách học sinh chỉ đếm/tải đề published, giáo viên xem mọi trạng thái.
+quizSchema.index({ class: 1, createdAt: -1, _id: -1 });
+quizSchema.index({ class: 1, status: 1, createdAt: -1, _id: -1 });
 quizSchema.index({ teacher: 1 });
 quizSchema.index({ status: 1 });
 

@@ -7,7 +7,7 @@
 // ============================================================================
 
 // Nạp React và 2 hook: useState (biến trạng thái) + useEffect (chạy 1 lần khi mở web).
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 // Nạp các công cụ điều hướng: Router (bao toàn app), Routes/Route (khai báo đường dẫn),
 // Navigate (tự chuyển hướng).
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -19,17 +19,20 @@ import './config/api';
 // Nạp các trang (Pages) tương ứng từng đường dẫn.
 import LoginPage from './pages/LoginPage'; // trang đăng nhập /login.
 import RegisterPage from './pages/RegisterPage'; // trang đăng ký /register.
-import Dashboard from './pages/Dashboard'; // trang tổng quan lớp học /dashboard.
-import AdminDashboard from './pages/AdminDashboard';
-import AdminModeration from './pages/AdminModeration';
-import AdminClassDetail from './pages/AdminClassDetail';
-import ClassDetail from './pages/ClassDetail'; // trang chi tiết 1 lớp /class/:id.
-import QuizTaking from './pages/QuizTaking'; // trang làm bài kiểm tra /quiz/:quizId/take.
 import PoliciesPage from './pages/PoliciesPage';
-import ProfilePage from './pages/ProfilePage';
 
 // Nạp thanh điều hướng trên cùng.
 import Navbar from './components/Navbar';
+import RouteBoundary from './components/RouteBoundary';
+
+// Tách bundle theo màn hình, không tải trang quản trị/chi tiết lớp khi mới đăng nhập.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminModeration = lazy(() => import('./pages/AdminModeration'));
+const AdminClassDetail = lazy(() => import('./pages/AdminClassDetail'));
+const ClassDetail = lazy(() => import('./pages/ClassDetail'));
+const QuizTaking = lazy(() => import('./pages/QuizTaking'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 // Component App: bao toàn bộ website.
 const App = () => {
@@ -100,6 +103,8 @@ const App = () => {
         {/* Chỉ hiện Navbar khi đã đăng nhập; truyền role để hiện chữ + nút phù hợp. */}
         <Navbar userRole={userRole} onLogout={handleLogout} isAuthenticated={isAuthenticated} />
         {/* Khai báo các Route của web. */}
+        <RouteBoundary>
+        <Suspense fallback={<main className="main-content" role="status">Đang tải màn hình...</main>}>
         <Routes>
           {/* Trang đăng nhập: truyền handleLogin để lưu token sau khi login API thành công. */}
           <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
@@ -128,6 +133,8 @@ const App = () => {
             <Route path="*" element={<Navigate to="/login" replace />} />
           )}
         </Routes>
+        </Suspense>
+        </RouteBoundary>
       </div>
     </Router>
   );

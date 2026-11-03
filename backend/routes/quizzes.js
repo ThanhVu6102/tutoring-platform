@@ -3,6 +3,7 @@ const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Quiz = require('../models/Quiz');
 const QuizSubmission = require('../models/QuizSubmission');
+const { readPage, objectId } = require('../utils/pagination');
 
 const router = express.Router();
 // Lọc cả hồ sơ giáo viên trong đề thi và hồ sơ học sinh trong danh sách bài nộp.
@@ -53,12 +54,17 @@ router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (re
 // Get quizzes for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
-    const filter = { class: req.params.classId };
+    const filter = { class: objectId(req.params.classId) };
     if (req.userRole === 'student') filter.status = 'published';
-    const quizzes = await Quiz.find(filter);
-    res.json(req.userRole === 'student' ? quizzes.map(quizForStudent) : quizzes);
+    // MongoDB chỉ trả số câu/cờ ảnh, không truyền đề, đáp án hay ảnh base64 cho thẻ danh sách.
+    res.json(await readPage(Quiz, req, filter, { projection: {
+      title: 1, description: 1, class: 1, teacher: 1, totalPoints: 1, timeLimit: 1,
+      dueDate: 1, status: 1, createdAt: 1, allowReview: 1,
+      questionCount: { $size: { $ifNull: ['$questions', []] } },
+      hasPromptImage: { $ne: [{ $ifNull: ['$promptImage', ''] }, ''] },
+    } }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 

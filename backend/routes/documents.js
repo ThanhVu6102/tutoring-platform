@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Document = require('../models/Document');
+const { readPage } = require('../utils/pagination');
 
 const router = express.Router();
 // Chỉ trả thông tin hồ sơ giáo viên mà người xem được phép nhận trong tài liệu.
@@ -42,10 +43,13 @@ router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async
 // Get documents for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Document), async (req, res) => {
   try {
-    const documents = await Document.find({ class: req.params.classId });
-    res.json(documents);
+    // Không gửi lịch sử tải xuống trong response danh sách.
+    res.json(await readPage(Document, req, { class: req.params.classId }, {
+      select: 'title description class teacher fileUrl fileType fileSize downloads uploadedAt',
+      sort: { uploadedAt: -1, _id: -1 },
+    }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 
