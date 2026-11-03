@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const warningStatusLabels = {
@@ -25,13 +26,13 @@ const ProfilePage = () => {
       try {
         const requests = [axios.get('/api/users/profile')];
         if (role === 'student') requests.push(axios.get('/api/student-warnings/mine'));
-        if (role === 'teacher') requests.push(axios.get('/api/classes'));
+        if (role === 'teacher') requests.push(getAllPages('/api/classes', { view: 'history' }));
         const responses = await Promise.all(requests);
         const user = responses[0].data;
         setProfile(user);
         setForm({ name: user.name || '', phone: user.phone || '', bio: user.bio || '', avatar: user.avatar || '' });
         if (role === 'student') setWarnings(responses[1].data);
-        if (role === 'teacher') setClasses(responses[1].data);
+        if (role === 'teacher') setClasses(responses[1]);
       } catch (requestError) {
         setError(requestError.response?.data?.message || 'Không tải được hồ sơ cá nhân.');
       } finally {

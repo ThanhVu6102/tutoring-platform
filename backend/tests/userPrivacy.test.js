@@ -161,7 +161,7 @@ for (const [role, target, privateAccess] of [
   });
 }
 
-test('own profile and both admin list formats retain existing private data safely', async (t) => {
+test('own profile and paginated admin lists retain existing private data safely', async (t) => {
   t.mock.method(User, 'findOne', () => query({ ...profile, _id: viewerId }));
   t.mock.method(User, 'find', () => query([profile]));
   t.mock.method(User, 'countDocuments', async () => 1);
@@ -170,7 +170,11 @@ test('own profile and both admin list formats retain existing private data safel
     const response = await fetch(`${base}/api/users${path}`, { headers: headers() });
     assert.equal(response.status, 200);
     const body = await response.json();
-    const user = path === '/profile' ? body : (Array.isArray(body) ? body[0] : body.data[0]);
+    const user = path === '/profile' ? body : body.data[0];
+    if (path !== '/profile') {
+      assert.equal(Array.isArray(body), false);
+      assert.equal(body.total, 1);
+    }
     assert.equal(user.phone, profile.phone);
     assert.deepEqual(user.review, profile.review);
     assert.equal(user.password, undefined);

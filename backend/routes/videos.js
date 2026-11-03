@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Video = require('../models/Video');
+const { readPage } = require('../utils/pagination');
 
 const router = express.Router();
 // Ẩn dữ liệu cá nhân của giáo viên trong response video đối với người khác.
@@ -59,10 +60,13 @@ router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (r
 // Get videos for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Video), async (req, res) => {
   try {
-    const videos = await Video.find({ class: req.params.classId });
-    res.json(videos);
+    // Danh sách chỉ lấy metadata thẻ video, không tải lịch sử người đã xem.
+    res.json(await readPage(Video, req, { class: req.params.classId }, {
+      select: 'title description class teacher videoUrl duration thumbnail views uploadedAt',
+      sort: { uploadedAt: -1, _id: -1 },
+    }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 

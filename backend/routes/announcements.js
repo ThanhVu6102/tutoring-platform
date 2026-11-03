@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Announcement = require('../models/Announcement');
+const { readPage } = require('../utils/pagination');
 
 const router = express.Router();
 // Lọc hồ sơ giáo viên trong thông báo theo quyền người xem trước khi gửi JSON.
@@ -31,13 +32,12 @@ router.post('/', authMiddleware, classAvailability(Announcement), teacherOnly, a
 // Get announcements for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
-    const announcements = await Announcement.find({ class: req.params.classId })
-      .populate('teacher', USER_POPULATE_FIELDS)
-      .sort({ createdAt: -1 });
-
-    res.json(announcements);
+    // Giao diện danh sách không dùng hồ sơ giáo viên/readBy nên không populate hoặc tải chúng.
+    res.json(await readPage(Announcement, req, { class: req.params.classId }, {
+      select: 'title content class teacher priority createdAt updatedAt',
+    }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 

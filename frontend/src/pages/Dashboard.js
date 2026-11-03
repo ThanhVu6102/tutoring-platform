@@ -9,16 +9,20 @@
 // ============================================================================
 
 // Nạp React + hook useState (dữ liệu) + useEffect (tải lớp khi mở trang).
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Nạp useNavigate để sang trang chi tiết lớp.
 import { useNavigate } from 'react-router-dom';
 // Nạp axios gọi API backend.
 import axios from 'axios';
+import usePagedList from '../hooks/usePagedList';
+import Pagination from '../components/Pagination';
 
 // Component Dashboard.
 const Dashboard = ({ userRole }) => {
   // State classes: mảng lớp lấy từ GET /api/classes.
-  const [classes, setClasses] = useState([]);
+  const classList = usePagedList('/api/classes');
+  const classes = classList.data;
+  const fetchClasses = classList.reload;
   // State activeTab: 'classes' (xem lưới lớp) | 'create' (hiện form tạo lớp).
   const [activeTab, setActiveTab] = useState('classes');
   // State newClass: 4 ô của form tạo lớp.
@@ -40,9 +44,24 @@ const Dashboard = ({ userRole }) => {
   // Hàm chuyển trang.
   const navigate = useNavigate();
 
+  const fetchPendingRequests = useCallback(async () => {
+    try {
+      const response = await axios.get('/api/classes/join-requests/mine');
+      setPendingRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching pending join requests:', error);
+    }
+  }, []);
+
+  // Giữ thông báo chế tài tài khoản khi chuyển sang cơ chế tải danh sách chung.
+  useEffect(() => {
+    if (classList.errorStatus === 423 || classList.error?.includes('khóa vĩnh viễn')) {
+      setAccountRestriction({ message: classList.error, suspendedUntil: classList.errorData?.suspendedUntil });
+    }
+  }, [classList.error, classList.errorStatus, classList.errorData]);
+
   // useEffect: tự tải danh sách lớp 1 lần khi mở Dashboard.
   useEffect(() => {
-    fetchClasses();
     if (userRole === 'student') {
       fetchPendingRequests();
       const refreshTimer = window.setInterval(() => {
@@ -54,40 +73,14 @@ const Dashboard = ({ userRole }) => {
     if (userRole !== 'teacher') return undefined;
     const refreshTimer = window.setInterval(fetchClasses, 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [userRole]);
+  }, [userRole, fetchClasses, fetchPendingRequests]);
 
   // HÀM: fetchClasses - lấy danh sách lớp từ backend.
   // - Lấy token trong localStorage để gắn Authorization.
   // - GET /api/classes (interceptor ở config/api cũng tự gắn, ở đây gắn tay thêm).
   // - Lưu kết quả vào state classes để vẽ lưới thẻ.
-  const fetchClasses = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/classes', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setClasses(response.data); // cập nhật lưới lớp.
-    } catch (error) {
-      // Lỗi (hết token, mất mạng) thì log để debug, giữ danh sách cũ.
-      console.error('Error fetching classes:', error);
-      const message = error.response?.data?.message || '';
-      if (error.response?.status === 423 || message.includes('khóa vĩnh viễn')) {
-        setAccountRestriction({
-          message,
-          suspendedUntil: error.response?.data?.suspendedUntil,
-        });
-      }
-    }
-  };
+  // Hook phân trang tải lần đầu và giữ dữ liệu cũ trong khi làm mới nền.
 
-  const fetchPendingRequests = async () => {
-    try {
-      const response = await axios.get('/api/classes/join-requests/mine');
-      setPendingRequests(response.data);
-    } catch (error) {
-      console.error('Error fetching pending join requests:', error);
-    }
-  };
 
   const handleLookupClass = async (event) => {
     event.preventDefault();
@@ -140,6 +133,7 @@ const Dashboard = ({ userRole }) => {
       setNewClass({ name: '', description: '', subject: '', grade: '' });
       // B3b: Tải lại để lớp mới hiện ngay.
       fetchClasses();
+      classList.setPage(1);
       // B3c: Đóng form, về tab danh sách.
       setActiveTab('classes');
     } catch (error) {
@@ -292,6 +286,7 @@ const Dashboard = ({ userRole }) => {
       )}
 
       {/* Lưới thẻ lớp học (CSS .grid.grid-2). */}
+      <Pagination list={classList} label="lớp học" />
       <div className="grid grid-2">
         {/* Nếu có lớp thì vẽ mỗi lớp 1 thẻ card... */}
         {classes.length > 0 ? (
@@ -345,10 +340,10 @@ const Dashboard = ({ userRole }) => {
                 paddingBottom: '1rem',
                 borderBottom: '1px solid #eee'
               }}>
-                <strong>Học sinh:</strong> {cls.students?.length || 0}
+                <strong>Học sinh:</strong> {cls.studentCount || 0}
               </div>
-              {userRole === 'teacher' && cls.joinRequests?.length > 0 && (
-                <p className="pending-class-count">{cls.joinRequests.length} yêu cầu tham gia đang chờ duyệt</p>
+              {userRole === 'teacher' && cls.joinRequestCount > 0 && (
+                <p className="pending-class-count">{cls.joinRequestCount} yêu cầu tham gia đang chờ duyệt</p>
               )}
               {/* Nút vào chi tiết lớp /class/<id>. */}
               <button
@@ -363,7 +358,8 @@ const Dashboard = ({ userRole }) => {
           // Nếu chưa có lớp nào thì hiện hộp trống với câu khác nhau theo role.
           <div className="card" style={{ gridColumn: '1/-1', textAlign: 'center' }}>
             <p style={{ color: '#999' }}>
-              {(userRole === 'teacher' || userRole === 'admin') ? 'Bạn chưa có lớp học nào. Hãy tạo lớp mới!' : 'Bạn chưa tham gia lớp học nào'}
+              {classList.loading ? 'Đang tải lớp học...' : classList.error ? 'Danh sách chưa tải được.' :
+                (userRole === 'teacher' || userRole === 'admin') ? 'Bạn chưa có lớp học nào. Hãy tạo lớp mới!' : 'Bạn chưa tham gia lớp học nào'}
             </p>
           </div>
         )}
