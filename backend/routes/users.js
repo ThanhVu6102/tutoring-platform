@@ -21,7 +21,7 @@ const { writeAudit } = require('../utils/audit');
 const { isSuperAdminEmail } = require('../utils/superAdmin');
 // Nạp hàm chuẩn hóa lỗi -> mã HTTP đúng.
 const { sendError } = require('../utils/respond');
-const { USER_POPULATE_FIELDS, userForViewer } = require('../utils/userPrivacy');
+const { USER_POPULATE_FIELDS, userQueryFields, userForViewer } = require('../utils/userPrivacy');
 
 // Tạo router riêng cho nhóm user.
 const router = express.Router();
@@ -30,7 +30,7 @@ router.use(require('../middleware/userPrivacy'));
 // ----------------------------------------------------------------------------
 // API: GET /api/users/profile
 // CHỨC NĂNG: Lấy thông tin cá nhân của người đang đăng nhập.
-// - select('-password'): KHÔNG trả hash mật khẩu về client (mục 5.4 tài liệu).
+// - Query và DTO đều dùng allowlist, không trả password hoặc trường mới chưa duyệt.
 // ----------------------------------------------------------------------------
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
@@ -39,7 +39,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
       _id: req.userId,
       deletedAt: null, // chỉ nhìn thấy chính mình khi chưa bị xóa mềm.
     })
-      .select(USER_POPULATE_FIELDS)
+      .select(userQueryFields(req, req.userId))
       .populate('enrolledClasses', 'name subject grade');
 
     // Không thấy (có thể đã bị xóa mềm) -> 404.
@@ -122,14 +122,16 @@ router.put('/profile', authMiddleware, async (req, res) => {
 
 // ----------------------------------------------------------------------------
 // API: GET /api/users/:id
-// CHỨC NĂNG: Lấy thông tin 1 user theo _id (ẩn password).
+// CHỨC NĂNG: Lấy hồ sơ theo quyền người xem, không chỉ loại password.
 // - Yêu cầu đăng nhập. Dùng khi xem chi tiết giáo viên/học sinh.
 // - Bị xóa mềm -> coi như không tồn tại (404).
 // ----------------------------------------------------------------------------
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    // Tìm theo _id trên URL, trừ trường password, loại bản ghi đã xóa mềm.
-    const user = await User.findOne({ _id: req.params.id, deletedAt: null }).select(USER_POPULATE_FIELDS);
+    // BE #02: chỉ nạp bộ trường công khai khi xem người khác; chính chủ/admin
+    // giữ bộ trường riêng đã chốt ở BE #01. DTO vẫn lọc lại trước khi gửi JSON.
+    const user = await User.findOne({ _id: req.params.id, deletedAt: null })
+      .select(userQueryFields(req, req.params.id));
 
     // Không thấy -> 404.
     if (!user) {

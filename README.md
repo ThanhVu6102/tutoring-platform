@@ -98,7 +98,7 @@ graph TD
 * **Bài tập:** giao bài có hạn nộp + tổng điểm, học sinh nộp file URL, giáo viên chấm điểm + feedback.
 * **Thông báo:** đăng thông báo theo lớp, theo dõi ai đã đọc (`readBy`).
 
-### 2.6. Quyền riêng tư hồ sơ — BE #01 ([issue #22](https://github.com/ThanhVu6102/tutoring-platform/issues/22))
+### 2.6. Quyền riêng tư hồ sơ — BE #01 / BE #02 ([#22](https://github.com/ThanhVu6102/tutoring-platform/issues/22), [#23](https://github.com/ThanhVu6102/tutoring-platform/issues/23))
 
 Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**, không chỉ ẩn trên giao diện:
 
@@ -109,6 +109,7 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 | Admin | Giữ thông tin quản trị hiện có theo allowlist, gồm email và thông tin xét duyệt |
 
 * Không trả `password`, `scheduleRevision` hay trường mới chưa được cho phép, kể cả cho admin.
+* BE #02 giữ chính sách BE #01 theo xác nhận của chủ dự án, không mở quyền xem email người khác theo mô tả `name`/`email` ban đầu của issue. Query hồ sơ theo ID chỉ lấy bộ trường công khai nếu người xem không phải chính chủ/admin; DTO vẫn lọc lại response và giới hạn trường lồng trong `review`.
 * Quy tắc áp dụng cả hồ sơ trực tiếp và hồ sơ lồng trong lớp học, yêu cầu tham gia, video, tài liệu, thông báo, bài tập, bài kiểm tra/bài nộp và cảnh báo học sinh.
 * Giáo viên không nhận email của học sinh qua các response trên. Giao diện lớp học chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh cho admin.
 * Chức năng thêm học sinh bằng email đã biết vẫn giữ nguyên; không bổ sung điều kiện cùng lớp khi xem hồ sơ công khai.
