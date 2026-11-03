@@ -19,6 +19,9 @@ const { sendError } = require('../utils/respond');
 const { activeAccountFilter } = require('../utils/accountAccess');
 
 const router = express.Router();
+const { userForViewer } = require('../utils/userPrivacy');
+// Ẩn dữ liệu cá nhân trong teacher/students/joinRequests theo quyền người xem.
+router.use(require('../middleware/userPrivacy'));
 const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const generateJoinCode = async () => {
@@ -581,7 +584,8 @@ router.get('/:id/students', authMiddleware, async (req, res) => {
       return res.status(423).json({ message: 'This class is locked by an administrator' });
     }
 
-    res.json(classData.students);
+    // Response này là mảng user trực tiếp, cần lọc từng hồ sơ ngoài bộ lọc tham chiếu lồng nhau.
+    res.json(classData.students.map((student) => userForViewer(student, req)));
   } catch (error) {
     return sendError(res, error);
   }

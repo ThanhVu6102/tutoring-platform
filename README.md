@@ -98,6 +98,23 @@ graph TD
 * **Bài tập:** giao bài có hạn nộp + tổng điểm, học sinh nộp file URL, giáo viên chấm điểm + feedback.
 * **Thông báo:** đăng thông báo theo lớp, theo dõi ai đã đọc (`readBy`).
 
+### 2.6. Quyền riêng tư hồ sơ — BE #01 ([issue #22](https://github.com/ThanhVu6102/tutoring-platform/issues/22))
+
+Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**, không chỉ ẩn trên giao diện:
+
+| Người xem | Dữ liệu hồ sơ được nhận |
+|-----------|-------------------------|
+| Người khác đã đăng nhập | ID (`_id`/`id`), tên, vai trò, avatar và bio nếu có trong dữ liệu nguồn |
+| Chính chủ | Giữ thông tin hiện có của mình, gồm email, số điện thoại, lớp, trạng thái và thông tin xét duyệt, theo danh sách trường cho phép (allowlist) |
+| Admin | Giữ thông tin quản trị hiện có theo allowlist, gồm email và thông tin xét duyệt |
+
+* Không trả `password`, `scheduleRevision` hay trường mới chưa được cho phép, kể cả cho admin.
+* Quy tắc áp dụng cả hồ sơ trực tiếp và hồ sơ lồng trong lớp học, yêu cầu tham gia, video, tài liệu, thông báo, bài tập, bài kiểm tra/bài nộp và cảnh báo học sinh.
+* Giáo viên không nhận email của học sinh qua các response trên. Giao diện lớp học chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh cho admin.
+* Chức năng thêm học sinh bằng email đã biết vẫn giữ nguyên; không bổ sung điều kiện cùng lớp khi xem hồ sơ công khai.
+* Chi tiết chức năng các đoạn code thay đổi: [backend/USER_PRIVACY.md](backend/USER_PRIVACY.md).
+* Phạm vi BE #01 không xử lý tài khoản admin mặc định hoặc khóa JWT dự phòng; đây là các vấn đề bảo mật riêng, không nên coi bản sửa này là đã bảo đảm an toàn toàn hệ thống.
+
 ---
 
 ## 3. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
@@ -188,6 +205,16 @@ npm start --prefix frontend
 
 Kiểm tra backend sống: mở `http://localhost:5000/api/health` phải ra `{"status":"ok"}`.
 
+### Bước 4: Chạy kiểm thử backend
+
+```bash
+npm test --prefix backend
+```
+
+Bộ test sử dụng `node:test`, gồm vòng đời tài khoản, lịch/điểm danh, tương thích luồng hiện có và bảo vệ dữ liệu hồ sơ (`backend/tests/userPrivacy.test.js`). Các test này dùng mock dữ liệu và HTTP local, không cần MongoDB thật.
+
+Test quyền riêng tư kiểm tra chính chủ/admin/người khác, trường mới chưa được cho phép, hồ sơ lồng nhau, danh sách học sinh, yêu cầu vào lớp và bài nộp. Chạy test backend không thay thế việc build/kiểm thử frontend hoặc kiểm thử với database thật.
+
 ---
 
 ## 5. HƯỚNG DẪN DEPLOY VERCEL (FULLSTACK)
@@ -211,6 +238,13 @@ Sự cố thường gặp: quên Redeploy sau khi thêm env, thiếu `/tutoring-
 ---
 
 ## 6. CHANGELOG
+
+### BE #01 — Bảo vệ dữ liệu hồ sơ người dùng
+
+* Áp dụng allowlist theo quyền người xem cho hồ sơ và các tham chiếu user lồng nhau.
+* Ẩn email học sinh trên trang lớp học dành cho giáo viên; giữ quyền xem của admin.
+* Bổ sung chú thích và tài liệu tiếng Việt, cùng test hồi quy chống lộ dữ liệu.
+* Tích hợp nền `fix/integrate-mongodb-workflow` vào `feature/auth` để giữ các luồng lớp học/chính sách và kiểm thử tương thích.
 
 | Commit | Ngày | Nội dung |
 |--------|------|----------|

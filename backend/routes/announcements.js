@@ -4,6 +4,9 @@ const classAvailability = require('../middleware/classAvailability');
 const Announcement = require('../models/Announcement');
 
 const router = express.Router();
+// Lọc hồ sơ giáo viên trong thông báo theo quyền người xem trước khi gửi JSON.
+router.use(require('../middleware/userPrivacy'));
+const { USER_POPULATE_FIELDS } = require('../utils/userPrivacy');
 
 // Create announcement (teacher only)
 router.post('/', authMiddleware, classAvailability(Announcement), teacherOnly, async (req, res) => {
@@ -29,7 +32,7 @@ router.post('/', authMiddleware, classAvailability(Announcement), teacherOnly, a
 router.get('/class/:classId', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
     const announcements = await Announcement.find({ class: req.params.classId })
-      .populate('teacher')
+      .populate('teacher', USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
 
     res.json(announcements);
@@ -41,7 +44,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Announcement), a
 // Get announcement by ID
 router.get('/:id', authMiddleware, classAvailability(Announcement), async (req, res) => {
   try {
-    const announcement = await Announcement.findById(req.params.id).populate('teacher');
+    const announcement = await Announcement.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!announcement) {
       return res.status(404).json({ message: 'Announcement not found' });

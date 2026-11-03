@@ -21,9 +21,11 @@ const { writeAudit } = require('../utils/audit');
 const { isSuperAdminEmail } = require('../utils/superAdmin');
 // Nạp hàm chuẩn hóa lỗi -> mã HTTP đúng.
 const { sendError } = require('../utils/respond');
+const { USER_POPULATE_FIELDS, userForViewer } = require('../utils/userPrivacy');
 
 // Tạo router riêng cho nhóm user.
 const router = express.Router();
+router.use(require('../middleware/userPrivacy'));
 
 // ----------------------------------------------------------------------------
 // API: GET /api/users/profile
@@ -37,7 +39,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
       _id: req.userId,
       deletedAt: null, // chỉ nhìn thấy chính mình khi chưa bị xóa mềm.
     })
-      .select('-password')
+      .select(USER_POPULATE_FIELDS)
       .populate('enrolledClasses', 'name subject grade');
 
     // Không thấy (có thể đã bị xóa mềm) -> 404.
@@ -45,8 +47,8 @@ router.get('/profile', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Trả về user an toàn (không có password).
-    res.json(user);
+    // Chính chủ giữ thông tin hiện có theo allowlist, không trả trường nội bộ mới.
+    res.json(userForViewer(user, req));
   } catch (error) {
     // Lỗi DB hoặc _id sai định dạng -> báo 500.
     return sendError(res, error);
@@ -127,15 +129,15 @@ router.put('/profile', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     // Tìm theo _id trên URL, trừ trường password, loại bản ghi đã xóa mềm.
-    const user = await User.findOne({ _id: req.params.id, deletedAt: null }).select('-password');
+    const user = await User.findOne({ _id: req.params.id, deletedAt: null }).select(USER_POPULATE_FIELDS);
 
     // Không thấy -> 404.
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Trả về user an toàn (không có password).
-    res.json(user);
+    // Người khác chỉ thấy ID, tên, vai trò, avatar, bio; chính chủ/admin giữ dữ liệu cũ.
+    res.json(userForViewer(user, req));
   } catch (error) {
     return sendError(res, error);
   }
@@ -176,20 +178,20 @@ router.get('/', authMiddleware, adminOnly, async (req, res) => {
 
     // Không yêu cầu phân trang -> giữ hành vi cũ: trả mảng toàn bộ (đã ẩn password).
     if (limitRaw === null) {
-      const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
-      return res.json(users);
+      const users = await User.find(filter).select(USER_POPULATE_FIELDS).sort({ createdAt: -1 });
+      return res.json(users.map((user) => userForViewer(user, req)));
     }
 
     // Pagination thật: tổng số dòng cần lọc trước, rồi lấy đúng 1 trang.
     const total = await User.countDocuments(filter);
     const users = await User.find(filter)
-      .select('-password')
+      .select(USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limitRaw)
       .limit(limitRaw);
 
     res.json({
-      data: users,
+      data: users.map((user) => userForViewer(user, req)),
       page,
       limit: limitRaw,
       total,

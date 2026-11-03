@@ -4,6 +4,9 @@ const classAvailability = require('../middleware/classAvailability');
 const Document = require('../models/Document');
 
 const router = express.Router();
+// Chỉ trả thông tin hồ sơ giáo viên mà người xem được phép nhận trong tài liệu.
+router.use(require('../middleware/userPrivacy'));
+const { USER_POPULATE_FIELDS } = require('../utils/userPrivacy');
 
 // Upload document (teacher only)
 router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async (req, res) => {
@@ -49,7 +52,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Document), async
 // Get document by ID
 router.get('/:id', authMiddleware, classAvailability(Document), async (req, res) => {
   try {
-    const document = await Document.findById(req.params.id).populate('teacher');
+    const document = await Document.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });

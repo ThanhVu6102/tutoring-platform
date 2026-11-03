@@ -5,6 +5,9 @@ const Quiz = require('../models/Quiz');
 const QuizSubmission = require('../models/QuizSubmission');
 
 const router = express.Router();
+// Lọc cả hồ sơ giáo viên trong đề thi và hồ sơ học sinh trong danh sách bài nộp.
+router.use(require('../middleware/userPrivacy'));
+const { USER_POPULATE_FIELDS } = require('../utils/userPrivacy');
 
 const quizForStudent = (quiz) => {
   const data = quiz.toObject();
@@ -62,7 +65,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Quiz), async (re
 // Get quiz by ID
 router.get('/:id', authMiddleware, classAvailability(Quiz), async (req, res) => {
   try {
-    const quiz = await Quiz.findById(req.params.id).populate('teacher');
+    const quiz = await Quiz.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!quiz) {
       return res.status(404).json({ message: 'Quiz not found' });
@@ -144,7 +147,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, 
 // Get student submissions for a quiz
 router.get('/:id/submissions', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
-    const submissions = await QuizSubmission.find({ quiz: req.params.id }).populate('student');
+    const submissions = await QuizSubmission.find({ quiz: req.params.id }).populate('student', USER_POPULATE_FIELDS);
     res.json(submissions);
   } catch (error) {
     res.status(500).json({ message: error.message });
