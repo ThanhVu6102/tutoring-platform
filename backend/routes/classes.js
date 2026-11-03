@@ -17,6 +17,7 @@ const { checkClassAccess } = require('../utils/classAccess');
 const { writeAudit } = require('../utils/audit');
 const { sendError } = require('../utils/respond');
 const { activeAccountFilter } = require('../utils/accountAccess');
+const { readPage, objectId } = require('../utils/pagination');
 
 const router = express.Router();
 const { userForViewer } = require('../utils/userPrivacy');
@@ -213,24 +214,66 @@ router.patch('/:id/join-requests/:studentId', authMiddleware, async (req, res) =
 // thấy lớp mình đã vào. Trả kết quả gọn qua ?page để tránh tải toàn bộ khi lớn.
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    let classes;
-    if (req.userRole === 'admin') {
-      classes = await Class.find({})
-        .populate('students', 'name email role')
-        .populate('teacher', 'name email role');
-    } else if (req.userRole === 'teacher') {
-      classes = await Class.find({ teacher: req.userId })
-        .populate('students', 'name email role')
-        .populate('joinRequests.student', 'name email');
-    } else {
-      classes = await Class.find({ students: req.userId, status: 'active' })
-        .select('-joinCode -joinRequests')
-        .populate('teacher', 'name email role');
+    // Giữ filter quyền ở server; không populate cả danh sách học sinh chỉ để đếm.
+    const filter = req.userRole === 'admin' ? {} : req.userRole === 'teacher'
+      ? { teacher: objectId(req.userId) } : { students: objectId(req.userId), status: 'active' };
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 200) : '';
+    if (search) filter.name = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    for (const key of ['subject', 'grade']) {
+      if (typeof req.query[key] === 'string' && req.query[key].trim()) filter[key] = req.query[key].trim().slice(0, 200);
     }
-    res.json(classes);
+    if (req.userRole !== 'student' && ['active', 'inactive'].includes(req.query.status)) filter.status = req.query.status;
+    // Màn hình lịch sử/chuông chỉ lấy lớp có hồ sơ liên quan, không quét tải mọi lớp.
+    if (req.userRole !== 'student' && req.query.view === 'history') {
+      filter.$or = [{ status: 'inactive' }, { 'lockNotice.status': { $exists: true, $ne: 'none' } },
+        { 'lockNoticeHistory.0': { $exists: true } }];
+    }
+    if (req.userRole !== 'student' && req.query.view === 'notifications') {
+      filter['lockNotice.status'] = { $in: ['pending', 'appealed', 'locked'] };
+    }
+    const resultPromise = readPage(Class, req, filter, {
+      projection: {
+        name: 1, description: 1, subject: 1, grade: 1, teacher: 1, capacity: 1,
+        schedule: 1, thumbnail: 1, status: 1, createdAt: 1, updatedAt: 1, lockNotice: 1,
+        ...(req.query.view === 'history' && req.userRole !== 'student' ? { lockNoticeHistory: 1 } : {}),
+        studentCount: { $size: { $ifNull: ['$students', []] } },
+        ...(req.userRole !== 'student' ? { joinRequestCount: { $size: { $ifNull: ['$joinRequests', []] } } } : {}),
+      },
+      populate: { path: 'teacher', select: 'name email role' },
+    });
+    // Tổng theo filter toàn bộ, không lấy số phần tử của trang hiện tại để làm thống kê.
+    if (req.userRole === 'admin' && req.query.summary === 'true') {
+      // Các count độc lập chạy cùng lúc với trang dữ liệu, không chờ thêm một vòng DB.
+      const [result, [active, inactive]] = await Promise.all([resultPromise, Promise.all([
+        filter.status === 'inactive' ? 0 : Class.countDocuments({ ...filter, status: 'active' }),
+        filter.status === 'active' ? 0 : Class.countDocuments({ ...filter, status: 'inactive' }),
+      ])]);
+      return res.json({ ...result, summary: { total: result.total, active, inactive } });
+    }
+    res.json(await resultPromise);
   } catch (error) {
     return sendError(res, error);
   }
+});
+
+// Tổng học liệu không cần tải toàn bộ năm danh sách; dùng cùng quyền và trạng thái đề thi.
+router.get('/:id/content-summary', authMiddleware, async (req, res) => {
+  try {
+    const access = await checkClassAccess(req.params.id, req.userId, req.userRole);
+    if (!access.ok) return res.status(access.status).json({ message: access.message });
+    // Vai trò hiện tại phải đúng quan hệ tương ứng, kể cả khi tài khoản từng đổi vai trò.
+    if ((req.userRole === 'teacher' && !access.isTeacher) || (req.userRole === 'student' && !access.isStudent)) {
+      return res.status(403).json({ message: 'Bạn không có quyền truy cập nội dung lớp này' });
+    }
+    const filter = { class: req.params.id };
+    const [videos, documents, quizzes, assignments] = await Promise.all([
+      require('../models/Video').countDocuments(filter),
+      require('../models/Document').countDocuments(filter),
+      require('../models/Quiz').countDocuments({ ...filter, ...(req.userRole === 'student' ? { status: 'published' } : {}) }),
+      require('../models/Assignment').countDocuments(filter),
+    ]);
+    res.json({ videos, documents, quizzes, assignments });
+  } catch (error) { return sendError(res, error); }
 });
 
 router.patch('/:id/status', authMiddleware, adminOnly, async (req, res) => {

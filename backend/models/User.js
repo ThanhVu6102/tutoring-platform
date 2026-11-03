@@ -193,6 +193,9 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 // - enrolledClasses: tìm user thuộc 1 lớp (đồng bộ ngược từ Class.students).
 // ----------------------------------------------------------------------------
 userSchema.index({ role: 1, createdAt: -1 });
+// Danh sách quản trị luôn loại tài khoản xóa mềm trước khi phân trang.
+userSchema.index({ deletedAt: 1, createdAt: -1, _id: -1 });
+userSchema.index({ deletedAt: 1, role: 1, createdAt: -1, _id: -1 });
 userSchema.index({ enrolledClasses: 1 });
 // Hỗ trợ lọc trạng thái + xóa mềm và tìm kiếm admin nhanh.
 userSchema.index({ status: 1, isBlocked: 1, deletedAt: 1 });

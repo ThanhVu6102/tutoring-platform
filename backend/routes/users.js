@@ -22,6 +22,7 @@ const { isSuperAdminEmail } = require('../utils/superAdmin');
 // Nạp hàm chuẩn hóa lỗi -> mã HTTP đúng.
 const { sendError } = require('../utils/respond');
 const { USER_POPULATE_FIELDS, userQueryFields, userForViewer } = require('../utils/userPrivacy');
+const { readPage } = require('../utils/pagination');
 
 // Tạo router riêng cho nhóm user.
 const router = express.Router();
@@ -151,14 +152,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // API: GET /api/users?page=1&limit=20&search=&role=&status=
 // CHỨC NĂNG: Danh sách user cho admin, có phân trang + tìm kiếm (mục 6.2 tài liệu).
 // - Luôn loại bỏ user đã xóa mềm (deletedAt IS NULL).
-// - Tương thích ngược: KHÔNG truyền page/limit -> trả mảng như trước để frontend
-//   cũ không vỡ; có truyền page/limit -> trả { data, page, limit, total, totalPages }.
+// - Luôn trả { data, page, limit, total, totalPages }; mặc định 20, tối đa 100/trang.
 // ----------------------------------------------------------------------------
 router.get('/', authMiddleware, adminOnly, async (req, res) => {
   try {
     // Đọc tham số phân trang/lọc từ query.
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limitRaw = req.query.limit === undefined ? null : Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     const role = typeof req.query.role === 'string' ? req.query.role.trim() : '';
     const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
@@ -178,27 +176,14 @@ router.get('/', authMiddleware, adminOnly, async (req, res) => {
       ];
     }
 
-    // Không yêu cầu phân trang -> giữ hành vi cũ: trả mảng toàn bộ (đã ẩn password).
-    if (limitRaw === null) {
-      const users = await User.find(filter).select(USER_POPULATE_FIELDS).sort({ createdAt: -1 });
-      return res.json(users.map((user) => userForViewer(user, req)));
-    }
-
-    // Pagination thật: tổng số dòng cần lọc trước, rồi lấy đúng 1 trang.
-    const total = await User.countDocuments(filter);
-    const users = await User.find(filter)
-      .select(USER_POPULATE_FIELDS)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limitRaw)
-      .limit(limitRaw);
-
-    res.json({
-      data: users.map((user) => userForViewer(user, req)),
-      page,
-      limit: limitRaw,
-      total,
-      totalPages: Math.ceil(total / limitRaw),
-    });
+    // Không còn nhánh trả toàn bộ user khi client quên page/limit.
+    res.json(await readPage(User, req, filter, {
+      // Màn hình kiểm duyệt chỉ cần metadata, không tải avatar base64/hồ sơ đầy đủ.
+      select: req.query.view === 'moderation'
+        ? 'name email role status isBlocked disciplinarySanctions classRemovalIncidents suspendedUntil permanentlyBanned createdAt updatedAt'
+        : USER_POPULATE_FIELDS,
+      map: (user) => userForViewer(user, req),
+    }));
   } catch (error) {
     return sendError(res, error);
   }

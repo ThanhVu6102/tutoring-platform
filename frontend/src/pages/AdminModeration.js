@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const warningStatusLabels = {
@@ -27,12 +28,13 @@ const AdminModeration = () => {
 
   const loadArchive = async () => {
     const [classResponse, userResponse, warningResponse] = await Promise.all([
-      axios.get('/api/classes'),
-      axios.get('/api/users'),
+      getAllPages('/api/classes', { view: 'history' }),
+      getAllPages('/api/users', { role: 'student', view: 'moderation' }),
       axios.get('/api/student-warnings'),
     ]);
-    setClasses(classResponse.data);
-    setStudents(userResponse.data.filter((user) => user.role === 'student'));
+    // Chưa đổi nghiệp vụ lọc chéo hồ sơ: tải đủ các trang thay vì vô tình chỉ dùng trang đầu.
+    setClasses(classResponse);
+    setStudents(userResponse);
     setWarnings(warningResponse.data);
   };
 

@@ -9,13 +9,15 @@
 // ============================================================================
 
 // Nạp React + hook useState/useEffect.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 // Nạp useParams để lấy :id lớp trên URL.
 import { useParams } from 'react-router-dom';
 // Nạp axios gọi API.
 import axios from 'axios';
 import TeacherContentTools from '../components/TeacherContentTools';
 import { policyReasonLabels } from '../config/policyLabels';
+import usePagedList from '../hooks/usePagedList';
+import Pagination from '../components/Pagination';
 
 // Component chi tiết lớp.
 const ClassDetail = () => {
@@ -26,14 +28,27 @@ const ClassDetail = () => {
   const [classError, setClassError] = useState('');
   // State activeTab: tab đang mở ('overview' mặc định).
   const [activeTab, setActiveTab] = useState('overview');
-  // Các state mảng học liệu của lớp.
-  const [videos, setVideos] = useState([]); // video bài giảng.
-  const [documents, setDocuments] = useState([]); // tài liệu.
-  const [quizzes, setQuizzes] = useState([]); // đề kiểm tra.
-  const [assignments, setAssignments] = useState([]); // bài tập.
-  const [announcements, setAnnouncements] = useState([]); // thông báo.
   // State userRole: đọc 1 lần từ localStorage để phân quyền nút teacher.
   const [userRole] = useState(localStorage.getItem('userRole'));
+  // Chỉ tải trang đầu của tab đang xem; trở lại tab đã tải không gọi lại API.
+  const videoList = usePagedList(`/api/videos/class/${id}`, {}, activeTab === 'videos');
+  const documentList = usePagedList(`/api/documents/class/${id}`, {}, activeTab === 'documents');
+  const quizList = usePagedList(`/api/quizzes/class/${id}`, {}, activeTab === 'quizzes');
+  const assignmentList = usePagedList(`/api/assignments/class/${id}`, {}, activeTab === 'assignments');
+  const announcementList = usePagedList(`/api/announcements/class/${id}`, {}, activeTab === 'announcements');
+  const { data: videos, reload: fetchVideos } = videoList;
+  const { data: documents, reload: fetchDocuments } = documentList;
+  const { data: quizzes, reload: fetchQuizzes } = quizList;
+  const { data: assignments } = assignmentList;
+  const { data: announcements, reload: fetchAnnouncements } = announcementList;
+  const lists = { videos: videoList, documents: documentList, quizzes: quizList,
+    assignments: assignmentList, announcements: announcementList };
+  const [summary, setSummary] = useState(null);
+  const [summaryError, setSummaryError] = useState('');
+  const currentId = useRef(id);
+  const classRequest = useRef(0);
+  const summaryRequest = useRef(0);
+  currentId.current = id;
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
   const [joinRequests, setJoinRequests] = useState([]);
   const [deletingResource, setDeletingResource] = useState('');
@@ -48,81 +63,40 @@ const ClassDetail = () => {
 
   // HÀM: fetchClassDetails - GET /api/classes/:id -> lưu vào classData.
   const fetchClassDetails = useCallback(async () => {
+    const request = ++classRequest.current;
     try {
       const response = await axios.get(`/api/classes/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (currentId.current !== id || request !== classRequest.current) return;
       setClassData(response.data);
       setClassError('');
     } catch (error) {
+      if (currentId.current !== id || request !== classRequest.current) return;
       console.error('Error fetching class:', error);
       setClassError(error.response?.data?.message || 'Không thể tải thông tin lớp học.');
     }
   }, [id, token]);
 
-  // HÀM: fetchVideos - GET /api/videos/class/:id -> lưu vào videos.
-  const fetchVideos = useCallback(async () => {
+  // Thống kê dùng count ở backend, không lấy length của một trang học liệu.
+  const fetchSummary = useCallback(async () => {
+    const request = ++summaryRequest.current;
     try {
-      const response = await axios.get(`/api/videos/class/${id}`, {
+      const response = await axios.get(`/api/classes/${id}/content-summary`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setVideos(response.data);
+      if (currentId.current !== id || request !== summaryRequest.current) return;
+      setSummary(response.data);
+      setSummaryError('');
     } catch (error) {
-      console.error('Error fetching videos:', error);
-    }
-  }, [id, token]);
-
-  // HÀM: fetchDocuments - GET /api/documents/class/:id -> lưu vào documents.
-  const fetchDocuments = useCallback(async () => {
-    try {
-      const response = await axios.get(`/api/documents/class/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setDocuments(response.data);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-    }
-  }, [id, token]);
-
-  // HÀM: fetchQuizzes - GET /api/quizzes/class/:id -> lưu vào quizzes.
-  const fetchQuizzes = useCallback(async () => {
-    try {
-      const response = await axios.get(`/api/quizzes/class/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setQuizzes(response.data);
-    } catch (error) {
-      console.error('Error fetching quizzes:', error);
-    }
-  }, [id, token]);
-
-  // HÀM: fetchAssignments - GET /api/assignments/class/:id -> lưu vào assignments.
-  const fetchAssignments = useCallback(async () => {
-    try {
-      const response = await axios.get(`/api/assignments/class/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAssignments(response.data);
-    } catch (error) {
-      console.error('Error fetching assignments:', error);
-    }
-  }, [id, token]);
-
-  // HÀM: fetchAnnouncements - GET /api/announcements/class/:id -> lưu vào announcements.
-  const fetchAnnouncements = useCallback(async () => {
-    try {
-      const response = await axios.get(`/api/announcements/class/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAnnouncements(response.data);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
+      if (currentId.current === id && request === summaryRequest.current) setSummaryError(error.response?.data?.message || 'Không tải được thống kê.');
     }
   }, [id, token]);
 
   const fetchJoinRequests = useCallback(async () => {
     try {
       const response = await axios.get(`/api/classes/${id}/join-requests`);
+      if (currentId.current !== id) return;
       setJoinRequests(response.data);
     } catch (error) {
       console.error('Error fetching class join requests:', error);
@@ -130,23 +104,20 @@ const ClassDetail = () => {
   }, [id]);
 
   useEffect(() => {
+    currentId.current = id;
+    setClassData(null);
+    setClassError('');
+    setSummary(null);
+    setSummaryError('');
+    setJoinRequests([]);
     fetchClassDetails();
-    fetchVideos();
-    fetchDocuments();
-    fetchQuizzes();
-    fetchAssignments();
-    fetchAnnouncements();
-    if (userRole === 'teacher' || userRole === 'admin') fetchJoinRequests();
-  }, [
-    fetchAnnouncements,
-    fetchAssignments,
-    fetchClassDetails,
-    fetchDocuments,
-    fetchJoinRequests,
-    fetchQuizzes,
-    fetchVideos,
-    userRole,
-  ]);
+    fetchSummary();
+    return () => { currentId.current = null; };
+  }, [id, fetchClassDetails, fetchSummary]);
+
+  useEffect(() => {
+    if (activeTab === 'students' && (userRole === 'teacher' || userRole === 'admin')) fetchJoinRequests();
+  }, [activeTab, userRole, fetchJoinRequests]);
 
   useEffect(() => {
     if (userRole !== 'teacher') return undefined;
@@ -167,18 +138,20 @@ const ClassDetail = () => {
     try {
       await axios.put(`/api/quizzes/${quizId}/publish`);
       fetchQuizzes();
+      fetchSummary();
     } catch (error) {
       alert(error.response?.data?.message || 'Không thể xuất bản bài kiểm tra.');
     }
   };
 
-  const handleDeleteResource = async (resourceType, resource, setItems) => {
+  const handleDeleteResource = async (resourceType, resource) => {
     if (!window.confirm(`Bạn có chắc muốn xóa "${resource.title}" khỏi lớp?`)) return;
     const resourceKey = `${resourceType}:${resource._id}`;
     setDeletingResource(resourceKey);
     try {
       await axios.delete(`/api/${resourceType}/${resource._id}`);
-      setItems((currentItems) => currentItems.filter((item) => item._id !== resource._id));
+      lists[resourceType].reload();
+      fetchSummary();
     } catch (error) {
       alert(error.response?.data?.message || 'Không thể xóa nội dung này.');
     } finally {
@@ -296,6 +269,7 @@ const ClassDetail = () => {
             if (kind === 'videos') fetchVideos();
             if (kind === 'documents') fetchDocuments();
             if (kind === 'quizzes') fetchQuizzes();
+            fetchSummary();
           }}
         />
       )}
@@ -337,6 +311,8 @@ const ClassDetail = () => {
         ))}
       </div>
 
+      {lists[activeTab] && <Pagination list={lists[activeTab]} label="học liệu" />}
+
       {/* TAB Tổng Quan: 2 thẻ Thống Kê + Thông Tin Lớp. */}
       {activeTab === 'overview' && (
         <div className="grid grid-2">
@@ -345,10 +321,11 @@ const ClassDetail = () => {
             <h3>Thống Kê</h3>
             <div style={{ marginTop: '1rem' }}>
               <p><strong>Tổng học sinh:</strong> {classData.students?.length || 0}</p>
-              <p><strong>Video bài giảng:</strong> {videos.length}</p>
-              <p><strong>Tài liệu:</strong> {documents.length}</p>
-              <p><strong>Bài kiểm tra:</strong> {quizzes.length}</p>
-              <p><strong>Bài tập:</strong> {assignments.length}</p>
+              <p><strong>Video bài giảng:</strong> {summary?.videos ?? '—'}</p>
+              <p><strong>Tài liệu:</strong> {summary?.documents ?? '—'}</p>
+              <p><strong>Bài kiểm tra:</strong> {summary?.quizzes ?? '—'}</p>
+              <p><strong>Bài tập:</strong> {summary?.assignments ?? '—'}</p>
+              {summaryError && <p role="alert">{summaryError} <button type="button" onClick={fetchSummary}>Thử lại</button></p>}
             </div>
           </div>
 
@@ -381,7 +358,7 @@ const ClassDetail = () => {
                 <button
                   className="resource-delete-button"
                   disabled={deletingResource === `videos:${video._id}`}
-                  onClick={() => handleDeleteResource('videos', video, setVideos)}
+                  onClick={() => handleDeleteResource('videos', video)}
                   type="button"
                 >
                   {deletingResource === `videos:${video._id}` ? 'Đang xóa...' : 'Xóa'}
@@ -389,7 +366,7 @@ const ClassDetail = () => {
               )}
             </article>
           )) : (
-            <div className="card"><p className="empty-inline">Chưa có video bài giảng.</p></div>
+            <div className="card"><p className="empty-inline">{videoList.loading ? 'Đang tải video...' : videoList.error ? 'Chưa tải được video.' : 'Chưa có video bài giảng.'}</p></div>
           )}
         </div>
       )}
@@ -418,7 +395,7 @@ const ClassDetail = () => {
                     <div className="resource-actions">
                       <a className="btn btn-secondary resource-link" href={doc.fileUrl} target="_blank" rel="noreferrer">Mở tài liệu</a>
                       {(userRole === 'teacher' || userRole === 'admin') && (
-                        <button className="resource-delete-button" disabled={deletingResource === `documents:${doc._id}`} onClick={() => handleDeleteResource('documents', doc, setDocuments)} type="button">
+                        <button className="resource-delete-button" disabled={deletingResource === `documents:${doc._id}`} onClick={() => handleDeleteResource('documents', doc)} type="button">
                           {deletingResource === `documents:${doc._id}` ? 'Đang xóa...' : 'Xóa'}
                         </button>
                       )}
@@ -428,7 +405,7 @@ const ClassDetail = () => {
               ))
             ) : (
               <div className="card" style={{ gridColumn: '1/-1' }}>
-                <p style={{ color: '#999', textAlign: 'center' }}>Chưa có tài liệu</p>
+                <p style={{ color: '#999', textAlign: 'center' }}>{documentList.loading ? 'Đang tải tài liệu...' : documentList.error ? 'Chưa tải được tài liệu.' : 'Chưa có tài liệu'}</p>
               </div>
             )}
           </div>
@@ -448,9 +425,9 @@ const ClassDetail = () => {
                   </p>
                   <div style={{ marginBottom: '1rem' }}>
                     <small style={{ display: 'block', color: '#666', marginBottom: '0.5rem' }}>
-                      {quiz.questions?.length || 0} câu hỏi | {quiz.totalPoints} điểm
+                      {quiz.questionCount || 0} câu hỏi | {quiz.totalPoints} điểm
                     </small>
-                    {quiz.promptImage && <small className="quiz-image-label">Có ảnh đề đính kèm</small>}
+                    {quiz.hasPromptImage && <small className="quiz-image-label">Có ảnh đề đính kèm</small>}
                     {userRole === 'teacher' && <small className="quiz-status-label">{quiz.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</small>}
                     {/* Chỉ hiện giới hạn giờ nếu đề có timeLimit. */}
                     {quiz.timeLimit && (
@@ -466,14 +443,14 @@ const ClassDetail = () => {
                       ) : (
                         <button className="btn btn-primary btn-block" type="button" onClick={() => handlePublishQuiz(quiz._id)}>Xuất bản cho học sinh</button>
                       )}
-                      <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz, setQuizzes)} type="button">
+                      <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz)} type="button">
                         {deletingResource === `quizzes:${quiz._id}` ? 'Đang xóa...' : 'Xóa bài kiểm tra'}
                       </button>
                     </div>
                   ) : userRole === 'student' ? (
                     <a className="btn btn-primary btn-block resource-link" href={`/quiz/${quiz._id}/take`}>Làm bài</a>
                   ) : userRole === 'admin' ? (
-                    <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz, setQuizzes)} type="button">
+                    <button className="resource-delete-button" disabled={deletingResource === `quizzes:${quiz._id}`} onClick={() => handleDeleteResource('quizzes', quiz)} type="button">
                       {deletingResource === `quizzes:${quiz._id}` ? 'Đang xóa...' : 'Xóa bài kiểm tra'}
                     </button>
                   ) : null}
@@ -481,7 +458,7 @@ const ClassDetail = () => {
               ))
             ) : (
               <div className="card" style={{ gridColumn: '1/-1' }}>
-                <p style={{ color: '#999', textAlign: 'center' }}>Chưa có bài kiểm tra</p>
+                <p style={{ color: '#999', textAlign: 'center' }}>{quizList.loading ? 'Đang tải bài kiểm tra...' : quizList.error ? 'Chưa tải được bài kiểm tra.' : 'Chưa có bài kiểm tra'}</p>
               </div>
             )}
           </div>
@@ -513,7 +490,7 @@ const ClassDetail = () => {
                       {userRole === 'teacher' ? 'Xem Nộp Bài' : 'Nộp Bài'}
                     </button>
                     {(userRole === 'teacher' || userRole === 'admin') && (
-                      <button className="resource-delete-button" disabled={deletingResource === `assignments:${assign._id}`} onClick={() => handleDeleteResource('assignments', assign, setAssignments)} type="button">
+                      <button className="resource-delete-button" disabled={deletingResource === `assignments:${assign._id}`} onClick={() => handleDeleteResource('assignments', assign)} type="button">
                         {deletingResource === `assignments:${assign._id}` ? 'Đang xóa...' : 'Xóa bài tập'}
                       </button>
                     )}
@@ -522,7 +499,7 @@ const ClassDetail = () => {
               ))
             ) : (
               <div className="card" style={{ gridColumn: '1/-1' }}>
-                <p style={{ color: '#999', textAlign: 'center' }}>Chưa có bài tập</p>
+                <p style={{ color: '#999', textAlign: 'center' }}>{assignmentList.loading ? 'Đang tải bài tập...' : assignmentList.error ? 'Chưa tải được bài tập.' : 'Chưa có bài tập'}</p>
               </div>
             )}
           </div>
@@ -598,7 +575,7 @@ const ClassDetail = () => {
                   </div>
                   {(userRole === 'teacher' || userRole === 'admin') && (
                     <div className="resource-card-actions">
-                      <button className="resource-delete-button" disabled={deletingResource === `announcements:${ann._id}`} onClick={() => handleDeleteResource('announcements', ann, setAnnouncements)} type="button">
+                      <button className="resource-delete-button" disabled={deletingResource === `announcements:${ann._id}`} onClick={() => handleDeleteResource('announcements', ann)} type="button">
                         {deletingResource === `announcements:${ann._id}` ? 'Đang xóa...' : 'Xóa thông báo'}
                       </button>
                     </div>
@@ -607,7 +584,7 @@ const ClassDetail = () => {
               ))
             ) : (
               <div className="card">
-                <p style={{ color: '#999', textAlign: 'center' }}>Chưa có thông báo nào</p>
+                <p style={{ color: '#999', textAlign: 'center' }}>{announcementList.loading ? 'Đang tải thông báo...' : announcementList.error ? 'Chưa tải được thông báo.' : 'Chưa có thông báo nào'}</p>
               </div>
             )}
           </div>

@@ -85,6 +85,8 @@ const assignmentSchema = new mongoose.Schema({
 
 // INDEX: lấy bài tập theo lớp/hạn nộp và theo giáo viên.
 assignmentSchema.index({ class: 1, dueDate: 1 });
+// Khớp sort hạn nộp và tránh thứ tự trang không ổn định khi trùng hạn.
+assignmentSchema.index({ class: 1, dueDate: 1, _id: 1 });
 assignmentSchema.index({ teacher: 1 });
 
 // Xuất model 'Assignment' để routes dùng: tạo bài, nộp bài, chấm điểm...

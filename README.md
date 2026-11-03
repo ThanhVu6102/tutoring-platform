@@ -118,6 +118,16 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 
 ---
 
+## 2.7. Hiệu năng tải dữ liệu — BE #04 ([issue #11](https://github.com/ThanhVu6102/tutoring-platform/issues/11))
+
+* Danh sách lớp, user (admin), video, tài liệu, thông báo, bài tập và quiz luôn trả `{ data, page, limit, total, totalPages }`: mặc định 20, tối đa 100 bản ghi/trang. **Đây là thay đổi contract**, frontend/client cũ nhận mảng phải được cập nhật cùng backend.
+* Danh sách lớp trả `studentCount`/`joinRequestCount` thay vì populate roster; danh sách quiz trả `questionCount`/`hasPromptImage`, không tải đề/ảnh base64. Endpoint chi tiết giữ chức năng hiện có.
+* Dashboard phân trang; chi tiết lớp tải học liệu theo tab và lấy tổng qua `GET /api/classes/:id/content-summary`. Các route nặng được lazy-load.
+* Kết nối MongoDB và bước khởi tạo dùng chung promise trong mỗi instance. API riêng tư không cache ở CDN; có `Server-Timing` và logging timing tùy chọn.
+* Công cụ và giới hạn: [backend/PERFORMANCE.md](backend/PERFORMANCE.md). Chưa đo latency/query plan trên MongoDB thật; các màn hình lịch sử/kiểm duyệt vẫn có phần đọc nhiều trang để giữ đúng thống kê. Chưa coi toàn bộ issue đã nghiệm thu.
+
+---
+
 ## 3. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
 
 MongoDB gồm 8 collections chính:

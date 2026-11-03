@@ -2,6 +2,7 @@ const express = require('express');
 const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Assignment = require('../models/Assignment');
+const { readPage } = require('../utils/pagination');
 
 const router = express.Router();
 // Lọc hồ sơ giáo viên/học sinh lồng trong bài tập, không thay đổi quyền truy cập bài.
@@ -32,10 +33,13 @@ router.post('/', authMiddleware, classAvailability(Assignment), teacherOnly, asy
 // Get assignments for a class
 router.get('/class/:classId', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
-    const assignments = await Assignment.find({ class: req.params.classId });
-    res.json(assignments);
+    // Thẻ bài tập không cần toàn bộ bài nộp của học sinh.
+    res.json(await readPage(Assignment, req, { class: req.params.classId }, {
+      select: 'title description class teacher dueDate totalPoints createdAt',
+      sort: { dueDate: 1, _id: 1 },
+    }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 });
 

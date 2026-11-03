@@ -69,6 +69,8 @@ const announcementSchema = new mongoose.Schema({
 
 // INDEX: lấy thông báo theo lớp, mới nhất trước.
 announcementSchema.index({ class: 1, createdAt: -1 });
+// Khớp sort thông báo mới nhất trong từng lớp.
+announcementSchema.index({ class: 1, createdAt: -1, _id: -1 });
 announcementSchema.index({ teacher: 1 });
 
 // Xuất model 'Announcement' để routes dùng: find, tạo mới, cập nhật readBy...

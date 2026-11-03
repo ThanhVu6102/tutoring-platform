@@ -14,6 +14,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 // Nạp dotenv để đọc biến môi trường từ file .env (MONGODB_URI, JWT_SECRET...).
 const dotenv = require('dotenv');
+const { cachedConnection } = require('./utils/mongoConnection');
 
 // Đọc file .env vào process.env (nếu có). Trên Vercel thì lấy từ dashboard.
 dotenv.config();
@@ -33,6 +34,7 @@ app.use(cors());
 app.use(express.json({ limit: '7mb' }));
 // Cho phép parse form urlencoded dung lượng lớn (tối đa 50mb cho nội dung học liệu).
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/api', require('./middleware/apiPerformance'));
 
 // ----- Cache kết nối MongoDB cho Vercel serverless -----
 // Vercel tái sử dụng global giữa các lần gọi nên lưu conn/promise vào global
@@ -48,44 +50,13 @@ if (!cached) {
 // LUỒNG:
 //  - B1: Nếu đã có conn -> trả về ngay (không nối lại).
 //  - B2: Nếu chưa có promise nối -> tạo promise mongoose.connect(uri).
-//  - B3: Chờ promise xong -> lưu conn, rồi gọi ensureSuperAdmin() để
-//         tự tạo/khôi phục Super Admin gốc (không cần seed tay).
+//  - B3: Promise chờ cả kết nối và khởi tạo admin trước khi công bố conn dùng lại.
 //  - B4: Lỗi nối -> reset promise về null và ném lỗi cho nơi gọi xử lý.
 // ----------------------------------------------------------------------------
-async function connectDB() {
-  // B1: Đã nối rồi thì dùng lại ngay.
-  if (cached.conn) return cached.conn;
-  // B2: Chưa nối thì tạo 1 promise nối duy nhất, các request khác chờ chung.
-  if (!cached.promise) {
-    // Lấy URI từ env, fallback localhost khi chạy local.
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform';
-    // Bắt đầu nối, khi xong in log để biết DB sống.
-    cached.promise = mongoose.connect(uri).then((m) => {
-      console.log('MongoDB connected');
-      return m;
-    });
-  }
-  try {
-    // B3a: Chờ kết nối hoàn tất rồi cache lại.
-    cached.conn = await cached.promise;
-    // B3b: Tự đảm bảo Super Admin gốc luôn tồn tại sau khi có DB.
-    try {
-      // Nạp hàm ensure trong try để không crash server nếu model lỗi.
-      const { ensureSuperAdmin } = require('./utils/superAdmin');
-      // Tạo/khôi phục admin@eklasses.vn / Admin123! nếu thiếu/sai.
-      await ensureSuperAdmin();
-    } catch (e) {
-      // Bỏ qua lỗi ensure (vẫn cho server chạy, chỉ in log).
-      console.log('Ensure super admin skipped:', e?.message || e);
-    }
-  } catch (err) {
-    // B4: Nối thất bại -> xóa promise để lần sau thử lại từ đầu.
-    cached.promise = null;
-    console.log('MongoDB connection error:', err?.message || err);
-    throw err;
-  }
-  return cached.conn;
-}
+const connectDB = cachedConnection(cached,
+  () => mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform'),
+  () => require('./utils/superAdmin').ensureSuperAdmin(),
+  () => console.log('Ensure super admin skipped'));
 
 // ----- Kích hoạt kết nối ban đầu -----
 // Nếu chạy trực tiếp bằng 'node server.js' thì nối DB ngay khi khởi động.
@@ -140,10 +111,19 @@ app.use('/api/announcements', require('./routes/announcements')); // thông báo
 // ----- Tài liệu API rút gọn -----
 // API: GET /api/docs -> trả JSON liệt kê các endpoint chính để frontend tra cứu.
 app.get('/api/docs', (req, res) => {
+  // Chỉ cache tài liệu công khai; API tài khoản/lớp vẫn private, no-store.
+  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
   res.json({
     name: 'Tutoring Platform API',
     version: '1.0.0',
     baseURL: process.env.API_URL || 'http://localhost:5000',
+    // Contract dùng chung cho bảy endpoint danh sách chính ở BE #04.
+    pagination: {
+      defaultLimit: 20, maxLimit: 100, maxPage: 10000,
+      response: '{ data: [], page, limit, total, totalPages }',
+      scope: ['classes', 'users', 'videos/class/:classId', 'documents/class/:classId',
+        'assignments/class/:classId', 'announcements/class/:classId', 'quizzes/class/:classId'],
+    },
     endpoints: {
       auth: {
         register: 'POST /api/auth/register', // đăng ký student/teacher.
@@ -157,7 +137,8 @@ app.get('/api/docs', (req, res) => {
       },
       classes: {
         create: 'POST /api/classes', // giáo viên/admin tạo lớp.
-        getAll: 'GET /api/classes', // lấy danh sách lớp.
+        getAll: 'GET /api/classes?page=1&limit=20&search=&subject=&grade=&status=', // danh sách phân trang.
+        contentSummary: 'GET /api/classes/:id/content-summary (theo quyền lớp)',
         getById: 'GET /api/classes/:id', // chi tiết 1 lớp.
         update: 'PUT /api/classes/:id', // sửa lớp.
         delete: 'DELETE /api/classes/:id', // xóa lớp.
