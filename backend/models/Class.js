@@ -18,13 +18,21 @@ const lockNoticeSchema = new mongoose.Schema({
   },
   reasonCode: String,
   policyLevel: { type: Number, min: 1, max: 3 },
+  // Giới hạn văn bản mới được kiểm tra ở API; lịch sử cũ đã lưu vẫn được bảo toàn.
   details: String,
   issuedAt: Date,
+  issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   appealDeadline: Date,
   appealMessage: String,
   appealedAt: Date,
+  appealedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   resolvedAt: Date,
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   adminResponse: String,
+  // Mở lại lớp là sự kiện riêng, không ghi đè quyết định khóa và người đã duyệt.
+  reopenedAt: Date,
+  reopenedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reopenResponse: { type: String, maxlength: 2000 },
 }, { _id: false });
 
 // Tạo schema cho 1 lớp học.
@@ -118,6 +126,8 @@ const classSchema = new mongoose.Schema({
     default: () => ({}),
   },
   lockNoticeHistory: [lockNoticeSchema],
+  // Phiên bản nội bộ chống ghi đè khi gửi/duyệt/mở lại đồng thời, kể cả qua nhiều thông báo.
+  lockRevision: { type: Number, select: false },
   // Ngày tạo lớp. Mặc định hiện tại.
   createdAt: {
     type: Date,

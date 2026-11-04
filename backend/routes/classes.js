@@ -18,6 +18,9 @@ const { writeAudit } = require('../utils/audit');
 const { sendError } = require('../utils/respond');
 const { activeAccountFilter } = require('../utils/accountAccess');
 const { readPage, objectId } = require('../utils/pagination');
+const { bodyObject, handleAppeal } = require('../utils/appealValidation');
+const { issueClassLockNotice, appealClassLockNotice, reviewClassLockNotice,
+  reopenClass, classAppealsForViewer } = require('../utils/classLockNotices');
 
 const router = express.Router();
 const { userForViewer } = require('../utils/userPrivacy');
@@ -234,7 +237,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const resultPromise = readPage(Class, req, filter, {
       projection: {
         name: 1, description: 1, subject: 1, grade: 1, teacher: 1, capacity: 1,
-        schedule: 1, thumbnail: 1, status: 1, createdAt: 1, updatedAt: 1, lockNotice: 1,
+        schedule: 1, thumbnail: 1, status: 1, createdAt: 1, updatedAt: 1,
+        ...(req.userRole === 'student' ? { 'lockNotice.status': 1 } : { lockNotice: 1 }),
         ...(req.query.view === 'history' && req.userRole !== 'student' ? { lockNoticeHistory: 1 } : {}),
         studentCount: { $size: { $ifNull: ['$students', []] } },
         ...(req.userRole !== 'student' ? { joinRequestCount: { $size: { $ifNull: ['$joinRequests', []] } } } : {}),
@@ -250,7 +254,8 @@ router.get('/', authMiddleware, async (req, res) => {
       ])]);
       return res.json({ ...result, summary: { total: result.total, active, inactive } });
     }
-    res.json(await resultPromise);
+    const result = await resultPromise;
+    res.json({ ...result, data: result.data.map((cls) => classAppealsForViewer(cls, req.userRole)) });
   } catch (error) {
     return sendError(res, error);
   }
@@ -276,154 +281,32 @@ router.get('/:id/content-summary', authMiddleware, async (req, res) => {
   } catch (error) { return sendError(res, error); }
 });
 
-router.patch('/:id/status', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (status !== 'active') {
-      return res.status(409).json({ message: 'Issue a lock notice before locking this class' });
-    }
-
-    const classData = await Class.findById(req.params.id);
-
-    if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
-    }
-
-    if (classData.lockNotice?.status && classData.lockNotice.status !== 'none') {
-      classData.lockNoticeHistory.push({
-        ...classData.lockNotice.toObject(),
-        status: 'dismissed',
-        resolvedAt: new Date(),
-        adminResponse: 'Class reopened by administrator',
-      });
-    }
-    classData.status = 'active';
-    classData.lockNotice = { status: 'none' };
-    classData.updatedAt = new Date();
-    await classData.save();
-
-    res.json({ message: 'Class reopened', class: classData });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+// Giữ URL/response cũ; helper cập nhật quyết định và lịch sử cùng một lần ghi.
+router.patch('/:id/status', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
+  if (bodyObject(req.body).status !== 'active') {
+    return res.status(409).json({ message: 'Issue a lock notice before locking this class' });
   }
-});
+  const classData = await reopenClass(req.params.id, req.userId);
+  res.json({ message: 'Class reopened', class: classData });
+}));
 
-router.patch('/:id/lock-notice', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const { reasonCode, policyLevel, details } = req.body;
-    const validReasons = [
-      'spam', 'abusive_content', 'copyright', 'account_sharing', 'academic_fraud',
-      'illegal_content', 'privacy_breach', 'financial_misconduct', 'class_disruption', 'other',
-    ];
-    if (!validReasons.includes(reasonCode)) {
-      return res.status(400).json({ message: 'Select a valid policy violation reason' });
-    }
-    if (![1, 2, 3].includes(Number(policyLevel))) {
-      return res.status(400).json({ message: 'Select a policy severity from 1 to 3' });
-    }
-    if (!details?.trim() || details.trim().length > 2000) {
-      return res.status(400).json({ message: 'Provide details (up to 2000 characters)' });
-    }
+router.patch('/:id/lock-notice', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
+  const classData = await issueClassLockNotice(req.params.id, req.userId, req.body);
+  res.status(202).json({ message: 'Lock notice sent; appeal window is 24 hours', class: classData });
+}));
 
-    const classData = await Class.findById(req.params.id);
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
-    if (classData.status === 'inactive') {
-      return res.status(409).json({ message: 'Reopen the class before issuing a new notice' });
-    }
-    if (['pending', 'appealed'].includes(classData.lockNotice?.status)) {
-      return res.status(409).json({ message: 'This class already has an unresolved lock notice' });
-    }
-
-    if (classData.lockNotice?.status && classData.lockNotice.status !== 'none') {
-      classData.lockNoticeHistory.push(classData.lockNotice.toObject());
-    }
-
-    const issuedAt = new Date();
-    classData.lockNotice = {
-      status: 'pending',
-      reasonCode,
-      policyLevel: Number(policyLevel),
-      details: details.trim(),
-      issuedAt,
-      appealDeadline: new Date(issuedAt.getTime() + 24 * 60 * 60 * 1000),
-      appealMessage: '',
-      appealedAt: null,
-      resolvedAt: null,
-      adminResponse: '',
-    };
-    classData.updatedAt = issuedAt;
-    await classData.save();
-    res.status(202).json({ message: 'Lock notice sent; appeal window is 24 hours', class: classData });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+router.post('/:id/lock-appeal', authMiddleware, handleAppeal(async (req, res) => {
+  if (req.userRole !== 'teacher') {
+    return res.status(403).json({ message: 'Only the class teacher can appeal this notice' });
   }
-});
+  await appealClassLockNotice(req.params.id, req.userId, req.body);
+  res.json({ message: 'Appeal sent to the administrator' });
+}));
 
-router.post('/:id/lock-appeal', authMiddleware, async (req, res) => {
-  try {
-    if (req.userRole !== 'teacher') {
-      return res.status(403).json({ message: 'Only the class teacher can appeal this notice' });
-    }
-    const message = req.body.message?.trim();
-    if (!message || message.length > 3000) {
-      return res.status(400).json({ message: 'Write an appeal message (up to 3000 characters)' });
-    }
-
-    const classData = await Class.findById(req.params.id);
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
-    if (classData.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized to appeal this class notice' });
-    }
-    if (classData.lockNotice?.status !== 'pending' || classData.status !== 'active') {
-      return res.status(409).json({ message: 'This notice is no longer open for appeal' });
-    }
-    if (classData.lockNotice.appealDeadline <= new Date()) {
-      return res.status(409).json({ message: 'The 24-hour appeal window has closed' });
-    }
-
-    classData.lockNotice.status = 'appealed';
-    classData.lockNotice.appealMessage = message;
-    classData.lockNotice.appealedAt = new Date();
-    await classData.save();
-    res.json({ message: 'Appeal sent to the administrator' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-router.patch('/:id/lock-review', authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const { decision, response } = req.body;
-    if (!['lock', 'dismiss'].includes(decision)) {
-      return res.status(400).json({ message: 'Decision must be lock or dismiss' });
-    }
-    const classData = await Class.findById(req.params.id);
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
-    if (!['pending', 'appealed'].includes(classData.lockNotice?.status)) {
-      return res.status(409).json({ message: 'There is no unresolved lock notice' });
-    }
-    if (
-      classData.lockNotice.status === 'pending'
-      && classData.lockNotice.appealDeadline > new Date()
-    ) {
-      return res.status(409).json({ message: 'The 24-hour appeal window is still open' });
-    }
-
-    classData.status = decision === 'lock' ? 'inactive' : 'active';
-    classData.lockNotice.status = decision === 'lock' ? 'locked' : 'dismissed';
-    classData.lockNotice.resolvedAt = new Date();
-    classData.lockNotice.adminResponse = response?.trim() || '';
-    if (decision === 'dismiss') {
-      classData.lockNoticeHistory.push(classData.lockNotice.toObject());
-      classData.lockNotice = { status: 'none' };
-    }
-    classData.updatedAt = new Date();
-    await classData.save();
-    res.json({ message: decision === 'lock' ? 'Class formally locked' : 'Lock notice dismissed', class: classData });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+router.patch('/:id/lock-review', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
+  const result = await reviewClassLockNotice(req.params.id, req.userId, req.body);
+  res.json({ message: result.decision === 'lock' ? 'Class formally locked' : 'Lock notice dismissed', class: result.class });
+}));
 
 // Get class by ID
 // Yêu cầu quyền truy cập: admin mọi lớp, teacher phụ trách, student trong lớp.
@@ -463,7 +346,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
       delete responseData.joinCode;
       delete responseData.joinRequests;
     }
-    res.json(responseData);
+    res.json(classAppealsForViewer(responseData, req.userRole));
   } catch (error) {
     return sendError(res, error);
   }
