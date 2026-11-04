@@ -2,6 +2,8 @@
 
 Chào mừng bạn đến với **EKLASSES** - nền tảng quản lý lớp học trực tuyến cho giáo viên tự do và gia sư, tích hợp đầy đủ **lớp học, video bài giảng, tài liệu, bài kiểm tra trắc nghiệm, bài tập và thông báo** trong một hệ thống duy nhất với 3 phân quyền **Admin / Giáo viên / Học sinh**.
 
+Tài liệu kỹ thuật và hướng dẫn liên quan được tập trung tại [docs/README.md](docs/README.md).
+
 ---
 
 ## 0. LIÊN KẾT WEBSITE (WEBSITE LINKS)
@@ -113,7 +115,7 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 * Quy tắc áp dụng cả hồ sơ trực tiếp và hồ sơ lồng trong lớp học, yêu cầu tham gia, video, tài liệu, thông báo, bài tập, bài kiểm tra/bài nộp và cảnh báo học sinh.
 * Giáo viên không nhận email của học sinh qua các response trên. Giao diện lớp học chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh cho admin.
 * Chức năng thêm học sinh bằng email đã biết vẫn giữ nguyên; không bổ sung điều kiện cùng lớp khi xem hồ sơ công khai.
-* Chi tiết chức năng các đoạn code thay đổi: [backend/USER_PRIVACY.md](backend/USER_PRIVACY.md).
+* Chi tiết chức năng các đoạn code thay đổi: [docs/USER_PRIVACY.md](docs/USER_PRIVACY.md).
 * Phạm vi BE #01 không xử lý tài khoản admin mặc định hoặc khóa JWT dự phòng; đây là các vấn đề bảo mật riêng, không nên coi bản sửa này là đã bảo đảm an toàn toàn hệ thống.
 
 ---
@@ -124,7 +126,7 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 * Danh sách lớp trả `studentCount`/`joinRequestCount` thay vì populate roster; danh sách quiz trả `questionCount`/`hasPromptImage`, không tải đề/ảnh base64. Endpoint chi tiết giữ chức năng hiện có.
 * Dashboard phân trang; chi tiết lớp tải học liệu theo tab và lấy tổng qua `GET /api/classes/:id/content-summary`. Các route nặng được lazy-load.
 * Kết nối MongoDB và bước khởi tạo dùng chung promise trong mỗi instance. API riêng tư không cache ở CDN; có `Server-Timing` và logging timing tùy chọn.
-* Công cụ và giới hạn: [backend/PERFORMANCE.md](backend/PERFORMANCE.md). Chưa đo latency/query plan trên MongoDB thật; các màn hình lịch sử/kiểm duyệt vẫn có phần đọc nhiều trang để giữ đúng thống kê. Chưa coi toàn bộ issue đã nghiệm thu.
+* Công cụ và giới hạn: [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Chưa đo latency/query plan trên MongoDB thật; các màn hình lịch sử/kiểm duyệt vẫn có phần đọc nhiều trang để giữ đúng thống kê. Chưa coi toàn bộ issue đã nghiệm thu.
 
 ---
 

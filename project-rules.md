@@ -6,9 +6,9 @@
 
 1. Đọc toàn bộ `README.md` và file quy tắc này.
 2. Đọc tài liệu liên quan đến nhiệm vụ nếu có:
-   - `PROJECT_SCOPE.md`: phạm vi và ngoài phạm vi; tài liệu local, không mặc định có trên mọi máy.
-   - `backend/MONGODB_WORKFLOW.md`: vòng đời tài khoản, buổi học, điểm danh và yêu cầu transaction.
-   - `backend/USER_PRIVACY.md`: quy tắc bảo vệ hồ sơ của BE #01.
+   - `docs/local/PROJECT_SCOPE.md`: phạm vi và ngoài phạm vi; tài liệu local, không mặc định có trên mọi máy.
+   - `docs/MONGODB_WORKFLOW.md`: vòng đời tài khoản, buổi học, điểm danh và yêu cầu transaction.
+   - `docs/USER_PRIVACY.md`: quy tắc bảo vệ hồ sơ của BE #01.
    - `AGENTS.md`, `RULES.md` và tài liệu trong `docs/` nếu được bổ sung sau này.
 3. Kiểm tra cấu trúc repository, code liên quan, `package.json` và cấu hình triển khai.
 4. Kiểm tra `git status`, branch hiện tại, upstream và lịch sử commit gần nhất. Nhận diện thay đổi của người dùng trước khi sửa.
@@ -16,7 +16,7 @@
 6. Không giả định còn nhớ cuộc trò chuyện trước, tài liệu chưa tồn tại hoặc tính năng đã hoàn thành chỉ vì có tên trong README.
 7. Khi tài liệu và code mâu thuẫn, ghi rõ khác biệt, dẫn đường dẫn liên quan và xin xác nhận trước khi thay đổi quyết định nghiệp vụ.
 
-Không bắt buộc đọc file không tồn tại và không tự tạo tài liệu còn thiếu ngoài nhiệm vụ. Không dùng `README_Example.md` làm đặc tả EKLASSES nếu chưa được xác nhận.
+Không bắt buộc đọc file không tồn tại và không tự tạo tài liệu còn thiếu ngoài nhiệm vụ. Không dùng `docs/local/README_Example.md` làm đặc tả EKLASSES nếu chưa được xác nhận. Các đường dẫn trong file quy tắc này tính từ thư mục gốc dự án.
 
 Sau khi tìm hiểu, tóm tắt ngắn: trạng thái liên quan đến nhiệm vụ, phần đã có, phần còn thiếu/mâu thuẫn và bước tiếp theo. Nếu chỉ được yêu cầu đọc hoặc kiểm tra, chưa sửa code. Nếu đã được giao nhiệm vụ chỉnh sửa cụ thể, làm trong phạm vi đã xác nhận, không tự mở rộng.
 
@@ -45,7 +45,7 @@ Sau khi tìm hiểu, tóm tắt ngắn: trạng thái liên quan đến nhiệm 
 ## 4. Bảo mật và quyền riêng tư
 
 - Backend phải kiểm tra vai trò, quyền sở hữu, quan hệ lớp và trạng thái tài khoản/tài nguyên theo nghiệp vụ. Ẩn nút hoặc chặn route frontend chỉ hỗ trợ UX.
-- Giữ các quyết định BE #01 trong `backend/USER_PRIVACY.md`: người khác chỉ nhận hồ sơ công khai tối thiểu; chính chủ/admin nhận dữ liệu theo allowlist; không trả password/hash hoặc `scheduleRevision`.
+- Giữ các quyết định BE #01 trong `docs/USER_PRIVACY.md`: người khác chỉ nhận hồ sơ công khai tối thiểu; chính chủ/admin nhận dữ liệu theo allowlist; không trả password/hash hoặc `scheduleRevision`.
 - Kiểm tra cả dữ liệu user lồng nhau và các trường được `populate`, không chỉ endpoint hồ sơ trực tiếp.
 - Không tự thay đổi cách lưu/truyền token, cơ chế admin, khóa JWT hoặc quyền xem dữ liệu nếu chưa được duyệt.
 - Không đưa secret vào source, client bundle, URL, log hoặc tài liệu. Biến môi trường được nhúng vào frontend không phải nơi lưu secret.
@@ -88,7 +88,7 @@ Sau khi tìm hiểu, tóm tắt ngắn: trạng thái liên quan đến nhiệm 
 - Luồng review đề xuất: branch chức năng → PR vào `develop` → kiểm thử tích hợp/staging → PR vào `main` khi đủ điều kiện phát hành. Không tự tạo/merge PR, đóng issue hoặc deploy chỉ vì đã được phép push.
 - Vercel Preview dùng kiểm tra PR trước merge; staging từ `develop` dùng kiểm thử tích hợp; production từ `main`. Không khẳng định các môi trường đã tồn tại nếu chưa xác minh.
 - Preview/staging dùng database và cấu hình thử nghiệm riêng; không tự chạy seed, migration hoặc test ghi dữ liệu lên production.
-- Giữ `PROJECT_SCOPE.md` ở local theo `.gitignore`; không force-add tài liệu bị ignore khi chưa được yêu cầu.
+- Giữ tài liệu trong `docs/local/`, gồm `PROJECT_SCOPE.md` và `README_Example.md`, ở local theo `.gitignore`; không force-add tài liệu bị ignore khi chưa được yêu cầu.
 - Không tự tạo lại `graphify-out/`, cài graph tool hoặc Git hook; thư mục này đã được yêu cầu loại bỏ. Chỉ khôi phục nếu có yêu cầu mới.
 
 ## 7. Kiểm tra và bàn giao
