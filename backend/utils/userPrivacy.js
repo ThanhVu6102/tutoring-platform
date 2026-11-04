@@ -10,7 +10,7 @@ const REVIEW_FIELDS = Object.freeze(['reviewedBy', 'reviewedAt', 'note']);
 const USER_POPULATE_FIELDS = PRIVATE_USER_FIELDS.filter((field) => field !== 'id').join(' ');
 const PUBLIC_USER_QUERY_FIELDS = PUBLIC_USER_FIELDS.filter((field) => field !== 'id').join(' ');
 const USER_REFERENCE_KEYS = new Set([
-  'user', 'teacher', 'student', 'students', 'issuedBy', 'reviewedBy', 'actorId',
+  'user', 'teacher', 'student', 'students', 'issuedBy', 'reviewedBy', 'appealedBy', 'reopenedBy', 'actorId',
 ]);
 
 function plainObject(value) {

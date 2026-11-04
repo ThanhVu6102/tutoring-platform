@@ -35,7 +35,10 @@ const studentWarningSchema = new mongoose.Schema({
   appealDeadline: { type: Date, required: true },
   appealMessage: { type: String, maxlength: 3000, default: '' },
   appealedAt: Date,
+  // Danh tính lấy từ phiên đăng nhập; hồ sơ cũ không bị gán người xử lý giả.
+  appealedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   resolvedAt: Date,
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   adminResponse: { type: String, maxlength: 2000, default: '' },
   violationCounted: { type: Boolean, default: false },
   classWarningCount: { type: Number, default: 0 },

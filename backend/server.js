@@ -146,7 +146,20 @@ app.get('/api/docs', (req, res) => {
         getStudents: 'GET /api/classes/:id/students', // danh sách học sinh.
         lookupByCode: 'GET /api/classes/lookup/:joinCode',
         requestToJoin: 'POST /api/classes/join/:joinCode/request',
-        reviewJoinRequest: 'PATCH /api/classes/:id/join-requests/:studentId'
+        reviewJoinRequest: 'PATCH /api/classes/:id/join-requests/:studentId',
+        lockNotice: 'PATCH /api/classes/:id/lock-notice (admin, body: {reasonCode, policyLevel, details})',
+        lockAppeal: 'POST /api/classes/:id/lock-appeal (giáo viên phụ trách, body: {message}, hạn 24 giờ)',
+        lockReview: 'PATCH /api/classes/:id/lock-review (admin, body: {decision: lock|dismiss, response?})',
+        reopen: 'PATCH /api/classes/:id/status (admin, body: {status: active})'
+      },
+      // Hai luồng kháng cáo hiện có; danh sách cảnh báo vẫn trả mảng để tương thích UI.
+      studentWarnings: {
+        issue: 'POST /api/student-warnings/:studentId (admin, body: {classId, reasonCode, policyLevel, details})',
+        mine: 'GET /api/student-warnings/mine (học sinh, mảng cảnh báo của chính mình)',
+        list: 'GET /api/student-warnings?status=pending|appealed|confirmed|dismissed (admin)',
+        appeal: 'POST /api/student-warnings/:warningId/appeal (chính chủ, body: {message}, hạn 7 ngày)',
+        review: 'PATCH /api/student-warnings/:warningId/review (admin, body: {decision: confirm|dismiss, response?})',
+        transaction: 'Xác nhận vi phạm và xử lý hết hạn cần MongoDB replica set/Atlas',
       },
       sessions: {
         create: 'POST /api/classes/:id/sessions (giáo viên phụ trách/admin)',

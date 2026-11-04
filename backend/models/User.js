@@ -86,6 +86,8 @@ const userSchema = new mongoose.Schema({
   },
   // Khóa ghi dùng cho transaction xếp lịch; không trả ra client.
   scheduleRevision: { type: Number, default: 0, select: false },
+  // Tuần tự hóa các lần xác nhận cảnh báo cùng học sinh trong transaction.
+  warningRevision: { type: Number, default: 0, select: false },
   // Thời điểm xóa mềm. Có giá trị -> tài khoản coi như đã xóa, không đủ điều kiện
   // đăng nhập, nhưng dữ liệu lịch sử (lớp, nộp bài...) vẫn giữ nguyên vẹn.
   deletedAt: {

@@ -8,6 +8,7 @@ Thư mục `docs/` tập trung tài liệu kỹ thuật của EKLASSES.
 |----------|----------|
 | [MongoDB workflow](MONGODB_WORKFLOW.md) | Vòng đời tài khoản, buổi học, điểm danh và yêu cầu transaction |
 | [Quyền riêng tư hồ sơ](USER_PRIVACY.md) | Quy tắc lọc dữ liệu và phân quyền hồ sơ trong API |
+| [Kháng cáo — BE #03](APPEALS.md) | API cảnh báo học sinh/khóa lớp, chuyển trạng thái, chế tài và kiểm thử transaction |
 | [Hiệu năng](PERFORMANCE.md) | Phân trang, tối ưu tải dữ liệu, công cụ đo và giới hạn kiểm thử |
 
 ## Cách tổ chức
