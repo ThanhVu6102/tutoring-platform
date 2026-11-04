@@ -1,0 +1,7 @@
+/graphify-out/
+
+# Tài liệu phạm vi nội bộ, chỉ lưu local
+/PROJECT_SCOPE.md
+
+# Tài liệu nội bộ và mẫu tham khảo, không đưa lên GitHub
+/docs/local/

@@ -1,0 +1,20 @@
+# Tài liệu dự án
+
+Thư mục `docs/` tập trung tài liệu kỹ thuật của EKLASSES.
+
+## Tài liệu hiện có
+
+| Tài liệu | Nội dung |
+|----------|----------|
+| [MongoDB workflow](MONGODB_WORKFLOW.md) | Vòng đời tài khoản, buổi học, điểm danh và yêu cầu transaction |
+| [Quyền riêng tư hồ sơ](USER_PRIVACY.md) | Quy tắc lọc dữ liệu và phân quyền hồ sơ trong API |
+| [Hiệu năng](PERFORMANCE.md) | Phân trang, tối ưu tải dữ liệu, công cụ đo và giới hạn kiểm thử |
+
+## Cách tổ chức
+
+- [README chính](../README.md) ở thư mục gốc: giới thiệu dự án và hướng dẫn chạy nhanh.
+- [Quy tắc làm việc](../project-rules.md) ở thư mục gốc: hướng dẫn phát triển dự án.
+- `local/`: tài liệu nội bộ và mẫu tham khảo, được `.gitignore` loại trừ; không có sẵn khi clone repository.
+- Tài liệu API, kiến trúc, cơ sở dữ liệu và triển khai mới sẽ được bổ sung vào `docs/` khi cần.
+
+Không đưa mật khẩu, token hoặc thông tin kết nối thật vào tài liệu được chia sẻ. Mẫu README trong `local/` chỉ để tham khảo cách trình bày, không phải đặc tả EKLASSES.

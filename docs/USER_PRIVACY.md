@@ -23,12 +23,14 @@
 
 ## Chức năng các phần thay đổi
 
-- `utils/userPrivacy.js`: định nghĩa allowlist cố định; chọn trường query bằng `userQueryFields`; lọc DTO theo người xem và thông tin xét duyệt lồng nhau; giữ nguyên ID chưa populate và thời gian.
-- `middleware/userPrivacy.js`: lọc response JSON trước khi gửi client; không sửa document hay dữ liệu kiểm tra quyền trong handler.
-- `routes/users.js`: áp dụng allowlist cho hồ sơ chính chủ, hồ sơ theo ID và danh sách quản trị; giữ định dạng response cũ.
+Các đường dẫn mã nguồn dưới đây tính từ thư mục gốc dự án.
+
+- `backend/utils/userPrivacy.js`: định nghĩa allowlist cố định; chọn trường query bằng `userQueryFields`; lọc DTO theo người xem và thông tin xét duyệt lồng nhau; giữ nguyên ID chưa populate và thời gian.
+- `backend/middleware/userPrivacy.js`: lọc response JSON trước khi gửi client; không sửa document hay dữ liệu kiểm tra quyền trong handler.
+- `backend/routes/users.js`: áp dụng allowlist cho hồ sơ chính chủ, hồ sơ theo ID và danh sách quản trị; giữ định dạng response cũ.
 - Các router lớp học, nội dung và cảnh báo: áp dụng bộ lọc chung. Các populate trước đây không giới hạn trường nay chọn allowlist rõ ràng.
 - `frontend/src/pages/ClassDetail.js`: chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh khi người xem là admin; giữ nguyên thao tác duyệt và thêm học sinh bằng email đã biết.
-- `tests/userPrivacy.test.js`: kiểm tra quyền chính chủ/admin/người khác, projection hồ sơ, trường điện thoại/CCCD và tên biến thể, trường mới lồng trong review, tham số giả quyền và response HTTP mà không cần MongoDB thật.
+- `backend/tests/userPrivacy.test.js`: kiểm tra quyền chính chủ/admin/người khác, projection hồ sơ, trường điện thoại/CCCD và tên biến thể, trường mới lồng trong review, tham số giả quyền và response HTTP mà không cần MongoDB thật.
 
 ## Kiểm thử
 
