@@ -130,6 +130,15 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 
 ---
 
+## 2.8. Kháng cáo — BE #03 ([issue #24](https://github.com/ThanhVu6102/tutoring-platform/issues/24))
+
+* Học sinh gửi kháng cáo cảnh báo trong 7 ngày; giáo viên phụ trách gửi kháng cáo thông báo khóa lớp trong 24 giờ. Admin xét duyệt và lưu người xử lý/thời điểm/phản hồi.
+* Quyết định và lịch sử chống ghi đè khi thao tác đồng thời. Xác nhận cảnh báo, gỡ khỏi lớp và cập nhật chế tài cùng transaction, cần MongoDB Atlas hoặc replica set.
+* Học sinh chỉ xem cảnh báo của chính mình; hồ sơ kháng cáo khóa lớp dành cho giáo viên phụ trách/admin. Mở lớp giữ quyết định khóa ban đầu trong lịch sử.
+* Contract, dữ liệu cũ và kiểm thử MongoDB thật: [docs/APPEALS.md](docs/APPEALS.md).
+
+---
+
 ## 3. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
 
 MongoDB gồm 8 collections chính:
