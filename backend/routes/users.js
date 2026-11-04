@@ -23,10 +23,25 @@ const { isSuperAdminEmail } = require('../utils/superAdmin');
 const { sendError } = require('../utils/respond');
 const { USER_POPULATE_FIELDS, userQueryFields, userForViewer } = require('../utils/userPrivacy');
 const { readPage } = require('../utils/pagination');
+const { changePassword } = require('../utils/changePassword');
 
 // Tạo router riêng cho nhóm user.
 const router = express.Router();
 router.use(require('../middleware/userPrivacy'));
+
+// Đổi riêng mật khẩu của chính chủ; không trả hoặc ghi log dữ liệu bí mật.
+router.patch('/password', authMiddleware, async (req, res) => {
+  try {
+    await changePassword(req.userId, req.body);
+    res.json({ message: 'Đổi mật khẩu thành công. Các phiên đang đăng nhập vẫn có hiệu lực đến khi hết hạn.' });
+  } catch (error) {
+    if ([400, 403, 409].includes(error.statusCode)) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    // Không log exception có thể chứa query hoặc giá trị hash/mật khẩu.
+    res.status(500).json({ message: 'Không thể đổi mật khẩu, vui lòng thử lại' });
+  }
+});
 
 // ----------------------------------------------------------------------------
 // API: GET /api/users/profile

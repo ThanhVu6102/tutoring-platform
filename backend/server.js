@@ -131,6 +131,7 @@ app.get('/api/docs', (req, res) => {
         logout: 'POST /api/auth/logout' // (frontend tự xóa token).
       },
       users: {
+        changePassword: 'PATCH /api/users/password (chính chủ, body: {currentPassword, newPassword})',
         list: 'GET /api/users (admin)', // admin xem toàn bộ user.
         updateRole: 'PUT /api/users/:id/role (admin, body: {role})', // cấp/thu hồi admin.
         delete: 'DELETE /api/users/:id (admin, không xóa được super admin)' // xóa user.
