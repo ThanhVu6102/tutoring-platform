@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
+import ChangePasswordForm from '../components/ChangePasswordForm';
 
 const warningStatusLabels = {
   pending: 'Chờ kháng cáo',
@@ -120,6 +121,9 @@ const ProfilePage = () => {
           <button className="btn btn-primary" disabled={saving} type="submit">{saving ? 'Đang lưu...' : 'Lưu hồ sơ'}</button>
         </form>
       </section>
+
+      {/* Form mật khẩu độc lập với lưu hồ sơ để không truyền nhầm thông tin bí mật. */}
+      <ChangePasswordForm />
 
       <section className="profile-history">
         <header><h2>{role === 'teacher' ? 'Lịch sử thông báo về lớp' : 'Lịch sử cảnh báo'}</h2></header>
