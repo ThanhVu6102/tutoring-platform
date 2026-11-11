@@ -34,12 +34,21 @@ const passwordForm = () => container.querySelector('form[aria-label="Đổi mậ
 
 test('profile renders independent accessible password fields and rejects mismatched confirmation', async () => {
   expect(container.querySelector('form input').value).toBe('Học sinh test');
+  expect(container.textContent).not.toContain('Tài khoản quản trị được quản lý bằng cấu hình');
   expect(container.querySelector('input[name="currentPassword"]').autocomplete).toBe('current-password');
   expect(container.querySelector('input[name="newPassword"]').type).toBe('password');
   fill('Not matching!');
   await act(async () => Simulate.submit(passwordForm()));
   expect(container.textContent).toContain('Mật khẩu nhập lại không khớp.');
   expect(axios.patch).not.toHaveBeenCalled();
+});
+
+test('configuration warning is shown only for an admin profile', async () => {
+  localStorage.setItem('userRole', 'admin');
+  await act(async () => root.render(<ProfilePage />));
+  expect(container.textContent).toContain('Quản lý hồ sơ quản trị.');
+  expect(container.textContent).toContain('Nếu tài khoản quản trị được quản lý bằng cấu hình');
+  expect(container.textContent).not.toContain('Lịch sử cảnh báo');
 });
 
 test('password change sends only required fields, blocks duplicates and clears fields after success', async () => {

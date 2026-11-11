@@ -55,7 +55,7 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
       <div id="navbar-actions" className={`navbar-user${menuOpen ? ' is-open' : ''}`}>
         <button type="button" onClick={() => go('/policies')}>Chính sách</button>
         {isAuthenticated ? <>
-          {['student', 'teacher'].includes(userRole) && <NotificationsBell userRole={userRole} />}
+          {['student', 'teacher'].includes(userRole) && <NotificationsBell userRole={userRole} pathname={location.pathname} />}
           {['student', 'teacher'].includes(userRole) && <button type="button" onClick={() => go('/appeals')}>Kháng cáo</button>}
           <button type="button" onClick={() => go(home)}>{userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}</button>
           {userRole === 'admin' && <button type="button" onClick={() => go('/admin/moderation')}>Hồ sơ vi phạm</button>}

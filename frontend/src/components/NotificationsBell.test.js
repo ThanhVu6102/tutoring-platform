@@ -27,3 +27,20 @@ test.each([
     if (!succeeds) expect(container.textContent).not.toContain('Bạn chưa có thông báo mới.');
   } finally { act(() => root.unmount()); container.remove(); localStorage.clear(); jest.clearAllMocks(); }
 });
+
+test('open panel closes on route change without refetching notifications', async () => {
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  localStorage.setItem('userId', 'student-a');
+  axios.get.mockResolvedValue({ data: [{ _id: 'warning-1', status: 'pending', reasonCode: 'other', details: 'Nội dung cảnh báo' }] });
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<NotificationsBell userRole="student" pathname="/dashboard" />));
+    await act(async () => container.querySelector('.notification-bell-button').click());
+    expect(container.querySelector('.notification-popover')).toBeTruthy();
+    await act(async () => root.render(<NotificationsBell userRole="student" pathname="/profile" />));
+    expect(container.querySelector('.notification-popover')).toBeNull();
+    expect(axios.get).toHaveBeenCalledTimes(1);
+  } finally { act(() => root.unmount()); container.remove(); localStorage.clear(); jest.clearAllMocks(); }
+});
