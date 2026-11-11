@@ -33,6 +33,7 @@ const AdminClassDetail = lazy(() => import('./pages/AdminClassDetail'));
 const ClassDetail = lazy(() => import('./pages/ClassDetail'));
 const QuizTaking = lazy(() => import('./pages/QuizTaking'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AppealPage = lazy(() => import('./pages/AppealPage'));
 
 // Component App: bao toàn bộ website.
 const App = () => {
@@ -121,6 +122,7 @@ const App = () => {
               <Route path="/admin/classes/:id" element={userRole === 'admin' ? <AdminClassDetail /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={userRole === 'admin' ? <Navigate to="/admin" replace /> : <Dashboard userRole={userRole} />} />
               <Route path="/profile" element={['student', 'teacher'].includes(userRole) ? <ProfilePage /> : <Navigate to="/admin" replace />} />
+              <Route path="/appeals" element={['student', 'teacher'].includes(userRole) ? <AppealPage /> : <Navigate to="/dashboard" replace />} />
               {/* Chi tiết lớp: :id là _id lớp trên URL. */}
               <Route path="/class/:id" element={<ClassDetail />} />
               {/* Làm bài quiz: :quizId là _id đề thi. */}

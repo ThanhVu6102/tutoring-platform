@@ -83,3 +83,41 @@ test('list and summary failures are visible and can be retried', async () => {
   await click('Làm mới tổng hồ sơ');
   expect([...container.querySelectorAll('.admin-summary strong')].map((item) => item.textContent)).toEqual(['2500', '73', '42']);
 });
+
+test('student accounts load on demand and soft deletion refreshes their page', async () => {
+  const student = { _id: 'student-1', name: 'Học sinh A', email: 'student@example.test' };
+  axios.get.mockImplementation(async (url, config) => ({ data: url.endsWith('/summary') ? summary
+    : page(url === '/api/users' ? [student] : url.endsWith('/warnings') ? warningData : [], config.params.page) }));
+  axios.delete.mockResolvedValue({ data: { message: 'Đã xóa người dùng' } });
+  const confirm = jest.spyOn(window, 'confirm');
+  try {
+    await render();
+    expect(axios.get.mock.calls.some(([url]) => url === '/api/users')).toBe(false);
+    await click('Tài khoản học sinh');
+    const accountCall = axios.get.mock.calls.find(([url]) => url === '/api/users');
+    expect(accountCall[1].params).toMatchObject({ role: 'student', view: 'moderation', page: 1 });
+    confirm.mockReturnValueOnce(false);
+    await click('Xóa tài khoản');
+    expect(axios.delete).not.toHaveBeenCalled();
+    confirm.mockReturnValueOnce(true);
+    await click('Xóa tài khoản');
+    expect(axios.delete).toHaveBeenCalledWith('/api/users/student-1');
+    expect(container.textContent).toContain('Đã xóa tài khoản Học sinh A.');
+    expect(axios.get.mock.calls.filter(([url]) => url === '/api/users')).toHaveLength(2);
+  } finally { confirm.mockRestore(); }
+});
+
+test('hiding a warning only changes the current admin view and persists after reload', async () => {
+  localStorage.setItem('userId', 'admin-a');
+  await render();
+  await click('Ẩn thông báo');
+  expect(container.querySelector('.admin-warning-card')).toBeNull();
+  expect(axios.patch).not.toHaveBeenCalled();
+  expect(localStorage.getItem('admin-hidden-warnings:admin-a')).toContain('w');
+  act(() => root.unmount());
+  root = createRoot(container);
+  await render();
+  expect(container.querySelector('.admin-warning-card')).toBeNull();
+  await click('Hiện 1 thông báo đã ẩn');
+  expect(container.querySelector('.admin-warning-card')).toBeTruthy();
+});

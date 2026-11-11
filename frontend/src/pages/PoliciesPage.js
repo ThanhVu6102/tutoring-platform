@@ -21,6 +21,7 @@ const PoliciesPage = ({ embedded = false, onRead }) => {
       return;
     }
     if (returnToRegister) navigate('/register');
+    else navigate(localStorage.getItem('token') ? (localStorage.getItem('userRole') === 'admin' ? '/admin' : '/dashboard') : '/login');
   };
 
   const pageContent = (
