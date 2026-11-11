@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { getAllPages } from '../utils/listRequests';
 import { policyReasonLabels, lockStatusLabels } from '../config/policyLabels';
@@ -22,6 +22,7 @@ const AppealPage = () => {
   // Trạng thái nhập đơn kháng cáo: { [id]: message }
   const [appealForms, setAppealForms] = useState({});
   const [submittingId, setSubmittingId] = useState(null);
+  const submitPending = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -50,11 +51,13 @@ const AppealPage = () => {
 
   // Học sinh gửi kháng cáo
   const submitStudentAppeal = async (warningId) => {
+    if (submitPending.current) return;
     const message = (appealForms[warningId] || '').trim();
     if (!message) {
       setError('Vui lòng nhập lý do / lời giải trình kháng cáo.');
       return;
     }
+    submitPending.current = true;
     setSubmittingId(warningId);
     setError('');
     setSuccess('');
@@ -66,17 +69,20 @@ const AppealPage = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể gửi đơn kháng cáo.');
     } finally {
+      submitPending.current = false;
       setSubmittingId(null);
     }
   };
 
   // Giáo viên gửi kháng cáo cho lớp
   const submitTeacherAppeal = async (classId) => {
+    if (submitPending.current) return;
     const message = (appealForms[classId] || '').trim();
     if (!message) {
       setError('Vui lòng nhập nội dung kháng cáo cho lớp học.');
       return;
     }
+    submitPending.current = true;
     setSubmittingId(classId);
     setError('');
     setSuccess('');
@@ -88,6 +94,7 @@ const AppealPage = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể gửi kháng cáo.');
     } finally {
+      submitPending.current = false;
       setSubmittingId(null);
     }
   };
@@ -145,8 +152,10 @@ const AppealPage = () => {
               <p className="notification-empty">Hiện tại bạn không có cảnh báo nào cần kháng cáo. Rất tuyệt vời!</p>
             ) : (
               pendingStudentWarnings.map((warning) => {
-                const deadline = new Date(warning.appealDeadline);
-                const isExpired = deadline <= new Date();
+                const deadline = warning.appealDeadline ? new Date(warning.appealDeadline) : null;
+                // Hồ sơ cũ thiếu hạn hợp lệ không được mở form mà API chắc chắn từ chối.
+                const validDeadline = deadline && Number.isFinite(deadline.getTime());
+                const isExpired = !validDeadline || deadline <= new Date();
 
                 return (
                   <article className="appeal-card is-pending" key={warning._id}>
@@ -177,8 +186,8 @@ const AppealPage = () => {
 
                     <div className="appeal-countdown">
                       <span>⏳ Hạn chót kháng cáo:</span>
-                      <strong>{deadline.toLocaleString('vi-VN')}</strong>
-                      {isExpired && <span style={{ color: '#dc2626' }}>(Đã quá hạn 7 ngày)</span>}
+                      <strong>{validDeadline ? deadline.toLocaleString('vi-VN') : 'Không xác định'}</strong>
+                      {isExpired && <span style={{ color: '#dc2626' }}>{validDeadline ? '(Đã quá hạn 7 ngày)' : '(Hạn không hợp lệ)'}</span>}
                     </div>
 
                     {!isExpired ? (
@@ -204,7 +213,7 @@ const AppealPage = () => {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                           <button
                             className="btn btn-primary"
-                            disabled={submittingId === warning._id}
+                            disabled={Boolean(submittingId)}
                             type="submit"
                           >
                             {submittingId === warning._id ? 'Đang gửi kháng cáo...' : '✉️ Gửi đơn kháng cáo'}
@@ -213,7 +222,7 @@ const AppealPage = () => {
                       </form>
                     ) : (
                       <p style={{ marginTop: '0.8rem', color: '#dc2626', fontSize: '0.88rem' }}>
-                        Thời hạn 7 ngày để gửi kháng cáo đã kết thúc. Cảnh báo này đã được ghi nhận.
+                        {validDeadline ? 'Thời hạn 7 ngày để gửi kháng cáo đã kết thúc. Cảnh báo này đã được ghi nhận.' : 'Không có hạn kháng cáo hợp lệ. Vui lòng liên hệ quản trị viên.'}
                       </p>
                     )}
                   </article>
@@ -317,7 +326,8 @@ const AppealPage = () => {
               pendingTeacherClasses.map((classItem) => {
                 const notice = classItem.lockNotice;
                 const deadline = notice?.appealDeadline ? new Date(notice.appealDeadline) : null;
-                const isExpired = deadline && deadline <= new Date();
+                const validDeadline = deadline && Number.isFinite(deadline.getTime());
+                const isExpired = !validDeadline || deadline <= new Date();
 
                 return (
                   <article className="appeal-card is-pending" key={classItem._id}>
@@ -346,7 +356,7 @@ const AppealPage = () => {
                       </div>
                     </dl>
 
-                    {deadline && (
+                    {validDeadline && (
                       <div className="appeal-countdown">
                         <span>⏳ Hạn chót kháng cáo (24 giờ):</span>
                         <strong>{deadline.toLocaleString('vi-VN')}</strong>
@@ -377,7 +387,7 @@ const AppealPage = () => {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                           <button
                             className="btn btn-primary"
-                            disabled={submittingId === classItem._id}
+                            disabled={Boolean(submittingId)}
                             type="submit"
                           >
                             {submittingId === classItem._id ? 'Đang gửi kháng cáo...' : '✉️ Gửi kháng cáo cho lớp'}
@@ -386,7 +396,7 @@ const AppealPage = () => {
                       </form>
                     ) : (
                       <p style={{ marginTop: '0.8rem', color: '#dc2626', fontSize: '0.88rem' }}>
-                        Thời hạn 24 giờ để kháng cáo đã kết thúc.
+                        {validDeadline ? 'Thời hạn 24 giờ để kháng cáo đã kết thúc.' : 'Không có hạn kháng cáo hợp lệ. Vui lòng liên hệ quản trị viên.'}
                       </p>
                     )}
                   </article>
