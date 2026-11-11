@@ -98,6 +98,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth')); // đăng ký/đăng nhập.
 app.use('/api/users', require('./routes/users')); // profile + quản trị admin.
 app.use('/api/student-warnings', require('./routes/studentWarnings'));
+app.use('/api/moderation', require('./routes/moderation')); // phân trang kiểm duyệt dành riêng cho admin.
 app.use('/api/classes', require('./routes/classes')); // lớp học.
 const sessionRoutes = require('./routes/sessions');
 app.use('/api/classes', sessionRoutes.classRouter); // lịch buổi học của lớp.
@@ -161,6 +162,12 @@ app.get('/api/docs', (req, res) => {
         appeal: 'POST /api/student-warnings/:warningId/appeal (chính chủ, body: {message}, hạn 7 ngày)',
         review: 'PATCH /api/student-warnings/:warningId/review (admin, body: {decision: confirm|dismiss, response?})',
         transaction: 'Xác nhận vi phạm và xử lý hết hạn cần MongoDB replica set/Atlas',
+      },
+      moderation: {
+        summary: 'GET /api/moderation/summary (admin, exact totals)',
+        warnings: 'GET /api/moderation/warnings?page=1&limit=20&status=appealed (admin)',
+        students: 'GET /api/moderation/students?page=1&limit=20 (admin)',
+        classes: 'GET /api/moderation/classes?page=1&limit=20 (admin)',
       },
       sessions: {
         create: 'POST /api/classes/:id/sessions (giáo viên phụ trách/admin)',

@@ -11,6 +11,8 @@ Thư mục `docs/` tập trung tài liệu kỹ thuật của EKLASSES.
 | [Đổi mật khẩu](CHANGE_PASSWORD.md) | API và form chính chủ, giới hạn tài khoản quản trị/phiên JWT |
 | [Kháng cáo — BE #03](APPEALS.md) | API cảnh báo học sinh/khóa lớp, chuyển trạng thái, chế tài và kiểm thử transaction |
 | [Hiệu năng](PERFORMANCE.md) | Phân trang, tối ưu tải dữ liệu, công cụ đo và giới hạn kiểm thử |
+| [Lab hiệu năng — BE #04 giai đoạn 2](PERFORMANCE_LAB.md) | Docker local cách ly, dữ liệu giả, baseline/query plan thực tế và giới hạn của phép đo |
+| [Phân trang kiểm duyệt](MODERATION_PAGINATION_PLAN.md) | Contract admin riêng, thống kê chính xác và phạm vi FE đã được xác nhận |
 
 ## Cách tổ chức
 
