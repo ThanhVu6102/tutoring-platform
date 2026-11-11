@@ -99,7 +99,7 @@ const ProfilePage = () => {
       <header className="profile-heading">
         <p className="admin-eyebrow">TÀI KHOẢN</p>
         <h1>Thông tin cá nhân</h1>
-        <p>{role === 'teacher' ? 'Quản lý hồ sơ giáo viên và xem lịch sử xử lý lớp học.' : 'Quản lý hồ sơ học sinh và xem lịch sử cảnh báo.'}</p>
+        <p>{role === 'admin' ? 'Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.' : role === 'teacher' ? 'Quản lý hồ sơ giáo viên và xem lịch sử xử lý lớp học.' : 'Quản lý hồ sơ học sinh và xem lịch sử cảnh báo.'}</p>
       </header>
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
@@ -127,7 +127,7 @@ const ProfilePage = () => {
       {/* Form mật khẩu độc lập với lưu hồ sơ để không truyền nhầm thông tin bí mật. */}
       <ChangePasswordForm />
 
-      <section className="profile-history">
+      {role !== 'admin' && <section className="profile-history">
         <header><h2>{role === 'teacher' ? 'Lịch sử thông báo về lớp' : 'Lịch sử cảnh báo'}</h2></header>
         {role === 'student' && warnings.length === 0 && <p className="admin-state">Bạn chưa nhận cảnh báo nào.</p>}
         {role === 'student' && warnings.map((warning) => (
@@ -156,7 +156,7 @@ const ProfilePage = () => {
             {item.adminResponse && <p><strong>Phản hồi Admin:</strong> {item.adminResponse}</p>}
           </article>
         ))}
-      </section>
+      </section>}
     </main>
   );
 };

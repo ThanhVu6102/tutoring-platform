@@ -121,7 +121,8 @@ const App = () => {
               <Route path="/admin/moderation" element={userRole === 'admin' ? <AdminModeration /> : <Navigate to="/dashboard" replace />} />
               <Route path="/admin/classes/:id" element={userRole === 'admin' ? <AdminClassDetail /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={userRole === 'admin' ? <Navigate to="/admin" replace /> : <Dashboard userRole={userRole} />} />
-              <Route path="/profile" element={['student', 'teacher'].includes(userRole) ? <ProfilePage /> : <Navigate to="/admin" replace />} />
+              {/* Mọi vai trò hợp lệ đều được quản lý hồ sơ và mật khẩu chính chủ. */}
+              <Route path="/profile" element={['student', 'teacher', 'admin'].includes(userRole) ? <ProfilePage /> : <Navigate to="/admin" replace />} />
               <Route path="/appeals" element={['student', 'teacher'].includes(userRole) ? <AppealPage /> : <Navigate to="/dashboard" replace />} />
               {/* Chi tiết lớp: :id là _id lớp trên URL. */}
               <Route path="/class/:id" element={<ClassDetail />} />

@@ -84,3 +84,24 @@ test('rejects new passwords shorter than eight characters or over 72 UTF-8 bytes
   }
   expect(axios.patch).not.toHaveBeenCalled();
 });
+
+test('quản trị viên đổi mật khẩu chính chủ mà không tải lịch sử cảnh báo học sinh hoặc giáo viên', async () => {
+  localStorage.setItem('userRole', 'admin');
+  axios.get.mockClear();
+  axios.get.mockResolvedValue({ data: { name: 'Quản trị viên kiểm thử', email: 'admin@example.test', role: 'admin' } });
+  await act(async () => root.render(<ProfilePage key="admin" />));
+  expect(axios.get).toHaveBeenCalledTimes(1);
+  expect(axios.get).toHaveBeenCalledWith('/api/users/profile');
+  expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
+  expect(container.textContent).not.toContain('Lịch sử cảnh báo');
+  expect(container.textContent).not.toContain('không thể đổi mật khẩu');
+  expect(passwordForm()).not.toBeNull();
+  axios.patch.mockResolvedValue({ data: { message: 'Đổi mật khẩu thành công.' } });
+  fill();
+  await act(async () => Simulate.submit(passwordForm()));
+  expect(axios.patch).toHaveBeenCalledWith('/api/users/password', {
+    currentPassword: 'Old-password!', newPassword: 'New-password!',
+  });
+  expect(container.textContent).toContain('Đổi mật khẩu thành công.');
+  expect(axios.put).not.toHaveBeenCalled();
+});
