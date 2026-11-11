@@ -221,15 +221,34 @@ router.get('/', authMiddleware, async (req, res) => {
     const filter = req.userRole === 'admin' ? {} : req.userRole === 'teacher'
       ? { teacher: objectId(req.userId) } : { students: objectId(req.userId), status: 'active' };
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 200) : '';
-    if (search) filter.name = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    const q = req.userRole === 'admin' && typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
+    const searchRegex = (value) => ({ $regex: value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' });
+    if (q) filter.$or = [{ name: searchRegex(q) }, { description: searchRegex(q) }];
+    else if (search) filter.name = searchRegex(search);
     for (const key of ['subject', 'grade']) {
       if (typeof req.query[key] === 'string' && req.query[key].trim()) filter[key] = req.query[key].trim().slice(0, 200);
     }
     if (req.userRole !== 'student' && ['active', 'inactive'].includes(req.query.status)) filter.status = req.query.status;
+    if (req.userRole === 'admin' && typeof req.query.teacher === 'string' && req.query.teacher.trim()) {
+      const teacher = req.query.teacher.trim();
+      if (/^[a-f\d]{24}$/i.test(teacher)) filter.teacher = objectId(teacher);
+      else {
+        const found = await User.findOne({ email: teacher.toLowerCase(), deletedAt: null }).select('_id').lean();
+        filter.teacher = found?._id || objectId('000000000000000000000000');
+      }
+    }
+    const sortOptions = {
+      newest: { createdAt: -1, _id: -1 }, oldest: { createdAt: 1, _id: 1 },
+      name_asc: { name: 1, _id: 1 }, name_desc: { name: -1, _id: -1 },
+    };
+    if (req.userRole === 'admin' && req.query.sort && !Object.hasOwn(sortOptions, req.query.sort)) {
+      return res.status(400).json({ message: 'Kiểu sắp xếp không hợp lệ' });
+    }
+    const sort = req.userRole === 'admin' ? (sortOptions[req.query.sort] || sortOptions.newest) : sortOptions.newest;
     // Màn hình lịch sử/chuông chỉ lấy lớp có hồ sơ liên quan, không quét tải mọi lớp.
     if (req.userRole !== 'student' && req.query.view === 'history') {
-      filter.$or = [{ status: 'inactive' }, { 'lockNotice.status': { $exists: true, $ne: 'none' } },
-        { 'lockNoticeHistory.0': { $exists: true } }];
+      filter.$and = [{ $or: [{ status: 'inactive' }, { 'lockNotice.status': { $exists: true, $ne: 'none' } },
+        { 'lockNoticeHistory.0': { $exists: true } }] }];
     }
     if (req.userRole !== 'student' && req.query.view === 'notifications') {
       filter['lockNotice.status'] = { $in: ['pending', 'appealed', 'locked'] };
@@ -244,6 +263,7 @@ router.get('/', authMiddleware, async (req, res) => {
         ...(req.userRole !== 'student' ? { joinRequestCount: { $size: { $ifNull: ['$joinRequests', []] } } } : {}),
       },
       populate: { path: 'teacher', select: 'name email role' },
+      sort,
     });
     // Tổng theo filter toàn bộ, không lấy số phần tử của trang hiện tại để làm thống kê.
     if (req.userRole === 'admin' && req.query.summary === 'true') {
