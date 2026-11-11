@@ -2,7 +2,7 @@
 // FILE: backend/routes/auth.js
 // MỤC ĐÍCH: Xử lý Đăng ký (register) và Đăng nhập (login) của website.
 // - Đăng ký public chỉ cho teacher/student, cấm tự đăng ký admin.
-// - Đăng nhập Super Admin gốc luôn hoạt động với TK cố định trong config.
+// - Mọi vai trò đăng nhập bằng hash trong DB, không bypass từ cấu hình.
 // - Trả về JWT (hạn 7 ngày) + thông tin { id, name, email, role } cho frontend.
 // ============================================================================
 
@@ -13,14 +13,7 @@ const jwt = require('jsonwebtoken');
 // Nạp model User để truy vấn MongoDB (tìm user, tạo user mới).
 const User = require('../models/User');
 const StudentWarning = require('../models/StudentWarning');
-// Nạp cấu hình admin cố định (email/password mặc định của Super Admin).
-const DEFAULT_ADMIN = require('../config/defaultAdmin');
-// Nạp 3 hàm tiện ích Super Admin: check email, check password, (ensure dự phòng).
-const {
-  isSuperAdminEmail,
-  isSuperAdminPassword,
-  ensureSuperAdmin,
-} = require('../utils/superAdmin');
+const { isSuperAdminEmail } = require('../utils/superAdmin');
 // Nạp hàm chuẩn hóa lỗi (trùng email, validation, ObjectId...) -> mã HTTP đúng.
 const { sendError } = require('../utils/respond');
 
@@ -129,12 +122,7 @@ router.post('/register', async (req, res) => {
 // ----------------------------------------------------------------------------
 // API: POST /api/auth/login
 // CHỨC NĂNG: Đăng nhập cho mọi vai trò (student/teacher/admin + Super Admin).
-// THỨ TỰ ƯU TIÊN:
-//  - Nhánh 1 (SUPER ADMIN GỐC): đúng email + mật khẩu cố định -> vào ngay,
-//    tự tạo/khôi phục record admin trong DB, cấp token role admin.
-//  - Nhánh 2 (TƯƠNG THÍCH ENV CŨ): đúng ADMIN_EMAIL + ADMIN_PASSWORD trên env.
-//  - Nhánh 3 (THƯỜNG): tìm user trong DB rồi so sánh mật khẩu bcrypt.
-//  - Chặn: email Super Admin mà sai mật khẩu -> 401 ngay, không dò tiếp.
+// Tìm tài khoản trong DB, so sánh bcrypt rồi kiểm tra trạng thái trước khi cấp JWT.
 // ----------------------------------------------------------------------------
 router.post('/login', async (req, res) => {
   try {
@@ -147,133 +135,6 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu' });
     }
 
-    // ===== NHÁNH 1: SUPER ADMIN GỐC (tài khoản mặc định của website) =====
-    // Điều kiện: email trùng email gốc (không phân biệt hoa/thường)
-    //         VÀ password khớp mật khẩu cố định (hoặc ADMIN_PASSWORD trên env).
-    if (isSuperAdminEmail(email) && isSuperAdminPassword(password)) {
-      // Tìm record admin gốc trong DB theo email chuẩn chữ thường.
-      // .select('+password') vì model User mặc định ẩn password_hash.
-      let adminUser = await User.findOne({ email: DEFAULT_ADMIN.email.toLowerCase() }).select('+password');
-      // Trường hợp 1a: Chưa có trong DB (DB mới, chưa seed) -> tạo mới.
-      if (!adminUser) {
-        adminUser = new User({
-          // Tên lấy từ env ADMIN_NAME nếu có, còn không lấy tên mặc định.
-          name: process.env.ADMIN_NAME || DEFAULT_ADMIN.name,
-          email: DEFAULT_ADMIN.email.toLowerCase(),
-          password, // mật khẩu vừa nhập (đã xác thực đúng) -> pre-save sẽ hash.
-          role: 'admin', // cố định quyền cao nhất.
-        });
-        // Lưu admin mới xuống DB.
-        await adminUser.save();
-      } else {
-        // Trường hợp 1b: Đã có trong DB -> đồng bộ lại cho đúng chuẩn.
-        let changed = false; // cờ theo dõi có gì thay đổi để quyết định save().
-        // Ép role về admin nếu trước đó bị sửa sai.
-        if (adminUser.role !== 'admin') {
-          adminUser.role = 'admin';
-          changed = true;
-        }
-        // So sánh mật khẩu vừa nhập với hash trong DB; nếu lệch thì cập nhật lại.
-        if (!(await adminUser.comparePassword(password))) {
-          adminUser.password = password;
-          changed = true;
-        }
-        // Đồng bộ tên hiển thị theo env hoặc tên mặc định.
-        const desiredName = process.env.ADMIN_NAME || DEFAULT_ADMIN.name;
-        if (adminUser.name !== desiredName) {
-          adminUser.name = desiredName;
-          changed = true;
-        }
-        // Chỉ lưu khi có thay đổi.
-        if (changed) await adminUser.save();
-      }
-
-      // Ký JWT role admin cho Super Admin để đi qua middleware adminOnly.
-      const token = jwt.sign(
-        { userId: adminUser._id, role: 'admin' },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
-
-      // Trả về token + info admin cho frontend chuyển vào Dashboard.
-      return res.json({
-        message: 'Login successful',
-        token,
-        user: {
-          id: adminUser._id,
-          name: adminUser.name,
-          email: adminUser.email,
-          role: 'admin',
-        },
-      });
-    }
-
-    // ===== NHÁNH 2: ADMIN ENV CŨ (giữ tương thích nếu deploy đặt ADMIN_EMAIL khác) =====
-    // Chỉ chạy khi có đủ 2 biến env và email/password gửi lên khớp tuyệt đối.
-    if (
-      process.env.ADMIN_EMAIL &&
-      process.env.ADMIN_PASSWORD &&
-      email === process.env.ADMIN_EMAIL &&
-      password === process.env.ADMIN_PASSWORD
-    ) {
-      // Tìm admin env trong DB.
-      let adminUser = await User.findOne({ email }).select('+password');
-      // Chưa có -> tạo mới role admin.
-      if (!adminUser) {
-        adminUser = new User({
-          name: process.env.ADMIN_NAME || 'Quản trị viên',
-          email,
-          password,
-          role: 'admin',
-        });
-        await adminUser.save();
-      } else {
-        // Đã có -> ép role admin + đồng bộ password/name theo env.
-        let changed = false;
-        if (adminUser.role !== 'admin') {
-          adminUser.role = 'admin';
-          changed = true;
-        }
-        // Đồng bộ password theo env để env luôn là nguồn đúng duy nhất của nhánh này.
-        if (!(await adminUser.comparePassword(password))) {
-          adminUser.password = password;
-          changed = true;
-        }
-        if (process.env.ADMIN_NAME && adminUser.name !== process.env.ADMIN_NAME) {
-          adminUser.name = process.env.ADMIN_NAME;
-          changed = true;
-        }
-        if (changed) await adminUser.save();
-      }
-
-      // Ký token admin cho nhánh env.
-      const token = jwt.sign(
-        { userId: adminUser._id, role: 'admin' },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-      );
-
-      // Trả về cho frontend.
-      return res.json({
-        message: 'Login successful',
-        token,
-        user: {
-          id: adminUser._id,
-          name: adminUser.name,
-          email: adminUser.email,
-          role: 'admin',
-        },
-      });
-    }
-
-    // ===== CHẶN DÒ MẬT KHẨU SUPER ADMIN =====
-    // Nếu email là của Super Admin mà đã lọt qua 2 nhánh trên (tức sai mật khẩu)
-    // thì báo 401 ngay, không cho dò tiếp xuống nhánh thường để tránh lộ thông tin.
-    if (isSuperAdminEmail(email)) {
-      return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng' });
-    }
-
-    // ===== NHÁNH 3: ĐĂNG NHẬP THƯỜNG (student/teacher/admin phụ) =====
     // Tìm user trong DB theo email.
     // Cần +password để bcrypt so sánh (model mặc định ẩn trường này).
     const user = await User.findOne({ email }).select('+password');

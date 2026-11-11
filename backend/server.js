@@ -2,7 +2,7 @@
 // FILE: backend/server.js
 // MỤC ĐÍCH: Khởi tạo Express server, kết nối MongoDB, gắn các nhóm API.
 // - Hỗ trợ chạy local (node server.js) và serverless Vercel (cache kết nối).
-// - Tự đảm bảo Super Admin gốc tồn tại sau mỗi lần nối DB.
+// - Kết nối DB không tạo hoặc khôi phục tài khoản quản trị.
 // - Mọi request /api/* đều chờ DB nối xong mới xử lý để chống cold-start fail.
 // ============================================================================
 
@@ -50,13 +50,11 @@ if (!cached) {
 // LUỒNG:
 //  - B1: Nếu đã có conn -> trả về ngay (không nối lại).
 //  - B2: Nếu chưa có promise nối -> tạo promise mongoose.connect(uri).
-//  - B3: Promise chờ cả kết nối và khởi tạo admin trước khi công bố conn dùng lại.
+//  - B3: Promise chờ kết nối trước khi công bố conn dùng lại.
 //  - B4: Lỗi nối -> reset promise về null và ném lỗi cho nơi gọi xử lý.
 // ----------------------------------------------------------------------------
 const connectDB = cachedConnection(cached,
-  () => mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform'),
-  () => require('./utils/superAdmin').ensureSuperAdmin(),
-  () => console.log('Ensure super admin skipped'));
+  () => mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tutoring-platform'));
 
 // ----- Kích hoạt kết nối ban đầu -----
 // Nếu chạy trực tiếp bằng 'node server.js' thì nối DB ngay khi khởi động.
@@ -128,7 +126,7 @@ app.get('/api/docs', (req, res) => {
     endpoints: {
       auth: {
         register: 'POST /api/auth/register', // đăng ký student/teacher.
-        login: 'POST /api/auth/login', // đăng nhập, super admin luôn vào được.
+        login: 'POST /api/auth/login', // mọi tài khoản dùng mật khẩu trong DB.
         logout: 'POST /api/auth/logout' // (frontend tự xóa token).
       },
       users: {

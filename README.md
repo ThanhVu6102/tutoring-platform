@@ -19,25 +19,15 @@ Tài liệu kỹ thuật và hướng dẫn liên quan được tập trung tạ
 
 ---
 
-## 0.1. TÀI KHOẢN ADMIN MẶC ĐỊNH (DEFAULT ADMIN ACCOUNT)
+## 0.1. TÀI KHOẢN QUẢN TRỊ
 
-Tài khoản quản trị gốc **ghi cố định trong backend** (`backend/config/defaultAdmin.js`), là tài khoản mặc định của website:
+Không có mật khẩu admin mặc định hoặc bypass bằng biến môi trường. Mọi tài khoản đăng nhập bằng mật khẩu đã hash trong MongoDB và phải đáp ứng kiểm tra trạng thái tài khoản.
 
-| Trường | Giá trị |
-|--------|---------|
-| Email đăng nhập | `admin@eklasses.vn` |
-| Mật khẩu | `Admin123!` |
-| Tên hiển thị | `Quản trị viên` |
-| Quyền | `admin` (cao nhất) |
+Admin mới được tạo thủ công qua `npm run seed:admin --prefix backend` với `MONGODB_URI`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` tường minh (mật khẩu ngẫu nhiên ít nhất 16 ký tự, tối đa 72 byte UTF-8). Lệnh chỉ tạo mới, không reset/mở khóa/nâng quyền tài khoản đã tồn tại. Kết nối DB không tự bootstrap.
 
-Quy tắc bảo vệ Super Admin gốc:
-* Luôn đăng nhập được, không phụ thuộc biến môi trường hay seed thủ công — backend tự tạo/khôi phục record trong MongoDB mỗi khi kết nối DB (`ensureSuperAdmin()` trong `backend/utils/superAdmin.js`, gọi từ `connectDB()` và `seed-admin.js`).
-* **Không thể bị xóa** (`DELETE /api/users/:id` trả `403` cho email gốc).
-* **Không thể bị thay đổi quyền** (`PUT /api/users/:id/role` trả `403`, hook `pre-save` của model `User` luôn ép `role` về `admin`).
-* **Không thể đăng ký chiếm** (`POST /api/auth/register` trả `400` cho email gốc).
-* **Có quyền cấp/thu hồi admin** cho tài khoản khác qua `PUT /api/users/:id/role` (body `{ role: 'admin' | 'teacher' | 'student' }`) và xem toàn bộ user qua `GET /api/users` — cả hai đều yêu cầu JWT `adminOnly`.
+Danh tính gốc `admin@eklasses.vn` vẫn được bảo vệ khỏi đăng ký public, xóa/hạ quyền, nhưng không được bỏ qua kiểm tra mật khẩu/trạng thái. Admin có thể đổi mật khẩu tại hồ sơ.
 
-Đăng nhập trang `/login` bằng đúng email + mật khẩu trên là vào quyền admin ngay.
+**Môi trường cũ phải xoay vòng mật khẩu từng công khai và đánh giá thu hồi phiên**; chỉ cập nhật code không thay hash cũ hoặc token đã cấp. Xem quy trình và checklist vận hành trong [docs/ADMIN_BOOTSTRAP.md](docs/ADMIN_BOOTSTRAP.md).
 
 ---
 
@@ -75,9 +65,9 @@ graph TD
 ### 2.1. Xác thực & Phân quyền (`/login`, `/register`)
 * Đăng ký 2 vai trò public: **Học sinh / Giáo viên** (đăng ký `admin` và email admin gốc bị chặn ở backend).
 * Đăng nhập trả về JWT + `{ id, name, email, role }`, lưu `token/userId/userRole` vào localStorage.
-* Super Admin gốc `admin@eklasses.vn / Admin123!` (chi tiết ở mục 0.1): luôn đăng nhập được, tự tạo/khôi phục record, không thể xóa/hạ quyền, có quyền cấp admin cho tài khoản khác qua `PUT /api/users/:id/role`.
-* Tương thích ngược env cũ: nếu đặt `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tuỳ chọn `ADMIN_NAME`) khác tài khoản gốc thì cặp đó cũng đăng nhập được quyền admin.
-* Tạo thủ công (tuỳ chọn): `npm run seed:admin --prefix backend` (đọc `ADMIN_EMAIL/ADMIN_PASSWORD/MONGODB_URI`, luôn đảm bảo Super Admin gốc tồn tại).
+* Admin dùng mật khẩu/trạng thái trong DB như mọi role; không có nhánh đăng nhập ưu tiên từ cấu hình.
+* `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tùy chọn `ADMIN_NAME`) chỉ dùng cho bootstrap thủ công; không ghi đè mật khẩu đã đổi.
+* Tạo admin mới: `npm run seed:admin --prefix backend` với cấu hình tường minh theo mục 0.1; email đã tồn tại sẽ bị từ chối, không khôi phục tự động.
 
 ### 2.2. Dashboard (`/dashboard`)
 * Giáo viên: xem lớp mình dạy + tạo lớp mới (tên, mô tả, môn, khối).
@@ -211,10 +201,9 @@ MongoDB gồm 8 collections chính:
 ```bash
 npm install --prefix backend
 npm install --prefix frontend
-# Tạo tài khoản admin (mặc định admin@eklasses.vn / Admin123!)
+# Cấp MONGODB_URI, ADMIN_EMAIL, ADMIN_PASSWORD qua môi trường riêng/secret manager trước.
+# Chỉ tạo admin mới; không chứa mật khẩu mặc định hoặc reset tài khoản hiện có.
 npm run seed:admin --prefix backend
-# Hoặc chỉ định rõ:
-# MONGODB_URI=<chuỗi-atlas> ADMIN_EMAIL=admin@eklasses.vn ADMIN_PASSWORD=MatKhauManh npm run seed:admin --prefix backend
 ```
 
 ### Bước 3: Chạy 2 terminal song song
