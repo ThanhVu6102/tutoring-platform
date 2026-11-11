@@ -12,7 +12,7 @@ const classAvailability = (resourceModel) => async (req, res, next) => {
       const resourceClassId = resource?.class?.toString();
       const requestedClassId = req.body?.classId?.toString();
       if (resourceClassId && requestedClassId && requestedClassId !== resourceClassId) {
-        return res.status(403).json({ message: 'Resource does not belong to this class' });
+        return res.status(403).json({ message: 'Nội dung không thuộc lớp học này' });
       }
       classId = resourceClassId || classId;
     }
@@ -24,13 +24,13 @@ const classAvailability = (resourceModel) => async (req, res, next) => {
     if (!classData) return next();
 
     if (req.userRole === 'teacher' && classData.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized to access this class' });
+      return res.status(403).json({ message: 'Bạn không có quyền truy cập lớp học này' });
     }
     if (req.userRole === 'student' && !classData.students.some((studentId) => studentId.toString() === req.userId)) {
-      return res.status(403).json({ message: 'Join this class before accessing its content' });
+      return res.status(403).json({ message: 'Vui lòng tham gia lớp trước khi xem nội dung' });
     }
     if (classData.status === 'inactive') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
 
     next();

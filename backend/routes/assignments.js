@@ -24,7 +24,7 @@ router.post('/', authMiddleware, classAvailability(Assignment), teacherOnly, asy
     });
 
     await assignment.save();
-    res.status(201).json({ message: 'Assignment created successfully', assignment });
+    res.status(201).json({ message: 'Đã tạo bài tập', assignment });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -49,7 +49,7 @@ router.get('/:id', authMiddleware, classAvailability(Assignment), async (req, re
     const assignment = await Assignment.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
     res.json(assignment);
@@ -65,7 +65,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
     const assignment = await Assignment.findById(req.params.id);
 
     if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
     const existingSubmission = assignment.submissions.find(
@@ -88,7 +88,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
     }
 
     await assignment.save();
-    res.json({ message: 'Assignment submitted successfully' });
+    res.json({ message: 'Đã nộp bài tập' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -101,7 +101,7 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
     const assignment = await Assignment.findById(req.params.id);
 
     if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
     const submission = assignment.submissions.find(
@@ -115,7 +115,7 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
     }
 
     await assignment.save();
-    res.json({ message: 'Assignment graded successfully' });
+    res.json({ message: 'Đã chấm điểm bài tập' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -124,13 +124,13 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
 router.delete('/:id', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+    if (!assignment) return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     if (req.userRole !== 'admin' && assignment.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     await Assignment.deleteOne({ _id: assignment._id });
-    res.json({ message: 'Assignment deleted' });
+    res.json({ message: 'Đã xóa bài tập' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

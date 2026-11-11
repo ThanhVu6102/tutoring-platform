@@ -103,7 +103,7 @@ router.post('/register', async (req, res) => {
 
     // B6c: Trả về 201 (Created) kèm token + thông tin cơ bản để frontend lưu localStorage.
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'Đăng ký thành công',
       token,
       user: {
         id: user._id,
@@ -114,7 +114,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     // Nhánh lỗi: sendError tự phân loại validation/trùng email -> 400/409.
-    console.error('Register failed:', error?.message || error);
+    console.error('Đăng ký thất bại:', error?.message || error);
     return sendError(res, error, 'Đăng ký thất bại, vui lòng thử lại');
   }
 });
@@ -208,7 +208,7 @@ router.post('/login', async (req, res) => {
 
     // Trả về token + info để frontend lưu và phân quyền hiển thị.
     res.json({
-      message: 'Login successful',
+      message: 'Đăng nhập thành công',
       token,
       user: {
         id: user._id,
@@ -219,7 +219,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     // Lỗi hệ thống (mất DB, lỗi ký token...) -> log + trả thông báo an toàn.
-    console.error('Login failed:', error?.message || error);
+    console.error('Đăng nhập thất bại:', error?.message || error);
     return sendError(res, error, 'Đăng nhập thất bại, vui lòng thử lại');
   }
 });

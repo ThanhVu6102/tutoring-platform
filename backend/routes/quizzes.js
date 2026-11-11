@@ -22,10 +22,10 @@ router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (re
     const { title, description, classId, questions, promptImage, timeLimit, dueDate, allowReview, shuffleQuestions } = req.body;
 
     if (!Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({ message: 'A quiz needs at least one question' });
+      return res.status(400).json({ message: 'Bài kiểm tra cần ít nhất một câu hỏi' });
     }
     if (promptImage && (!promptImage.startsWith('data:image/') || promptImage.length > 6_000_000)) {
-      return res.status(400).json({ message: 'Exam image must be an image smaller than 4 MB' });
+      return res.status(400).json({ message: 'Ảnh đề phải là hình ảnh có dung lượng nhỏ hơn 4 MB' });
     }
 
     const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
@@ -45,7 +45,7 @@ router.post('/', authMiddleware, classAvailability(Quiz), teacherOnly, async (re
     });
 
     await quiz.save();
-    res.status(201).json({ message: 'Quiz created successfully', quiz });
+    res.status(201).json({ message: 'Đã tạo bài kiểm tra', quiz });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -74,11 +74,11 @@ router.get('/:id', authMiddleware, classAvailability(Quiz), async (req, res) => 
     const quiz = await Quiz.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài kiểm tra' });
     }
 
     if (req.userRole === 'student' && quiz.status !== 'published') {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài kiểm tra' });
     }
 
     res.json(req.userRole === 'student' ? quizForStudent(quiz) : quiz);
@@ -94,16 +94,16 @@ router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, 
     const quiz = await Quiz.findById(req.params.id);
 
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài kiểm tra' });
     }
     if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can submit a quiz' });
+      return res.status(403).json({ message: 'Chỉ học sinh được nộp bài kiểm tra' });
     }
     if (quiz.status !== 'published') {
-      return res.status(403).json({ message: 'This quiz is not published' });
+      return res.status(403).json({ message: 'Bài kiểm tra chưa được xuất bản' });
     }
     if (!Array.isArray(answers)) {
-      return res.status(400).json({ message: 'Answers must be an array' });
+      return res.status(400).json({ message: 'Danh sách câu trả lời phải là một mảng' });
     }
 
     let totalScore = 0;
@@ -144,7 +144,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Quiz), async (req, 
     });
 
     await submission.save();
-    res.status(201).json({ message: 'Quiz submitted successfully', submission });
+    res.status(201).json({ message: 'Đã nộp bài kiểm tra', submission });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -167,7 +167,7 @@ router.post('/:quizId/submission/:submissionId/grade', authMiddleware, classAvai
     const submission = await QuizSubmission.findById(req.params.submissionId);
 
     if (!submission) {
-      return res.status(404).json({ message: 'Submission not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài nộp' });
     }
 
     if (submission.answers[questionIndex]) {
@@ -183,7 +183,7 @@ router.post('/:quizId/submission/:submissionId/grade', authMiddleware, classAvai
     submission.percentage = (submission.totalScore / submission.maxScore) * 100;
 
     await submission.save();
-    res.json({ message: 'Grade submitted successfully' });
+    res.json({ message: 'Đã lưu điểm bài kiểm tra' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -195,21 +195,21 @@ router.put('/:id/publish', authMiddleware, classAvailability(Quiz), teacherOnly,
     const quiz = await Quiz.findById(req.params.id);
 
     if (!quiz) {
-      return res.status(404).json({ message: 'Quiz not found' });
+      return res.status(404).json({ message: 'Không tìm thấy bài kiểm tra' });
     }
 
     if (quiz.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     if (!quiz.questions.length) {
-      return res.status(400).json({ message: 'Add at least one question before publishing' });
+      return res.status(400).json({ message: 'Vui lòng thêm ít nhất một câu hỏi trước khi xuất bản' });
     }
 
     quiz.status = 'published';
     await quiz.save();
 
-    res.json({ message: 'Quiz published' });
+    res.json({ message: 'Đã xuất bản bài kiểm tra' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -218,16 +218,16 @@ router.put('/:id/publish', authMiddleware, classAvailability(Quiz), teacherOnly,
 router.delete('/:id', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
-    if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+    if (!quiz) return res.status(404).json({ message: 'Không tìm thấy bài kiểm tra' });
     if (req.userRole !== 'admin' && quiz.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     await Promise.all([
       Quiz.deleteOne({ _id: quiz._id }),
       QuizSubmission.deleteMany({ quiz: quiz._id }),
     ]);
-    res.json({ message: 'Quiz and submissions deleted' });
+    res.json({ message: 'Đã xóa bài kiểm tra và các bài nộp' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

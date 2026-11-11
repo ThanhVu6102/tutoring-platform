@@ -41,7 +41,7 @@ const generateJoinCode = async () => {
 const canManageClass = (classData, req) =>
   req.userRole === 'admin' || classData.teacher.toString() === req.userId;
 
-// Create class (teacher only)
+// Tạo lớp học cho giáo viên hoặc quản trị viên.
 router.post('/', authMiddleware, teacherOnly, async (req, res) => {
   try {
     const { name, description, subject, grade, capacity, schedule, thumbnail } = req.body;
@@ -68,7 +68,7 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
     });
 
     await newClass.save();
-    res.status(201).json({ message: 'Class created successfully', class: newClass });
+    res.status(201).json({ message: 'Đã tạo lớp học', class: newClass });
   } catch (error) {
     return sendError(res, error);
   }
@@ -77,16 +77,16 @@ router.post('/', authMiddleware, teacherOnly, async (req, res) => {
 router.get('/lookup/:joinCode', authMiddleware, async (req, res) => {
   try {
     if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can look up classes' });
+      return res.status(403).json({ message: 'Chỉ học sinh được tra cứu lớp bằng mã' });
     }
     const joinCode = req.params.joinCode.replace(/-/g, '').toUpperCase();
     const classData = await Class.findOne({ joinCode, status: 'active' })
       .populate('teacher', 'name email role');
     if (!classData) {
-      return res.status(404).json({ message: 'Class code not found' });
+      return res.status(404).json({ message: 'Không tìm thấy mã lớp học' });
     }
     if (classData.students.some((studentId) => studentId.toString() === req.userId)) {
-      return res.status(409).json({ message: 'You are already in this class' });
+      return res.status(409).json({ message: 'Bạn đã tham gia lớp học này' });
     }
     const hasPendingRequest = classData.joinRequests.some(
       (request) => request.student.toString() === req.userId
@@ -109,25 +109,25 @@ router.get('/lookup/:joinCode', authMiddleware, async (req, res) => {
 router.post('/join/:joinCode/request', authMiddleware, async (req, res) => {
   try {
     if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can request to join classes' });
+      return res.status(403).json({ message: 'Chỉ học sinh được gửi yêu cầu tham gia lớp' });
     }
     const joinCode = req.params.joinCode.replace(/-/g, '').toUpperCase();
     const classData = await Class.findOne({ joinCode, status: 'active' });
     if (!classData) {
-      return res.status(404).json({ message: 'Class code not found' });
+      return res.status(404).json({ message: 'Không tìm thấy mã lớp học' });
     }
     if (classData.students.some((studentId) => studentId.toString() === req.userId)) {
-      return res.status(409).json({ message: 'You are already in this class' });
+      return res.status(409).json({ message: 'Bạn đã tham gia lớp học này' });
     }
     if (classData.students.length >= classData.capacity) {
-      return res.status(409).json({ message: 'Class is full' });
+      return res.status(409).json({ message: 'Lớp học đã đủ số lượng học sinh' });
     }
     if (classData.joinRequests.some((request) => request.student.toString() === req.userId)) {
-      return res.status(409).json({ message: 'Your request is already pending' });
+      return res.status(409).json({ message: 'Yêu cầu của bạn đang chờ xét duyệt' });
     }
     classData.joinRequests.push({ student: req.userId });
     await classData.save();
-    res.status(201).json({ message: 'Join request sent', classId: classData._id });
+    res.status(201).json({ message: 'Đã gửi yêu cầu tham gia lớp', classId: classData._id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -136,7 +136,7 @@ router.post('/join/:joinCode/request', authMiddleware, async (req, res) => {
 router.get('/join-requests/mine', authMiddleware, async (req, res) => {
   try {
     if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can view their join requests' });
+      return res.status(403).json({ message: 'Chỉ học sinh được xem yêu cầu tham gia lớp của mình' });
     }
     const classes = await Class.find({ 'joinRequests.student': req.userId })
       .populate('teacher', 'name')
@@ -161,9 +161,9 @@ router.get('/:id/join-requests', authMiddleware, async (req, res) => {
   try {
     const classData = await Class.findById(req.params.id)
       .populate('joinRequests.student', 'name email');
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
+    if (!classData) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     if (!canManageClass(classData, req)) {
-      return res.status(403).json({ message: 'Not authorized to manage join requests' });
+      return res.status(403).json({ message: 'Bạn không có quyền quản lý yêu cầu tham gia lớp' });
     }
     res.json(classData.joinRequests);
   } catch (error) {
@@ -175,30 +175,30 @@ router.patch('/:id/join-requests/:studentId', authMiddleware, async (req, res) =
   try {
     const { action } = req.body;
     if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ message: 'Action must be approve or reject' });
+      return res.status(400).json({ message: 'Thao tác phải là approve hoặc reject' });
     }
     const classData = await Class.findById(req.params.id);
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
+    if (!classData) return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     if (!canManageClass(classData, req)) {
-      return res.status(403).json({ message: 'Not authorized to manage join requests' });
+      return res.status(403).json({ message: 'Bạn không có quyền quản lý yêu cầu tham gia lớp' });
     }
 
     const requestIndex = classData.joinRequests.findIndex(
       (request) => request.student.toString() === req.params.studentId
     );
     if (requestIndex === -1) {
-      return res.status(404).json({ message: 'Join request not found' });
+      return res.status(404).json({ message: 'Không tìm thấy yêu cầu tham gia lớp' });
     }
 
     if (action === 'approve') {
       if (classData.status !== 'active') {
-        return res.status(423).json({ message: 'This class is locked' });
+        return res.status(423).json({ message: 'Lớp học này đã bị khóa' });
       }
       if (classData.students.length >= classData.capacity) {
-        return res.status(409).json({ message: 'Class is full' });
+        return res.status(409).json({ message: 'Lớp học đã đủ số lượng học sinh' });
       }
       const student = await User.findOne({ _id: req.params.studentId, role: 'student', ...activeAccountFilter() });
-      if (!student) return res.status(404).json({ message: 'Student not found' });
+      if (!student) return res.status(404).json({ message: 'Không tìm thấy học sinh' });
       classData.students.addToSet(student._id);
       student.enrolledClasses.addToSet(classData._id);
       await Promise.all([classData.save(), student.save()]);
@@ -206,13 +206,13 @@ router.patch('/:id/join-requests/:studentId', authMiddleware, async (req, res) =
 
     classData.joinRequests.splice(requestIndex, 1);
     await classData.save();
-    res.json({ message: action === 'approve' ? 'Student approved' : 'Join request rejected' });
+    res.json({ message: action === 'approve' ? 'Đã duyệt học sinh tham gia lớp' : 'Đã từ chối yêu cầu tham gia lớp' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Get all classes for teacher or enrolled classes for student
+// Lấy lớp phụ trách của giáo viên hoặc lớp đã tham gia của học sinh.
 // Phân quyền theo role từ DB (mục 5.5): teacher chỉ thấy lớp mình, student chỉ
 // thấy lớp mình đã vào. Trả kết quả gọn qua ?page để tránh tải toàn bộ khi lớn.
 router.get('/', authMiddleware, async (req, res) => {
@@ -308,28 +308,28 @@ router.get('/:id/content-summary', authMiddleware, async (req, res) => {
 // Giữ URL/response cũ; helper cập nhật quyết định và lịch sử cùng một lần ghi.
 router.patch('/:id/status', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
   if (bodyObject(req.body).status !== 'active') {
-    return res.status(409).json({ message: 'Issue a lock notice before locking this class' });
+    return res.status(409).json({ message: 'Vui lòng gửi thông báo trước khi khóa lớp học' });
   }
   const classData = await reopenClass(req.params.id, req.userId);
-  res.json({ message: 'Class reopened', class: classData });
+  res.json({ message: 'Đã mở lại lớp học', class: classData });
 }));
 
 router.patch('/:id/lock-notice', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
   const classData = await issueClassLockNotice(req.params.id, req.userId, req.body);
-  res.status(202).json({ message: 'Lock notice sent; appeal window is 24 hours', class: classData });
+  res.status(202).json({ message: 'Đã gửi thông báo khóa lớp; thời hạn kháng cáo là 24 giờ', class: classData });
 }));
 
 router.post('/:id/lock-appeal', authMiddleware, handleAppeal(async (req, res) => {
   if (req.userRole !== 'teacher') {
-    return res.status(403).json({ message: 'Only the class teacher can appeal this notice' });
+    return res.status(403).json({ message: 'Chỉ giáo viên phụ trách được kháng cáo thông báo này' });
   }
   await appealClassLockNotice(req.params.id, req.userId, req.body);
-  res.json({ message: 'Appeal sent to the administrator' });
+  res.json({ message: 'Đã gửi kháng cáo đến quản trị viên' });
 }));
 
 router.patch('/:id/lock-review', authMiddleware, adminOnly, handleAppeal(async (req, res) => {
   const result = await reviewClassLockNotice(req.params.id, req.userId, req.body);
-  res.json({ message: result.decision === 'lock' ? 'Class formally locked' : 'Lock notice dismissed', class: result.class });
+  res.json({ message: result.decision === 'lock' ? 'Đã khóa lớp học chính thức' : 'Đã hủy thông báo khóa lớp', class: result.class });
 }));
 
 // Get class by ID
@@ -347,17 +347,17 @@ router.get('/:id', authMiddleware, async (req, res) => {
       .populate('students', 'name email role');
 
     if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     }
     const teacherId = classData.teacher?._id?.toString() || classData.teacher?.toString();
     if (req.userRole === 'teacher' && teacherId !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized to access this class' });
+      return res.status(403).json({ message: 'Bạn không có quyền truy cập lớp học này' });
     }
     if (req.userRole === 'student' && !classData.students.some((student) => student._id.toString() === req.userId)) {
-      return res.status(403).json({ message: 'Join this class before accessing its content' });
+      return res.status(403).json({ message: 'Vui lòng tham gia lớp trước khi xem nội dung' });
     }
     if (classData.status === 'inactive' && req.userRole === 'student') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
 
     if (!classData.joinCode && req.userRole !== 'student') {
@@ -382,15 +382,15 @@ router.put('/:id', authMiddleware, teacherOnly, async (req, res) => {
     const classData = await Class.findById(req.params.id);
 
     if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     }
 
     if (classData.status === 'inactive') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
     // Chỉ giáo viên phụ trách lớp này mới được sửa (mục 5.5).
     if (req.userRole !== 'admin' && classData.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized to update this class' });
+      return res.status(403).json({ message: 'Bạn không có quyền cập nhật lớp học này' });
     }
 
     // Chỉ cho sửa các trường an toàn, không cho tự đổi teacher qua body.
@@ -400,7 +400,7 @@ router.put('/:id', authMiddleware, teacherOnly, async (req, res) => {
     }
     await classData.save();
 
-    res.json({ message: 'Class updated successfully', class: classData });
+    res.json({ message: 'Đã cập nhật lớp học', class: classData });
   } catch (error) {
     return sendError(res, error);
   }
@@ -412,15 +412,15 @@ router.delete('/:id', authMiddleware, teacherOnly, async (req, res) => {
     const classData = await Class.findById(req.params.id);
 
     if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     }
 
     if (classData.status === 'inactive') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
     // Chỉ giáo viên phụ trách lớp này mới được xóa (mục 5.5).
     if (req.userRole !== 'admin' && classData.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized to delete this class' });
+      return res.status(403).json({ message: 'Bạn không có quyền xóa lớp học này' });
     }
 
     // Lưu trữ thay vì xóa cứng để buổi học và điểm danh không mất quan hệ lớp.
@@ -441,15 +441,15 @@ router.post('/:id/enroll', authMiddleware, teacherOnly, async (req, res) => {
     const classData = await Class.findById(req.params.id);
 
     if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     }
 
     if (classData.status === 'inactive') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
     // Chỉ giáo viên phụ trách lớp này mới được thêm học sinh (mục 5.5).
     if (req.userRole !== 'admin' && classData.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     if (typeof studentEmail !== 'string' || !studentEmail.trim()) {
@@ -470,7 +470,7 @@ router.post('/:id/enroll', authMiddleware, teacherOnly, async (req, res) => {
     }
 
     if (classData.students.some((studentId) => studentId.toString() === student._id.toString())) {
-      return res.status(400).json({ message: 'Student already enrolled' });
+      return res.status(400).json({ message: 'Học sinh đã được ghi danh vào lớp' });
     }
 
     // Cập nhật atomic: chống vượt sức chứa khi 2 giáo viên/admin thêm cùng lúc.
@@ -511,7 +511,7 @@ router.post('/:id/enroll', authMiddleware, teacherOnly, async (req, res) => {
       newData: { studentId: student._id, studentEmail: student.email },
     });
 
-    res.json({ message: 'Student enrolled successfully' });
+    res.json({ message: 'Đã ghi danh học sinh vào lớp' });
   } catch (error) {
     return sendError(res, error);
   }
@@ -523,15 +523,15 @@ router.get('/:id/students', authMiddleware, async (req, res) => {
     const classData = await Class.findById(req.params.id).populate('students', 'name email role');
 
     if (!classData) {
-      return res.status(404).json({ message: 'Class not found' });
+      return res.status(404).json({ message: 'Không tìm thấy lớp học' });
     }
 
     if (req.userRole !== 'admin' && (req.userRole !== 'teacher' || classData.teacher.toString() !== req.userId)) {
-      return res.status(403).json({ message: 'Not authorized to view class students' });
+      return res.status(403).json({ message: 'Bạn không có quyền xem danh sách học sinh của lớp' });
     }
 
     if (classData.status === 'inactive' && req.userRole === 'student') {
-      return res.status(423).json({ message: 'This class is locked by an administrator' });
+      return res.status(423).json({ message: 'Lớp học này đã bị quản trị viên khóa' });
     }
 
     // Response này là mảng user trực tiếp, cần lọc từng hồ sơ ngoài bộ lọc tham chiếu lồng nhau.
