@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema({
   },
   // Mật khẩu đã hash bằng bcrypt. Khi tạo/sửa, gán mật khẩu thô rồi hook tự hash.
   // select:false -> mọi truy vấn mặc định KHÔNG lấy password, tránh lộ hash.
-  // Nơi cần kiểm tra mật khẩu (login, ensureSuperAdmin) phải .select('+password').
+  // Nơi cần kiểm tra mật khẩu (login) phải .select('+password').
   password: {
     type: String,
     required: true,
@@ -181,7 +181,7 @@ userSchema.pre('save', async function(next) {
 // METHOD: user.comparePassword(candidatePassword)
 // SO SÁNH: mật khẩu người dùng nhập với hash trong DB (dùng bcrypt.compare).
 // - candidatePassword: chuỗi thô từ form login.
-// - Trả về true (đúng) / false (sai). Dùng ở API login và ensureSuperAdmin.
+// - Trả về true (đúng) / false (sai). Dùng ở API login.
 // ----------------------------------------------------------------------------
 userSchema.methods.comparePassword = async function(candidatePassword) {
   // bcrypt tự tách salt trong hash cũ để so sánh an toàn.

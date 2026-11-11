@@ -18,23 +18,23 @@ function id(value, name = 'ID') {
 
 function noticeInput(body) {
   const { reasonCode, policyLevel, details } = bodyObject(body);
-  if (!validReasons.includes(reasonCode)) fail(400, 'Select a valid policy violation reason');
+  if (!validReasons.includes(reasonCode)) fail(400, 'Vui lòng chọn lý do vi phạm hợp lệ');
   // Form cũ gửi cả số và chuỗi số; không chấp nhận boolean, array hoặc object.
-  if (![1, 2, 3, '1', '2', '3'].includes(policyLevel)) fail(400, 'Select a policy severity from 1 to 3');
+  if (![1, 2, 3, '1', '2', '3'].includes(policyLevel)) fail(400, 'Vui lòng chọn mức độ vi phạm từ 1 đến 3');
   const description = text(details, 2000, 'Mô tả');
-  if (!description) fail(400, 'Provide details (up to 2000 characters)');
+  if (!description) fail(400, 'Vui lòng nhập mô tả chi tiết, tối đa 2000 ký tự');
   return { reasonCode, policyLevel: Number(policyLevel), details: description };
 }
 
 function appealInput(body) {
   const message = text(bodyObject(body).message, 3000, 'Nội dung kháng cáo');
-  if (!message) fail(400, 'Write an appeal message (up to 3000 characters)');
+  if (!message) fail(400, 'Vui lòng nhập nội dung kháng cáo, tối đa 3000 ký tự');
   return message;
 }
 
 function reviewInput(body, decisions) {
   const { decision, response } = bodyObject(body);
-  if (!decisions.includes(decision)) fail(400, `Decision must be ${decisions.join(' or ')}`);
+  if (!decisions.includes(decision)) fail(400, `Quyết định phải là ${decisions.join(' hoặc ')}`);
   return { decision, response: text(response, 2000, 'Phản hồi xét duyệt') };
 }
 

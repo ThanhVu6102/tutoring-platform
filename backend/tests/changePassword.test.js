@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const { changePassword } = require('../utils/changePassword');
-const DEFAULT_ADMIN = require('../config/defaultAdmin');
 const actorId = 'a'.repeat(24);
 const oldPassword = 'Old-password-test!';
 const newPassword = 'New-password-test!';
@@ -42,14 +42,12 @@ test('password changes hash without trimming and target only the authenticated u
   assert.equal(await changePassword(actorId, { ...input, newPassword: rawNew, userId: 'b'.repeat(24) }), undefined);
 });
 
-test('wrong, unchanged, inactive and configured administrator passwords cannot be changed', async (t) => {
+test('wrong, unchanged and inactive account passwords cannot be changed', async (t) => {
   let record = { email: 'student@example.test', password: await bcrypt.hash(oldPassword, 4) };
   t.mock.method(User, 'findOne', () => ({ select: async () => record }));
   t.mock.method(User, 'updateOne', () => assert.fail('Rejected requests must not write'));
   await assert.rejects(changePassword(actorId, { ...input, currentPassword: 'Wrong-password!' }), { statusCode: 400 });
   await assert.rejects(changePassword(actorId, { ...input, newPassword: oldPassword }), { statusCode: 400 });
-  record.email = DEFAULT_ADMIN.email;
-  await assert.rejects(changePassword(actorId, input), { statusCode: 403 });
   record = null;
   await assert.rejects(changePassword(actorId, input), { statusCode: 403 });
 });
@@ -70,7 +68,7 @@ test('conditional password writes allow only one competing change', async (t) =>
   assert.equal(await bcrypt.compare(oldPassword, current), false);
 });
 
-test('exactly 72 UTF-8 bytes is accepted and configuration-managed admins remain protected', async (t) => {
+test('exactly 72 UTF-8 bytes is accepted and admin environment does not prevent password changes', async (t) => {
   const hash = await bcrypt.hash(oldPassword, 4);
   let email = 'student@example.test';
   t.mock.method(User, 'findOne', () => ({ select: async () => ({ email, password: hash }) }));
@@ -81,7 +79,7 @@ test('exactly 72 UTF-8 bytes is accepted and configuration-managed admins remain
     process.env.ADMIN_EMAIL = 'configured@example.test';
     process.env.ADMIN_PASSWORD = 'configuration-only-test';
     email = 'configured@example.test';
-    await assert.rejects(changePassword(actorId, input), { statusCode: 403 });
+    await changePassword(actorId, input);
   } finally {
     for (const [key, value] of [['ADMIN_EMAIL', previous.email], ['ADMIN_PASSWORD', previous.password]]) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
@@ -101,7 +99,7 @@ test('HTTP password route authenticates, hides secrets and blocks inactive users
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
-  const token = jwt.sign({ userId: actorId }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: actorId }, process.env.JWT_SECRET);
   const request = async (authenticated = true) => {
     const result = await fetch(`http://127.0.0.1:${server.address().port}/api/users/password`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(authenticated ? { Authorization: `Bearer ${token}` } : {}) },

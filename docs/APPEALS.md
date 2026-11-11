@@ -1,6 +1,6 @@
-# BE #03 — API kháng cáo
+# Kháng cáo và kiểm duyệt
 
-Phạm vi đã xác nhận cho [issue #24](https://github.com/ThanhVu6102/tutoring-platform/issues/24): hoàn thiện kháng cáo **cảnh báo học sinh** và **thông báo khóa lớp**. Trang kháng cáo riêng thuộc FE #08 / issue #20; frontend có thể dùng các contract dưới đây.
+Contract backend của [issue #24](https://github.com/ThanhVu6102/tutoring-platform/issues/24): kháng cáo **cảnh báo học sinh** và **thông báo khóa lớp**. Trang kháng cáo riêng thuộc FE #08 / issue #20; tài liệu này không thay trạng thái nghiệm thu frontend.
 
 ## Xác thực và dữ liệu
 
@@ -26,7 +26,7 @@ Lỗi nghiệp vụ trả `{ "message": "..." }`: `400` dữ liệu sai, `401` t
 | `POST /api/student-warnings/:warningId/appeal` | Học sinh chính chủ; `{message}` | `200 {message, warning}` |
 | `PATCH /api/student-warnings/:warningId/review` | Admin; `{decision: "confirm" hoặc "dismiss", response?}` | `200 {message, warning}`; populate `student`/`class` như trước |
 
-Các danh sách cảnh báo vẫn trả **mảng**; danh sách lớp vẫn dùng phân trang BE #04. Chính sách lọc hồ sơ [BE #01/#02](USER_PRIVACY.md) tiếp tục áp dụng cho user lồng trong response.
+Các danh sách cảnh báo cũ vẫn trả **mảng**; quản trị có [API kiểm duyệt phân trang riêng](#kiem-duyet). Danh sách lớp theo [BE #04](PERFORMANCE.md), user lồng theo [quy tắc hồ sơ](USER_PRIVACY.md).
 
 ### Chuyển trạng thái
 
@@ -40,7 +40,7 @@ Các danh sách cảnh báo vẫn trả **mảng**; danh sách lớp vẫn dùng
 
 Đúng thời điểm deadline là đã hết hạn. Kháng cáo đã gửi đúng hạn tiếp tục chờ admin dù deadline đã qua. Xử lý hết hạn chỉ chọn lại `pending` và deadline đã hết trong transaction, không tự xác nhận kháng cáo vừa được nhận từ một danh sách đọc cũ.
 
-Xử lý hết hạn chạy khi đọc danh sách `/mine` hoặc danh sách admin; hiện chưa có cron. POST kháng cáo quá hạn trả `409`, không chạy xử lý các cảnh báo khác của người gửi. Admin chỉ review thủ công cảnh báo đã `appealed`.
+Xử lý hết hạn chạy khi đọc `/mine`, danh sách admin và các endpoint kiểm duyệt; chưa có cron. POST kháng cáo quá hạn trả `409`, không xử lý các cảnh báo khác của người gửi. Admin chỉ review thủ công cảnh báo đã `appealed`.
 
 ### Số đếm, gỡ lớp và chế tài
 
@@ -72,6 +72,25 @@ Xử lý hết hạn chạy khi đọc danh sách `/mine` hoặc danh sách admi
 - `lockRevision` là phiên bản ghi nội bộ. Quyết định và bản ghi lịch sử được cập nhật nguyên tử trong cùng document; request cạnh tranh thua trả `409`.
 - Giáo viên phụ trách/admin nhận nội dung kháng cáo và lịch sử. Học sinh chỉ nhận `lockNotice.status`; không nhận nội dung, người xử lý hay `lockNoticeHistory` qua danh sách/chi tiết lớp.
 
+<a id="kiem-duyet"></a>
+## Danh sách kiểm duyệt
+
+Các GET dưới `/api/moderation` chỉ dành cho **admin lấy từ DB**, dùng `private, no-store`; query role/userId không mở quyền. Giữ bộ lọc hồ sơ; danh sách không trả secret, ảnh đại diện base64, roster hoặc toàn bộ lịch sử.
+
+| GET endpoint | Response / phạm vi |
+|---|---|
+| `/summary` | `{totalWarnings, openWarnings, violationClasses}`; open là pending/appealed |
+| `/warnings?page=1&limit=20&status=appealed` | Trang cảnh báo, status tùy chọn theo enum; sort issuedAt desc, `_id` desc |
+| `/students?page=1&limit=20` | Trang student chưa xóa mềm có cảnh báo bất kỳ, kể cả dismissed, hoặc có chế tài; sort createdAt desc, `_id` desc |
+| `/classes?page=1&limit=20` | Trang lớp inactive hoặc thông báo hiện tại khác none; sort createdAt desc, `_id` desc |
+
+- Ba danh sách trả `{data, page, limit, total, totalPages}` theo [quy tắc chung](PERFORMANCE.md): mặc định 20, tối đa 100, tham số sai/status ngoài enum trả `400`, page/limit vượt trần được cap.
+- Nhóm student gồm người có cảnh báo hoặc classRemovalIncidents > 0, disciplinarySanctions > 0, permanentlyBanned hay suspendedUntil còn hiệu lực. Lookup giới hạn 1 kiểm tra tồn tại cảnh báo trước paging/count; không đưa toàn bộ ID ra client. Facet trang/total dùng cùng filter.
+- Lớp active/lockNotice none chỉ có lockNoticeHistory không vào tab vi phạm; khác với `view=history`. Route đọc vẫn chờ finalize pending hết hạn bằng transaction; chưa có job nền, tồn đọng lớn có thể chậm. Tổng exact từng query, summary/list không có snapshot chung.
+- `AdminModeration` mở summary + warnings trang đầu (2 request). Bốn tab giữ trang riêng, tải theo nhu cầu; tài khoản student dùng `/api/users?role=student&view=moderation` phân trang. Sau review, chặn gửi lặp, làm mới summary/trang hiện tại và đánh dấu tab liên quan cần tải lại; không tải toàn bộ archive để tính tổng.
+- Ẩn thẻ cảnh báo chỉ là tùy chọn local của admin, không đổi quyết định; review giữ trạng thái/transaction BE #03, không thêm quyền dismiss độc lập. Loading/lỗi/rỗng/retry và response cũ được xử lý theo cơ chế phân trang chung.
+- Mã chính: `backend/routes/moderation.js`, `backend/utils/moderation.js`, `frontend/src/pages/AdminModeration.js`. Bằng chứng parity, quyền, expiry và kiểm tra trình duyệt nằm trong [kết quả BE #04](PERFORMANCE.md#ket-qua).
+
 ## Metadata và dữ liệu cũ
 
 - Cảnh báo thêm `appealedBy`, `reviewedBy`; giữ `issuedBy`, `appealedAt`, `resolvedAt` hiện có. Xác nhận tự động đặt `reviewedBy: null` thay vì gán một admin giả.
@@ -96,7 +115,7 @@ npm run test:appeals:integration --prefix backend
 
 Bộ tích hợp kiểm tra HTTP gửi/xem/duyệt, deadline, người thực hiện, dữ liệu cũ, quyền xem lớp, các cặp request đồng thời, bộ đếm qua nhiều lớp và rollback thật khi cố tình gây lỗi ở bước lưu cuối. Unit test bổ sung payload sai, thiếu quyền, xử lý `503` và che lỗi nội bộ.
 
-Kiểm thử API dùng contract của các màn hình hiện có (`ClassDetail`, `AdminClassDetail`, `AdminModeration`, `ProfilePage`); nghiệm thu màn hình kháng cáo riêng của #20 là công việc frontend tiếp theo.
+Kiểm thử API không thay nghiệm thu giao diện; trạng thái màn hình kháng cáo riêng được theo dõi tại #20.
 
 ## Vị trí triển khai
 

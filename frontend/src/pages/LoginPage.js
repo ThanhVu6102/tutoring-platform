@@ -4,7 +4,7 @@
 // - Form nhập Email + Mật khẩu, gọi POST /api/auth/login.
 // - Thành công: lưu userId, gọi onLogin(token, role) của App rồi vào /dashboard.
 // - Thất bại: hiện hộp lỗi đỏ (sai TK/MK hoặc mất kết nối backend).
-// - Tài khoản admin mặc định: admin@eklasses.vn / Admin123! (do backend quy định).
+// - Quản trị viên dùng mật khẩu trong database, không có bypass từ cấu hình.
 // PROPS: onLogin(token, role) - hàm của App.js để lưu phiên đăng nhập.
 // ============================================================================
 

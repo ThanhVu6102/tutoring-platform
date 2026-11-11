@@ -9,6 +9,7 @@
 
 // Nạp jsonwebtoken để giải mã và xác thực token do API login cấp.
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../config/jwt');
 // Nạp model User để đối chiếu trạng thái mới nhất trong DB với token.
 // (Token cũ có thể còn hạn 7 ngày dù admin vừa khóa / xóa / hạ quyền.)
 const User = require('../models/User');
@@ -33,20 +34,26 @@ const authMiddleware = async (req, res, next) => {
 
   // B2: Không gửi token -> chưa đăng nhập.
   if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({ message: 'Vui lòng đăng nhập' });
   }
 
+  let secret;
+  try {
+    secret = jwtSecret();
+  } catch {
+    return res.status(503).json({ message: 'Dịch vụ xác thực chưa sẵn sàng' });
+  }
   let decoded;
   try {
     // B3: Giải mã + xác thực chữ ký token. Sai khóa / hết hạn sẽ ném lỗi.
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
     // Token phải chứa userId và role hợp lệ thì mới xem xét tiếp.
     if (typeof decoded?.userId !== 'string' || !/^[a-f\d]{24}$/i.test(decoded.userId)) {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({ message: 'Phiên đăng nhập không hợp lệ' });
     }
   } catch (error) {
     // Token giả / hết hạn 7 ngày / sai secret -> chặn lại.
-    return res.status(401).json({ message: 'Invalid token' });
+    return res.status(401).json({ message: 'Phiên đăng nhập không hợp lệ' });
   }
 
   try {
@@ -56,7 +63,7 @@ const authMiddleware = async (req, res, next) => {
 
     // Không còn trong DB hoặc đã xóa mềm -> token cũ không còn giá trị.
     if (!user || user.deletedAt) {
-      return res.status(401).json({ message: 'Invalid token' });
+      return res.status(401).json({ message: 'Phiên đăng nhập không hợp lệ' });
     }
     if (user.permanentlyBanned) {
       return res.status(403).json({ message: 'Tài khoản đã bị khóa vĩnh viễn do tái phạm chính sách.' });
@@ -82,7 +89,7 @@ const authMiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     // Lỗi DB (mất kết nối...) -> 500, không xem như sai token.
-    console.error('authMiddleware DB error:', error?.message || error);
+    console.error('Lỗi cơ sở dữ liệu khi xác thực:', error?.message || error);
     return res.status(500).json({ message: 'Lỗi xác thực, vui lòng thử lại' });
   }
 };
@@ -96,7 +103,7 @@ const authMiddleware = async (req, res, next) => {
 const teacherOnly = (req, res, next) => {
   // Kiểm tra role: phải là teacher HOẶC admin (admin có mọi quyền giáo viên).
   if (req.userRole !== 'teacher' && req.userRole !== 'admin') {
-    return res.status(403).json({ message: 'Only teachers can access this' });
+    return res.status(403).json({ message: 'Chỉ giáo viên hoặc quản trị viên được truy cập' });
   }
   // Đủ quyền -> cho qua.
   next();
@@ -111,7 +118,7 @@ const teacherOnly = (req, res, next) => {
 const adminOnly = (req, res, next) => {
   // Role phải đúng 'admin', còn lại chặn hết.
   if (req.userRole !== 'admin') {
-    return res.status(403).json({ message: 'Only admins can access this' });
+    return res.status(403).json({ message: 'Chỉ quản trị viên được truy cập' });
   }
   // Là admin -> cho qua.
   next();
