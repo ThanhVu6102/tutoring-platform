@@ -25,3 +25,11 @@
 - Không migration dữ liệu, không có giao dịch nhiều document hoặc cam kết chống mọi race khi lớp/đề thay đổi đồng thời. Kiểm thử local không thay nghiệm thu deployment.
 
 `npm run test:content:lab --prefix backend` tạo/dọn Docker replica set riêng, chạy `contentSecurity.integration.test.js` trên dữ liệu giả để đối chiếu điểm lưu thật trước/sau request. Cần Docker; không dùng URI production. Chạy suite trực tiếp chỉ khi đã cấp `CONTENT_SECURITY_TEST_MONGODB_URI` của replica set test được phép.
+
+## Riêng tư bài nộp bài tập — BE #08 / issue #29
+
+- `GET /api/assignments/class/:classId` giữ trang metadata, không có `submissions` cho bất kỳ role nào. Chi tiết `GET /api/assignments/:id` giữ tên trường nhưng học sinh chỉ nhận phần tử bài nộp của chính mình (chưa nộp: `[]`). File, điểm và feedback người khác không đi ra client.
+- `assignmentClassAccess` xác minh lớp tồn tại, giáo viên đang phụ trách/thành viên học sinh và trạng thái lớp; không fail open khi thiếu lớp. Giáo viên phụ trách/admin mới nhận toàn bộ bài nộp; admin giữ quyền trên lớp khóa. Query `role`, `userId`, `fields` không mở rộng dữ liệu.
+- DTO `assignmentForViewer` chỉ lọc bản sao, không sửa mảng sẽ lưu trong DB. API nộp/chấm tiếp tục trả `{message}`, không trả document có bài nộp người khác; chỉ học sinh được nộp, teacher/admin phải đủ quyền lớp trước chấm.
+- `assignmentPrivacy.test.js` có hai học sinh, teacher/admin, quyền từ chối, danh sách/chi tiết, DTO không mutate và nộp/chấm. Suite MongoDB học liệu kiểm chứng payload và dữ liệu lưu thật, bảo toàn bài nộp người khác.
+- **Giới hạn UI:** danh sách thẻ frontend dùng metadata và được kiểm thử hồi quy/build; nút “Nộp Bài/Xem Nộp Bài” trong `frontend/src/pages/ClassDetail.js` hiện chưa có handler. Chưa có kiểm thử xuyên suốt UI nộp/chấm; không coi tiêu chí này đã đạt và không tự bổ sung màn hình trong gói BE.

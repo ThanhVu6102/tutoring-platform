@@ -22,6 +22,8 @@
 
 ## 3. Vị trí triển khai và kiểm thử
 
+Quyền riêng tư **nội dung bài nộp bài tập** (file/điểm/nhận xét), khác với hồ sơ user lồng nhau, được mô tả ở [BE #08](BACKEND_SECURITY.md). Học sinh chỉ nhận bài nộp chính chủ; danh sách chỉ có metadata.
+
 | File | Vai trò |
 |---|---|
 | `backend/utils/userPrivacy.js` | Allowlist, `userQueryFields`, DTO theo người xem; giữ ID chưa populate và thời gian |

@@ -3,6 +3,7 @@ const { authMiddleware, teacherOnly } = require('../middleware/auth');
 const classAvailability = require('../middleware/classAvailability');
 const Assignment = require('../models/Assignment');
 const { readPage } = require('../utils/pagination');
+const { assignmentClassAccess, assignmentForViewer } = require('../utils/assignmentPrivacy');
 
 const router = express.Router();
 // Lọc hồ sơ giáo viên/học sinh lồng trong bài tập, không thay đổi quyền truy cập bài.
@@ -31,8 +32,9 @@ router.post('/', authMiddleware, classAvailability(Assignment), teacherOnly, asy
 });
 
 // Get assignments for a class
-router.get('/class/:classId', authMiddleware, classAvailability(Assignment), async (req, res) => {
+router.get('/class/:classId', authMiddleware, async (req, res) => {
   try {
+    await assignmentClassAccess(req.params.classId, req);
     // Thẻ bài tập không cần toàn bộ bài nộp của học sinh.
     res.json(await readPage(Assignment, req, { class: req.params.classId }, {
       select: 'title description class teacher dueDate totalPoints createdAt',
@@ -44,7 +46,7 @@ router.get('/class/:classId', authMiddleware, classAvailability(Assignment), asy
 });
 
 // Get assignment by ID
-router.get('/:id', authMiddleware, classAvailability(Assignment), async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
@@ -52,9 +54,10 @@ router.get('/:id', authMiddleware, classAvailability(Assignment), async (req, re
       return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
-    res.json(assignment);
+    await assignmentClassAccess(assignment.class, req);
+    res.json(assignmentForViewer(assignment, req));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Không thể tải bài tập' });
   }
 });
 
@@ -68,6 +71,8 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
       return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
+    await assignmentClassAccess(assignment.class, req);
+    if (req.userRole !== 'student') return res.status(403).json({ message: 'Chỉ học sinh được nộp bài tập' });
     const existingSubmission = assignment.submissions.find(
       s => s.student.toString() === req.userId
     );
@@ -90,7 +95,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
     await assignment.save();
     res.json({ message: 'Đã nộp bài tập' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Không thể nộp bài tập' });
   }
 });
 
@@ -104,6 +109,7 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
       return res.status(404).json({ message: 'Không tìm thấy bài tập' });
     }
 
+    await assignmentClassAccess(assignment.class, req);
     const submission = assignment.submissions.find(
       s => s.student.toString() === studentId
     );
@@ -117,7 +123,7 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
     await assignment.save();
     res.json({ message: 'Đã chấm điểm bài tập' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Không thể chấm bài tập' });
   }
 });
 
