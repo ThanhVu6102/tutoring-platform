@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { getAllPages } from '../utils/listRequests';
+import usePagedList from '../hooks/usePagedList';
+import Pagination from '../components/Pagination';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const warningStatusLabels = {
@@ -18,49 +19,49 @@ const sanctionLabels = {
 };
 
 const AdminModeration = () => {
-  const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [warnings, setWarnings] = useState([]);
   const [section, setSection] = useState('warnings');
-  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryRevision, setSummaryRevision] = useState(0);
+  const [reviewing, setReviewing] = useState(false);
+  const reviewPending = useRef(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  const loadArchive = async () => {
-    const [classResponse, userResponse, warningResponse] = await Promise.all([
-      getAllPages('/api/classes', { view: 'history' }),
-      getAllPages('/api/users', { role: 'student', view: 'moderation' }),
-      axios.get('/api/student-warnings'),
-    ]);
-    // Chưa đổi nghiệp vụ lọc chéo hồ sơ: tải đủ các trang thay vì vô tình chỉ dùng trang đầu.
-    setClasses(classResponse);
-    setStudents(userResponse);
-    setWarnings(warningResponse.data);
-  };
+  const token = localStorage.getItem('token');
+  // Chỉ tải tab đang mở. Mỗi hook giữ trang riêng và bỏ response cũ theo phiên.
+  const warningList = usePagedList('/api/moderation/warnings', {}, section === 'warnings');
+  const studentList = usePagedList('/api/moderation/students', {}, section === 'students');
+  const classList = usePagedList('/api/moderation/classes', {}, section === 'classes');
+  const activeList = { warnings: warningList, students: studentList, classes: classList }[section];
+  const warnings = warningList.data;
+  const affectedStudents = studentList.data;
+  const violationClasses = classList.data;
 
   useEffect(() => {
-    loadArchive()
-      .catch((requestError) => setError(requestError.response?.data?.message || 'Không tải được hồ sơ vi phạm.'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const warningStudentIds = new Set(warnings.map((warning) => warning.student?._id).filter(Boolean));
-  const affectedStudents = students.filter((student) =>
-    warningStudentIds.has(student._id)
-    || (student.classRemovalIncidents || 0) > 0
-    || (student.disciplinarySanctions || 0) > 0
-    || student.permanentlyBanned
-    || (student.suspendedUntil && new Date(student.suspendedUntil) > new Date())
-  );
-  const violationClasses = classes.filter((classItem) =>
-    classItem.status === 'inactive'
-    || (classItem.lockNotice?.status && classItem.lockNotice.status !== 'none')
-  );
-  const openWarnings = warnings.filter((warning) => ['pending', 'appealed'].includes(warning.status)).length;
+    let active = true;
+    setSummary(null);
+    setSummaryLoading(true);
+    setSummaryError('');
+    axios.get('/api/moderation/summary', { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 })
+      .then((response) => {
+        if (active && localStorage.getItem('token') === token) setSummary(response.data);
+      })
+      .catch((requestError) => {
+        if (active && localStorage.getItem('token') === token) {
+          setSummaryError(requestError.response?.data?.message || 'Không tải được tổng hồ sơ vi phạm.');
+        }
+      })
+      .finally(() => { if (active) setSummaryLoading(false); });
+    return () => { active = false; };
+  }, [token, summaryRevision]);
 
   const handleReviewWarning = async (warning, decision) => {
+    if (reviewPending.current) return;
     const action = decision === 'dismiss' ? 'gỡ cảnh báo' : 'xác nhận vi phạm';
     if (!window.confirm(`Bạn có chắc muốn ${action} này?`)) return;
+    reviewPending.current = true;
+    setReviewing(true);
     setError('');
     try {
       await axios.patch(`/api/student-warnings/${warning._id}/review`, {
@@ -69,9 +70,16 @@ const AdminModeration = () => {
           ? 'Kháng cáo được chấp thuận; cảnh báo đã được gỡ.'
           : 'Kháng cáo bị từ chối; cảnh báo được xác nhận.',
       });
-      await loadArchive();
+      // Chỉ request lại tab đang mở; tab đã tải khác được đánh dấu cũ để tải lại khi mở.
+      warningList.reload();
+      studentList.reload();
+      classList.reload();
+      setSummaryRevision((value) => value + 1);
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Không thể xử lý cảnh báo.');
+    } finally {
+      reviewPending.current = false;
+      setReviewing(false);
     }
   };
 
@@ -84,9 +92,9 @@ const AdminModeration = () => {
           <p className="admin-intro">Lưu trữ cảnh báo, kháng cáo, chế tài tài khoản và lớp vi phạm.</p>
         </div>
         <div className="admin-summary" aria-label="Tổng quan hồ sơ vi phạm">
-          <div><span>Tổng cảnh báo</span><strong>{warnings.length}</strong></div>
-          <div><span>Đang xử lý</span><strong>{openWarnings}</strong></div>
-          <div><span>Lớp có hồ sơ</span><strong>{violationClasses.length}</strong></div>
+          <div><span>Tổng cảnh báo</span><strong>{summary?.totalWarnings ?? '—'}</strong></div>
+          <div><span>Đang xử lý</span><strong>{summary?.openWarnings ?? '—'}</strong></div>
+          <div><span>Lớp có hồ sơ</span><strong>{summary?.violationClasses ?? '—'}</strong></div>
         </div>
       </header>
 
@@ -97,14 +105,18 @@ const AdminModeration = () => {
       </div>
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
-      {loading ? <p className="admin-state">Đang tải hồ sơ...</p> : (
+      {summaryError && <div className="admin-alert" role="alert">{summaryError}</div>}
+      <button className="admin-back" type="button" disabled={summaryLoading}
+        onClick={() => setSummaryRevision((value) => value + 1)}>{summaryLoading ? 'Đang tải tổng...' : 'Làm mới tổng hồ sơ'}</button>
+      <Pagination list={activeList} label="hồ sơ kiểm duyệt" />
+      {activeList.loading && activeList.data.length === 0 ? <p className="admin-state">Đang tải hồ sơ...</p> : (
         <>
           {section === 'warnings' && (
             <section className="moderation-section">
               <header className="admin-warning-heading">
                 <div><h2>Cảnh báo học sinh</h2><p>Cảnh báo chỉ được tính sau khi Admin xác nhận hoặc hết hạn kháng cáo.</p></div>
               </header>
-              {warnings.length === 0 ? <p className="admin-state">Chưa có hồ sơ cảnh báo.</p> : (
+              {warnings.length === 0 ? <p className="admin-state">{warningList.error ? 'Chưa tải được danh sách cảnh báo.' : 'Chưa có hồ sơ cảnh báo.'}</p> : (
                 <div className="admin-warning-list">
                   {warnings.map((warning) => (
                     <article className="admin-warning-card" key={warning._id}>
@@ -118,8 +130,8 @@ const AdminModeration = () => {
                       {warning.appealMessage && <blockquote><strong>Kháng cáo:</strong> {warning.appealMessage}</blockquote>}
                       {warning.status === 'appealed' && (
                         <div className="admin-warning-actions">
-                          <button className="btn btn-secondary" onClick={() => handleReviewWarning(warning, 'dismiss')} type="button">Chấp thuận, gỡ cảnh báo</button>
-                          <button className="btn btn-danger" onClick={() => handleReviewWarning(warning, 'confirm')} type="button">Từ chối, tính cảnh báo</button>
+                          <button className="btn btn-secondary" disabled={reviewing || warningList.loading} onClick={() => handleReviewWarning(warning, 'dismiss')} type="button">Chấp thuận, gỡ cảnh báo</button>
+                          <button className="btn btn-danger" disabled={reviewing || warningList.loading} onClick={() => handleReviewWarning(warning, 'confirm')} type="button">Từ chối, tính cảnh báo</button>
                         </div>
                       )}
                       {warning.violationCounted && <small className="warning-counted-note">Đã tính {warning.classWarningCount}/3 cảnh báo trong lớp.</small>}
@@ -135,7 +147,7 @@ const AdminModeration = () => {
           {section === 'students' && (
             <section className="moderation-section">
               <h2>Học sinh bị xử lý</h2>
-              {affectedStudents.length === 0 ? <p className="admin-state">Chưa có học sinh bị gỡ hoặc đình chỉ.</p> : (
+              {affectedStudents.length === 0 ? <p className="admin-state">{studentList.error ? 'Chưa tải được danh sách học sinh.' : 'Chưa có học sinh bị gỡ hoặc đình chỉ.'}</p> : (
                 <div className="moderation-record-list">
                   {affectedStudents.map((student) => (
                     <article className="moderation-record" key={student._id}>
@@ -157,7 +169,7 @@ const AdminModeration = () => {
           {section === 'classes' && (
             <section className="moderation-section">
               <h2>Lớp học có hồ sơ vi phạm</h2>
-              {violationClasses.length === 0 ? <p className="admin-state">Chưa có lớp vi phạm.</p> : (
+              {violationClasses.length === 0 ? <p className="admin-state">{classList.error ? 'Chưa tải được danh sách lớp.' : 'Chưa có lớp vi phạm.'}</p> : (
                 <div className="moderation-record-list">
                   {violationClasses.map((classItem) => (
                     <article className="moderation-record" key={classItem._id}>

@@ -51,5 +51,12 @@ const studentWarningSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 studentWarningSchema.index({ student: 1, class: 1, status: 1 });
+// Chọn pending đã hết hạn bằng khoảng thời gian, tránh quét mọi cảnh báo
+// ngay cả khi không có hồ sơ nào cần xác nhận. Giữ index nghiệp vụ cũ phía trên.
+studentWarningSchema.index({ status: 1, appealDeadline: 1 });
+// Danh sách admin và lịch sử chính chủ dùng thứ tự phát hành; _id hỗ trợ
+// khóa phụ nếu bổ sung phân trang ổn định sau này, không đổi sort/API hiện tại.
+studentWarningSchema.index({ issuedAt: -1, _id: -1 });
+studentWarningSchema.index({ student: 1, issuedAt: -1, _id: -1 });
 
 module.exports = mongoose.model('StudentWarning', studentWarningSchema);
