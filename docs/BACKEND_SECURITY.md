@@ -33,3 +33,28 @@
 - DTO `assignmentForViewer` chỉ lọc bản sao, không sửa mảng sẽ lưu trong DB. API nộp/chấm tiếp tục trả `{message}`, không trả document có bài nộp người khác; chỉ học sinh được nộp, teacher/admin phải đủ quyền lớp trước chấm.
 - `assignmentPrivacy.test.js` có hai học sinh, teacher/admin, quyền từ chối, danh sách/chi tiết, DTO không mutate và nộp/chấm. Suite MongoDB học liệu kiểm chứng payload và dữ liệu lưu thật, bảo toàn bài nộp người khác.
 - **Giới hạn UI:** danh sách thẻ frontend dùng metadata và được kiểm thử hồi quy/build; nút “Nộp Bài/Xem Nộp Bài” trong `frontend/src/pages/ClassDetail.js` hiện chưa có handler. Chưa có kiểm thử xuyên suốt UI nộp/chấm; không coi tiêu chí này đã đạt và không tự bổ sung màn hình trong gói BE.
+
+## Dependency HTTP redirect — BE #09 / issue #30
+
+- Chuỗi local trước sửa: `axios@1.20.0 → follow-redirects@1.16.1`; `npm audit --omit=dev` có **1 high** từ [GHSA-mrwp-f3q8-3g9p](https://github.com/advisories/GHSA-mrwp-f3q8-3g9p). Advisory ảnh hưởng 1.16.0–1.16.1; bản vá tối thiểu 1.16.2.
+- Override `follow-redirects` **1.16.3**, không nâng major Axios/không dùng `audit fix --force`; cài với `--ignore-scripts`. Bổ sung `backend/package-lock.json` v3 và bỏ ignore riêng file này để tái lập bằng `npm ci --prefix backend`. Lockfile chỉ dùng registry npm công khai, không có credential/đường dẫn máy cá nhân.
+- Audit production backend sau cập nhật ngày 2026-11-11: **0 vulnerabilities**, không chỉ bỏ advisory mục tiêu. Kết quả phụ thuộc registry/thời điểm, không bảo đảm mọi dependency luôn an toàn hoặc thay audit frontend.
+- `redirectSecurity.test.js` chỉ dùng hai server loopback: mảng `sensitiveHeaders` cùng/khác realm và header dạng object/array không làm lộ custom credential khi redirect khác origin; redirect cùng origin giữ credential; Axios vẫn theo redirect và loại Authorization/Cookie khi đổi origin.
+- Advisory cần điều kiện sử dụng cụ thể; tài liệu upstream không khẳng định Axios 1.20.0 tái hiện lỗi này. Việc dependency có advisory không chứng minh ứng dụng hoặc production từng bị khai thác. Không gửi token/credential thật hoặc gọi dịch vụ ngoài trong test.
+
+## Kiểm chứng và bàn giao ngày 2026-11-11
+
+| Kiểm tra trên source gồm BE #06–#09 | Kết quả |
+|---|---|
+| Cài đặt sạch `npm ci --prefix backend --ignore-scripts --no-audit --no-fund` | Thành công, chỉ dùng lockfile/backend; không chạy lifecycle script |
+| `npm test --prefix backend` sau cài đặt sạch | 135/135 đạt, 15 file unit/HTTP, gồm 19 test mới cho JWT/chấm quiz/bài nộp/redirect |
+| Ba suite MongoDB cũ: appeals, class filters, moderation | 30/30 đạt, gồm test bao ngoài; Docker/DB riêng đã dọn |
+| `npm run test:content:lab --prefix backend` sau cài đặt sạch | 5/5 đạt: 4 kịch bản + test bao ngoài; Docker/DB riêng đã dọn |
+| Frontend `--watchAll=false --runInBand` | 37/37, 11 suite; còn cảnh báo tương thích tương lai React Router |
+| `npm run build --prefix frontend` | Thành công, initial JS gzip 80,86 kB |
+| Chromium production build, desktop/mobile, 3 role | 27/27 đạt; report local `browser-d84254983bfb8750292e0d03/report.json`, DB/container đã dọn. JWT giả, không phải test login hoặc UI nộp/chấm bài tập |
+| `npm audit --prefix backend --omit=dev` sau cài đặt sạch | 0 vulnerabilities tại thời điểm chạy |
+
+`npm ci` có cảnh báo deprecated Multer 1.x; không nâng major ngoài phạm vi #30. Audit không phải kiểm chứng không còn mọi rủi ro dependency. Các lượt subagent Gemini bị quota, không cung cấp kết quả được chấp nhận; thay đổi do agent chính thực hiện/rà soát, không tuyên bố đã có review độc lập thành công.
+
+Các nhánh nối tiếp trên nền `fix/admin-profile-and-vietnamese-messages`: `fix/be-06-jwt-fail-closed` → `fix/be-07-quiz-grading-scope` → `fix/be-08-assignment-submission-privacy` → `fix/be-09-follow-redirects`. Mỗi issue có commit riêng; review theo thứ tự nền hoặc chọn commit có kiểm tra phụ thuộc, không coi chúng là bốn nhánh độc lập so với develop. Chưa tự tạo PR, merge, đóng issue, deploy hoặc ghi dữ liệu production. #27 còn xác nhận xoay khóa/phiên của vận hành; #29 còn tiêu chí UI nộp/chấm nêu trên.
