@@ -15,3 +15,13 @@
 4. Người vận hành ghi xác nhận hoàn tất qua kênh riêng. **Chưa chạy xoay khóa/thu hồi phiên thật ở đây**; issue chưa đủ điều kiện nghiệm thu production chỉ từ test.
 
 Đổi mật khẩu từng user vẫn chưa tự thu hồi JWT đã cấp; xoay khóa toàn môi trường không thay cho cơ chế thu hồi từng phiên. Kiểm thử: `backend/tests/jwtSecurity.test.js`, `npm test --prefix backend`; chỉ khóa ngẫu nhiên/HTTP local và DB mock.
+
+## Chấm quiz — BE #07 / issue #28
+
+- Giữ `POST /api/quizzes/:quizId/submission/:submissionId/grade` và `{questionIndex, score, feedback?}`. Giáo viên phụ trách **lớp hiện tại** được chấm khi lớp không khóa; admin giữ quyền chấm cả lớp khóa. Không suy quyền từ giáo viên tạo đề hoặc role trong token/body.
+- Helper `gradeQuizSubmission` xác minh quiz và lớp tồn tại; query bài nộp đồng thời theo `_id`, `quiz`, `class`. Không khớp trả `404`, sai quyền `403`, lớp khóa với giáo viên `423`.
+- ID 24 hex; chỉ số nguyên không âm, câu trả lời phải khớp ID câu hỏi. Điểm là số hữu hạn trong `[0, question.points]`, feedback nếu gửi phải là chuỗi. Dữ liệu request sai trả `400`; câu trả lời/thang điểm snapshot không còn hợp lệ trả `409` trước ghi. Giữ điểm tối đa 0 của câu, không thay bằng 1; bài nộp có maxScore 0 phải được rà soát riêng, không chia cho 0.
+- Tính tổng/phần trăm phía server, không nhận tổng/role từ client. Test HTTP hai lớp/hai giáo viên, học sinh/admin, ghép ID chéo, payload sai, tài nguyên thiếu, quan hệ câu hỏi và thang điểm cũ: `backend/tests/quizGrading.test.js`.
+- Không migration dữ liệu, không có giao dịch nhiều document hoặc cam kết chống mọi race khi lớp/đề thay đổi đồng thời. Kiểm thử local không thay nghiệm thu deployment.
+
+`npm run test:content:lab --prefix backend` tạo/dọn Docker replica set riêng, chạy `contentSecurity.integration.test.js` trên dữ liệu giả để đối chiếu điểm lưu thật trước/sau request. Cần Docker; không dùng URI production. Chạy suite trực tiếp chỉ khi đã cấp `CONTENT_SECURITY_TEST_MONGODB_URI` của replica set test được phép.

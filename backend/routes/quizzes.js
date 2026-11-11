@@ -4,6 +4,7 @@ const classAvailability = require('../middleware/classAvailability');
 const Quiz = require('../models/Quiz');
 const QuizSubmission = require('../models/QuizSubmission');
 const { readPage, objectId } = require('../utils/pagination');
+const { gradeQuizSubmission } = require('../utils/gradeQuizSubmission');
 
 const router = express.Router();
 // Lọc cả hồ sơ giáo viên trong đề thi và hồ sơ học sinh trong danh sách bài nộp.
@@ -161,31 +162,13 @@ router.get('/:id/submissions', authMiddleware, classAvailability(Quiz), teacherO
 });
 
 // Grade essay/short-answer question
-router.post('/:quizId/submission/:submissionId/grade', authMiddleware, classAvailability(Quiz), teacherOnly, async (req, res) => {
+router.post('/:quizId/submission/:submissionId/grade', authMiddleware, teacherOnly, async (req, res) => {
   try {
-    const { questionIndex, score, feedback } = req.body;
-    const submission = await QuizSubmission.findById(req.params.submissionId);
-
-    if (!submission) {
-      return res.status(404).json({ message: 'Không tìm thấy bài nộp' });
-    }
-
-    if (submission.answers[questionIndex]) {
-      submission.answers[questionIndex].pointsEarned = score;
-    }
-
-    submission.feedback = feedback;
-    submission.status = 'graded';
-    submission.gradedAt = new Date();
-
-    // Recalculate total score
-    submission.totalScore = submission.answers.reduce((sum, a) => sum + a.pointsEarned, 0);
-    submission.percentage = (submission.totalScore / submission.maxScore) * 100;
-
-    await submission.save();
+    // Helper kiểm tra quiz/lớp/bài nộp và điểm trước mọi lần ghi.
+    await gradeQuizSubmission(req.params.quizId, req.params.submissionId, req.userId, req.userRole, req.body);
     res.json({ message: 'Đã lưu điểm bài kiểm tra' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'Không thể chấm bài, vui lòng thử lại' });
   }
 });
 
