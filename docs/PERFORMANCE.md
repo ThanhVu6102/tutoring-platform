@@ -29,7 +29,7 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 ## 2. Giảm dữ liệu và query
 
 - Danh sách lớp dùng aggregation tính `studentCount`, `joinRequestCount` ở database, không truyền/populate cả roster hoặc yêu cầu tham gia. Chỉ populate giáo viên theo lô.
-- Danh sách lớp hỗ trợ `search` theo tên (regex đã escape), `subject`, `grade`, `status`. Học sinh không được dùng query để mở quyền xem lớp inactive.
+- Danh sách lớp giữ `search` theo tên cho client cũ và hỗ trợ `subject`, `grade`, `status`. Admin có thêm `q` tìm tên/mô tả (escape regex), `teacher` theo ObjectId hoặc email chính xác và `sort` trong allowlist `newest`, `oldest`, `name_asc`, `name_desc`. `sort` sai trả 400. Học sinh không được dùng query để mở quyền xem lớp inactive; `teacher` và `sort` của admin không mở rộng phạm vi role khác.
 - `summary=true` dành cho admin bổ sung tổng lớp/active/inactive trên toàn bộ bộ lọc, không lấy số phần tử của trang hiện tại làm thống kê.
 - `view=history` dành cho quản lý lớp lọc lớp có lịch sử/khóa; `view=notifications` lọc các thông báo xử lý còn liên quan. Không thay đổi quyền lớp.
 - Danh sách quiz chỉ trả metadata, `questionCount`, `hasPromptImage`; không tải câu hỏi, đáp án hoặc ảnh base64 để vẽ thẻ. Endpoint chi tiết đề giữ cơ chế hiện có.
@@ -66,7 +66,7 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 
 ## 5. Index và kiểm tra query plan
 
-Schema bổ sung index khớp filter/sort có `_id`: danh sách lớp toàn hệ thống/theo giáo viên/học sinh; user theo deletedAt/role; video/tài liệu theo class/uploadedAt; bài tập theo class/dueDate; thông báo/quiz theo class/createdAt và quiz theo status.
+Schema bổ sung index khớp filter/sort có `_id`: danh sách lớp toàn hệ thống/theo giáo viên/học sinh và bộ lọc admin theo subject/grade hoặc sắp xếp tên; user theo deletedAt/role; video/tài liệu theo class/uploadedAt; bài tập theo class/dueDate; thông báo/quiz theo class/createdAt và quiz theo status.
 
 ```bash
 # Chỉ xem định nghĩa: không kết nối hoặc ghi database

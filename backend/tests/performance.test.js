@@ -62,6 +62,29 @@ test('sort/filter indexes are declared without connecting to a database', () => 
   }
 });
 
+test('admin class filters escape search text, resolve teacher email and use allowlisted sort', async (t) => {
+  let pipeline;
+  let countFilter;
+  t.mock.method(User, 'findOne', () => query({ _id: classId }));
+  t.mock.method(Class, 'aggregate', (steps) => { pipeline = steps; return Promise.resolve([]); });
+  t.mock.method(Class, 'countDocuments', async (filter) => { countFilter = filter; return 0; });
+  t.mock.method(Class, 'populate', async (data) => data);
+  const base = await appURL(t, '/api/classes', require('../routes/classes'), 'admin');
+  const params = new URLSearchParams({ q: 'Toán.*', teacher: 'teacher@example.test',
+    subject: 'Toán', grade: '12', status: 'active', sort: 'name_asc' });
+  const response = await fetch(`${base}/api/classes?${params}`, { headers: headers() });
+  assert.equal(response.status, 200);
+  assert.equal(pipeline[0].$match.subject, 'Toán');
+  assert.equal(pipeline[0].$match.grade, '12');
+  assert.equal(pipeline[0].$match.status, 'active');
+  assert.equal(String(pipeline[0].$match.teacher), classId);
+  assert.equal(pipeline[0].$match.$or[0].name.$regex, 'Toán\\.\\*');
+  assert.deepEqual(pipeline[1].$sort, { name: 1, _id: 1 });
+  assert.deepEqual(countFilter, pipeline[0].$match);
+  const bad = await fetch(`${base}/api/classes?sort=arbitrary`, { headers: headers() });
+  assert.equal(bad.status, 400);
+});
+
 for (const role of ['student', 'teacher', 'admin']) {
   test(`class list preserves ${role} filter without populating student rosters`, async (t) => {
     let pipeline;

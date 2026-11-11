@@ -4,11 +4,12 @@ import axios from 'axios';
 import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
-const READ_KEY = 'read-role-notifications';
+const readKey = () => `read-role-notifications:${localStorage.getItem('userId') || 'unknown'}`;
+const warningStatusLabels = { pending: 'Chờ kháng cáo', appealed: 'Đã kháng cáo', confirmed: 'Đã xác nhận' };
 
 const getReadIds = () => {
   try {
-    return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]'));
+    return new Set(JSON.parse(localStorage.getItem(readKey()) || '[]'));
   } catch (_) {
     return new Set();
   }
@@ -18,10 +19,16 @@ const NotificationsBell = ({ userRole }) => {
   const [items, setItems] = useState([]);
   const [readIds, setReadIds] = useState(getReadIds);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
+    setItems([]);
+    setReadIds(getReadIds());
+    setLoading(true);
+    setLoadError('');
     const loadNotifications = async () => {
       try {
         if (userRole === 'student') {
@@ -33,7 +40,7 @@ const NotificationsBell = ({ userRole }) => {
               id: warning._id,
               title: warning.class?.name || 'Cảnh báo học sinh',
               detail: `${policyReasonLabels[warning.reasonCode] || warning.reasonCode}: ${warning.details}`,
-              status: warning.status,
+              status: warningStatusLabels[warning.status] || warning.status,
               date: warning.issuedAt,
               href: '/profile',
             })));
@@ -51,8 +58,11 @@ const NotificationsBell = ({ userRole }) => {
               href: `/class/${classItem._id}`,
             })));
         }
+        if (isMounted) setLoadError('');
       } catch (error) {
-        if (isMounted) setItems([]);
+        if (isMounted) setLoadError('Không tải được thông báo. Vui lòng thử lại sau.');
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -72,7 +82,7 @@ const NotificationsBell = ({ userRole }) => {
     if (nextOpen) {
       const nextReadIds = new Set([...readIds, ...items.map((item) => item.id)]);
       setReadIds(nextReadIds);
-      localStorage.setItem(READ_KEY, JSON.stringify([...nextReadIds]));
+      localStorage.setItem(readKey(), JSON.stringify([...nextReadIds]));
     }
   };
 
@@ -94,7 +104,7 @@ const NotificationsBell = ({ userRole }) => {
       {isOpen && (
         <section aria-label="Thông báo mới" className="notification-popover">
           <header><strong>Thông báo</strong><span>{items.length}</span></header>
-          {items.length === 0 ? (
+          {loading ? <p className="notification-empty" role="status">Đang tải thông báo...</p> : loadError ? <p className="notification-empty" role="alert">{loadError}</p> : items.length === 0 ? (
             <p className="notification-empty">Bạn chưa có thông báo mới.</p>
           ) : (
             <div className="notification-list">

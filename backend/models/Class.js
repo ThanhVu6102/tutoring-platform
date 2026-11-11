@@ -154,6 +154,9 @@ classSchema.index({ teacher: 1, createdAt: -1, _id: -1 });
 classSchema.index({ students: 1, status: 1, createdAt: -1, _id: -1 });
 classSchema.index({ students: 1 });
 classSchema.index({ status: 1 });
+// Bộ lọc quản trị kết hợp môn/khối hoặc sắp xếp tên với phân trang ổn định.
+classSchema.index({ subject: 1, grade: 1, createdAt: -1, _id: -1 });
+classSchema.index({ name: 1, _id: 1 });
 
 // Xuất model 'Class' để routes dùng: tạo lớp, ghi danh, phân quyền xem lớp...
 module.exports = mongoose.model('Class', classSchema);

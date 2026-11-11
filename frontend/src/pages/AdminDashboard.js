@@ -6,8 +6,15 @@ import Pagination from '../components/Pagination';
 
 const AdminDashboard = () => {
   const [search, setSearch] = useState('');
+  const [subject, setSubject] = useState('');
+  const [grade, setGrade] = useState('');
+  const [status, setStatus] = useState('');
+  const [teacher, setTeacher] = useState('');
+  const [sort, setSort] = useState('newest');
   const debouncedSearch = useDebouncedValue(search);
-  const list = usePagedList('/api/classes', { summary: 'true', search: debouncedSearch });
+  const debouncedTeacher = useDebouncedValue(teacher);
+  // Các bộ lọc được gửi tới server để tổng và phân trang dùng cùng tập kết quả.
+  const list = usePagedList('/api/classes', { summary: 'true', q: debouncedSearch, subject, grade, status, teacher: debouncedTeacher, sort });
   const { data: classes, loading, error } = list;
   const navigate = useNavigate();
 
@@ -43,7 +50,15 @@ const AdminDashboard = () => {
       </header>
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
-      <label>Tìm lớp theo tên <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <div className="admin-filter-bar" aria-label="Bộ lọc lớp học">
+        <label>Tìm tên hoặc mô tả lớp <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+        <label>Môn học <input type="text" value={subject} onChange={(event) => setSubject(event.target.value)} /></label>
+        <label>Khối / trình độ <input type="text" value={grade} onChange={(event) => setGrade(event.target.value)} /></label>
+        <label>Trạng thái <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Tất cả</option><option value="active">Đang mở</option><option value="inactive">Đã khóa</option></select></label>
+        <label>Giáo viên (email hoặc ID) <input type="text" value={teacher} onChange={(event) => setTeacher(event.target.value)} /></label>
+        <label>Sắp xếp <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Mới nhất</option><option value="oldest">Cũ nhất</option><option value="name_asc">Tên A–Z</option><option value="name_desc">Tên Z–A</option></select></label>
+        <button className="btn btn-secondary" type="button" onClick={() => { setSearch(''); setSubject(''); setGrade(''); setStatus(''); setTeacher(''); setSort('newest'); }}>Xóa bộ lọc</button>
+      </div>
       <Pagination list={list} label="lớp quản trị" />
       <section className="admin-archive-shortcut">
         <div><h2>Hồ sơ vi phạm</h2><p>Cảnh báo học sinh, kháng cáo, chế tài tài khoản và các lớp có vi phạm được lưu trữ riêng.</p></div>
@@ -52,7 +67,7 @@ const AdminDashboard = () => {
       {loading && classes.length === 0 ? (
         <p className="admin-state">Đang tải danh sách lớp...</p>
       ) : classes.length === 0 ? (
-        <p className="admin-state">Chưa có lớp học nào trong hệ thống.</p>
+        <p className="admin-state">{search || subject || grade || status || teacher ? 'Không có lớp phù hợp bộ lọc.' : 'Chưa có lớp học nào trong hệ thống.'}</p>
       ) : (
         <div className="teacher-groups">
           {Object.entries(teacherGroups).map(([teacherId, group]) => (

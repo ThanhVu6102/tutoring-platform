@@ -74,6 +74,8 @@ const ProfilePage = () => {
     try {
       const response = await axios.put('/api/users/profile', form);
       setProfile((current) => ({ ...current, ...response.data.user }));
+      // Báo navbar nạp lại avatar sau khi hồ sơ được lưu thành công.
+      window.dispatchEvent(new Event('eklasses:profile-updated'));
       setNotice('Thông tin cá nhân đã được cập nhật.');
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Không thể lưu hồ sơ.');

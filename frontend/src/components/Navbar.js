@@ -1,94 +1,72 @@
-// ============================================================================
-// FILE: frontend/src/components/Navbar.js
-// MỤC ĐÍCH: Thanh điều hướng trên cùng, hiện sau khi đăng nhập.
-// - Hiện logo EKLASSES + tên vai trò (Quản trị viên / Giáo viên / Học sinh).
-// - 2 nút: "Trang chủ" (về /dashboard) và "Đăng xuất".
-// PROPS: userRole (vai trò hiện tại), onLogout (hàm xóa token ở App.js).
-// ============================================================================
-
-// Nạp React.
-import React from 'react';
-// Nạp hook useNavigate để chuyển trang bằng code (không cần thẻ Link).
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import NotificationsBell from './NotificationsBell';
 
-// Component Navbar nhận 2 props từ App.js.
+// Thanh điều hướng dùng cùng một luồng cho desktop và menu thu gọn trên mobile.
 const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
-  // Hàm điều hướng (ví dụ navigate('/dashboard')).
   const navigate = useNavigate();
-  const roleLogo = userRole === 'teacher'
-    ? '/GiaoVienLogo.png'
-    : userRole === 'student'
-      ? '/HocSinhLogo.png'
-      : '/logo1.png';
-  const roleLogoAlt = userRole === 'teacher'
-    ? 'EKLASSES Giáo viên'
-    : userRole === 'student'
-      ? 'EKLASSES Học sinh'
-      : 'EKLASSES';
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const home = userRole === 'admin' ? '/admin' : '/dashboard';
+  const roleLogo = userRole === 'teacher' ? '/GiaoVienLogo.png' : userRole === 'student' ? '/HocSinhLogo.png' : '/logo1.png';
 
-  // HÀM: handleLogout - xử lý khi bấm "Đăng xuất".
-  // - B1: Gọi onLogout() của App để xóa token/userRole khỏi storage + state.
-  // - B2: Chuyển về trang /login.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!isAuthenticated || !['student', 'teacher'].includes(userRole)) {
+      setProfile(null);
+      return undefined;
+    }
+    let active = true;
+    const loadProfile = () => axios.get('/api/users/profile')
+      .then(({ data }) => { if (active) { setProfile(data); setAvatarFailed(false); } })
+      .catch(() => { if (active) setProfile(null); });
+    loadProfile();
+    window.addEventListener('eklasses:profile-updated', loadProfile);
+    return () => { active = false; window.removeEventListener('eklasses:profile-updated', loadProfile); };
+  }, [isAuthenticated, userRole]);
+
+  const go = (path) => { setMenuOpen(false); navigate(path); };
   const handleLogout = () => {
-    if (!window.confirm('Bạn có chắc chắn muốn đăng xuất phiên này không ?')) return;
-    onLogout(); // xóa phiên đăng nhập.
-    navigate('/login'); // đá về trang đăng nhập.
+    if (!window.confirm('Bạn có chắc chắn muốn đăng xuất phiên này không?')) return;
+    setMenuOpen(false);
+    onLogout();
+    navigate('/login');
   };
+  const firstLetter = (profile?.name || '?').trim().charAt(0).toLocaleUpperCase('vi-VN') || '?';
 
   return (
-    // Thẻ nav bọc toàn bộ thanh điều hướng (CSS .navbar).
-    <nav className="navbar">
-      {/* Cụm icon trang trí giữa navbar (chỉ để đẹp, aria-hidden để bỏ qua đọc màn hình). */}
-      <div className="nav-icon-group" aria-hidden="true">
-        {/* Icon giữa (to hơn). */}
-        <div className="nav-decor nav-decor-center">
-          <img src="/centerlogo.png" alt="" />
-        </div>
-      </div>
-
-      {/* Cụm trái: logo + nhãn vai trò. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative', zIndex: 1 }}>
-        {/* Logo EKLASSES. */}
-        <img
-          src={isAuthenticated ? roleLogo : '/logo1.png'}
-          alt={isAuthenticated ? roleLogoAlt : 'EKLASSES'}
-          className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'}
-        />
-        {/* Hiện tên vai trò theo userRole: admin -> Quản trị viên, teacher -> Giáo viên, còn lại -> Học sinh. */}
-        {(!isAuthenticated || userRole === 'admin') && (
-          <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>
-            {isAuthenticated ? 'ADMIN' : ''}
-          </p>
+    <nav className="navbar" aria-label="Điều hướng chính">
+      <div className="nav-icon-group" aria-hidden="true"><div className="nav-decor nav-decor-center"><img src="/centerlogo.png" alt="" /></div></div>
+      <div className="navbar-brand">
+        <img src={isAuthenticated ? roleLogo : '/logo1.png'} alt="EKLASSES" className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'} />
+        {isAuthenticated && userRole === 'admin' && <span className="navbar-role-label">ADMIN</span>}
+        {isAuthenticated && ['student', 'teacher'].includes(userRole) && (
+          <button className="navbar-avatar" type="button" aria-label="Mở hồ sơ cá nhân" onClick={() => go('/profile')}>
+            {profile?.avatar && !avatarFailed ? <img src={profile.avatar} alt="" onError={() => setAvatarFailed(true)} /> : <span aria-hidden="true">{firstLetter}</span>}
+          </button>
         )}
       </div>
-      {/* Cụm phải: 2 nút điều hướng. */}
-      <div className="navbar-user" style={{ position: 'relative', zIndex: 1 }}>
-        <button onClick={() => navigate('/policies')}>Chính sách</button>
-        {isAuthenticated ? (
-          <>
-            {['student', 'teacher'].includes(userRole) && (
-              <>
-                <NotificationsBell userRole={userRole} />
-                <button onClick={() => navigate('/profile')}>Cá nhân</button>
-              </>
-            )}
-            <button onClick={() => navigate(userRole === 'admin' ? '/admin' : '/dashboard')}>
-              {userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}
-            </button>
-            {userRole === 'admin' && <button onClick={() => navigate('/admin/moderation')}>Hồ sơ vi phạm</button>}
-            <button onClick={handleLogout}>Đăng xuất</button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => navigate('/login')}>Đăng nhập</button>
-            <button onClick={() => navigate('/register')}>Đăng ký</button>
-          </>
-        )}
+      <button className="navbar-menu-toggle" type="button" aria-label={menuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'} aria-expanded={menuOpen} aria-controls="navbar-actions" onClick={() => setMenuOpen((value) => !value)}>
+        <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
+      </button>
+      <div id="navbar-actions" className={`navbar-user${menuOpen ? ' is-open' : ''}`}>
+        <button type="button" onClick={() => go('/policies')}>Chính sách</button>
+        {isAuthenticated ? <>
+          {['student', 'teacher'].includes(userRole) && <NotificationsBell userRole={userRole} />}
+          {['student', 'teacher'].includes(userRole) && <button type="button" onClick={() => go('/appeals')}>Kháng cáo</button>}
+          <button type="button" onClick={() => go(home)}>{userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}</button>
+          {userRole === 'admin' && <button type="button" onClick={() => go('/admin/moderation')}>Hồ sơ vi phạm</button>}
+          <button type="button" onClick={handleLogout}>Đăng xuất</button>
+        </> : <>
+          <button type="button" onClick={() => go('/login')}>Đăng nhập</button>
+          <button type="button" onClick={() => go('/register')}>Đăng ký</button>
+        </>}
       </div>
     </nav>
   );
 };
 
-// Xuất Navbar để App.js import và hiện khi đã đăng nhập.
 export default Navbar;
