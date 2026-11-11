@@ -59,7 +59,7 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 ### Giới hạn còn giữ để không làm sai nghiệp vụ
 
 - Lịch sử hồ sơ, thông báo giáo viên và trang kiểm duyệt còn cần đọc đủ các trang liên quan qua `getAllPages`. Các request có giới hạn, nhưng tổng dữ liệu client đọc vẫn tăng theo lịch sử.
-- Trang kiểm duyệt còn lọc chéo dữ liệu user/cảnh báo/lớp; chưa thay bằng aggregate nghiệp vụ và phân trang riêng từng nhóm. Thống kê không bị cắt ở trang đầu.
+- Trang kiểm duyệt ở bản giai đoạn 1 còn lọc chéo dữ liệu user/cảnh báo/lớp. Giai đoạn 2 triển khai local API/admin tabs phân trang riêng (mục 8), chưa coi là đã deploy hoặc nghiệm thu FE.
 - API cảnh báo, yêu cầu tham gia, roster, bài nộp và các endpoint lịch sử khác ngoài bảy danh sách trên chưa được chuyển toàn bộ sang contract mới.
 - Polling 30 giây hiện có được giữ để không thay cơ chế cập nhật thông báo/trạng thái đã có. Chưa thêm WebSocket hoặc cache liên phiên.
 - Vì các giới hạn và số đo database còn thiếu, chưa coi toàn bộ issue #11 đã nghiệm thu/đủ điều kiện đóng.
@@ -113,3 +113,43 @@ Build thành công. Đây là số đo bundle local và kiểm tra request bằn
 - Test hiện kiểm tra pagination, projection/filter quyền, quiz metadata, count theo quyền, connection concurrency, request dedup/stale response và tải tab theo nhu cầu.
 - Cần kiểm thử với MongoDB thật, `EXPLAIN`, số đo before/after API và thao tác thực bằng ba vai trò trên Preview/Staging có database/secret riêng.
 - Kiểm tra header nén trên Vercel và các luồng quản trị/lịch sử nhiều trang trước khi chuyển sang main.
+
+## 8. Giai đoạn 2 — phân trang kiểm duyệt (local, chờ nghiệm thu)
+
+Thiết kế [phân trang kiểm duyệt](MODERATION_PAGINATION_PLAN.md) đã được chủ dự án xác nhận cho cả BE và FE. Thêm bốn endpoint admin, không đổi response của các API cũ:
+
+- `GET /api/moderation/summary`: `{totalWarnings, openWarnings, violationClasses}` trên toàn bộ dữ liệu, không lấy số phần tử của trang.
+- `GET /api/moderation/warnings?page=1&limit=20&status=appealed`.
+- `GET /api/moderation/students?page=1&limit=20`.
+- `GET /api/moderation/classes?page=1&limit=20`.
+
+Ba danh sách trả `{data, page, limit, total, totalPages}`, mặc định 20 / tối đa 100; số trang vượt trần được cap như bảy danh sách cũ. Status không hợp lệ ở danh sách warnings mới trả 400. Warning list sort `(issuedAt desc, _id desc)`; hai nhóm còn lại sort `(createdAt desc, _id desc)`.
+
+Học sinh ảnh hưởng được lọc ở MongoDB bằng lookup tồn tại cảnh báo (kể cả dismissed), hoặc các cờ/chế tài như UI cũ; chỉ student chưa xóa mềm. Lookup có limit 1 và không đưa danh sách ID toàn bộ ra Node/client; facet tính trang và total sau cùng một bộ lọc. Lớp chỉ có lịch sử nhưng hiện active/none không tự được đưa vào tab lớp.
+
+Các route đều kiểm tra admin từ database trước khi đọc/ghi, giữ BE #01/#02 và `private, no-store`. Các user lồng chỉ populate trường cần cho thẻ, danh sách không trả avatar base64/roster/toàn bộ lịch sử.
+
+`AdminModeration` gọi summary + trang đầu warnings, chỉ tải tab khác khi mở, giữ trang từng tab và dùng component Pagination hiện có. Sau review, làm mới summary/trang đang mở và đánh dấu tab khác cần tải lại; có khóa gửi lặp, retry, lỗi/empty riêng. Các trang hồ sơ/chuông vẫn dùng API cũ, chưa sửa trong bước này.
+
+Các endpoint mới vẫn chờ xử lý cảnh báo hết hạn bằng transaction hiện có. Chưa chuyển sang job nền hoặc chấp nhận kết quả chưa finalize. Summary/list là các request độc lập, không cam kết snapshot chung khi có quyết định đồng thời; số tổng vẫn exact theo từng query, không dùng ước lượng.
+
+Lab [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md) giữ workload cũ và thêm bootstrap mới trên cùng dataset để đo request/payload/latency. Không lấy test mock làm số đo mạng production. Test tích hợp riêng: `npm run test:moderation:integration --prefix backend` với `MODERATION_TEST_MONGODB_URI` của replica set test được cho phép; tạo/drop đúng DB ngẫu nhiên `moderation_test_<id>`, không đọc `.env` hoặc bootstrap admin.
+
+Ba index StudentWarning candidate phục vụ expiry/admin/student ordering được thử trong lab; ABBA xác nhận query plan nhưng latency còn nhiễu, chưa nghiệm thu throughput hoặc write overhead. Không tự apply/deploy index production.
+
+### Kết quả luồng kiểm duyệt local sau triển khai
+
+Report local `c073105d4c135ef353c9c426.json` dùng cùng database/dataset giữa legacy và API mới: 2.000 user, 400 lớp, 2.000 cảnh báo, mỗi loại học liệu 1.200 bản ghi. MongoDB 7.0.45, 2 CPU/1 GiB RAM, Node v20.20.0. Kết quả dưới đây ở pha index schema; bootstrap gồm 5 mẫu warm/luồng, request đầu ghi riêng.
+
+| Bootstrap trang kiểm duyệt | Legacy tải toàn bộ | Summary + trang warnings đầu |
+|---|---:|---:|
+| HTTP request | 23 | 2 |
+| Body tổng sau giải nén | 2.250.251 byte | 13.504 byte |
+| Median local | 540,48 ms | 16,86 ms |
+| p95 local | 561,48 ms | 19,00 ms |
+
+Hai luồng khác lượng dữ liệu có chủ đích: bản mới chỉ tải trang/tab đang xem, chưa tải toàn bộ nội dung legacy. Không dùng số này làm cam kết cải thiện production hoặc tốc độ mọi tab. Tab học sinh trang đầu đo riêng median 93,38 ms / p95 135,79 ms (20 mẫu warm); exact total + lookup vẫn phụ thuộc quy mô dữ liệu. Tab lớp median 12,30 ms / p95 14,11 ms.
+
+Không có pending hết hạn trong workload latency; chưa mô phỏng nhiều transaction hết hạn, load đồng thời, CDN/TLS hoặc nén Vercel. Báo cáo hoàn tất, database/client/container test đã được dọn. Test tích hợp MongoDB riêng xác minh nghiệp vụ hết hạn, tổng/danh sách đúng bộ lọc legacy, quyền truy cập và giữ contract API cũ.
+
+Kiểm tra tại thời điểm bàn giao: backend 105/105 test, frontend 19/19 test (6 suites), tích hợp moderation 5/5 (4 kịch bản + test bao ngoài), frontend production build thành công. Các test frontend không thay thế kiểm tra trực quan/trình duyệt và nghiệm thu của chủ dự án. Chưa đủ điều kiện đánh dấu toàn bộ #11 Done.

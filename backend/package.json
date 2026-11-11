@@ -7,10 +7,13 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed:admin": "node seed-admin.js",
-    "test": "node --test tests/accounts.test.js tests/sessions.test.js tests/mainCompatibility.test.js tests/userPrivacy.test.js tests/performance.test.js tests/appeals.test.js tests/changePassword.test.js",
+    "test": "node --test tests/accounts.test.js tests/sessions.test.js tests/mainCompatibility.test.js tests/userPrivacy.test.js tests/performance.test.js tests/appeals.test.js tests/changePassword.test.js tests/performanceLab.test.js tests/moderation.test.js",
+    "test:moderation:integration": "node --test tests/moderation.integration.test.js",
     "test:appeals:integration": "node --test tests/appeals.integration.test.js",
     "perf:benchmark": "node scripts/benchmark-api.js",
-    "perf:indexes": "node scripts/api-indexes.js"
+    "perf:indexes": "node scripts/api-indexes.js",
+    "perf:lab": "node scripts/performance-lab.js",
+    "test:perf:lab": "node --test tests/performanceLab.test.js"
   },
   "keywords": ["tutoring", "education", "api"],
   "author": "",

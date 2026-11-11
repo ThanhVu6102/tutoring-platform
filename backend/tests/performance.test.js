@@ -85,6 +85,16 @@ test('admin class filters escape search text, resolve teacher email and use allo
   assert.equal(bad.status, 400);
 });
 
+test('warning indexes cover global expiry and owner/admin issued-time ordering without dropping the business index', () => {
+  const indexes = require('../models/StudentWarning').schema.indexes().map(([keys]) => keys);
+  for (const keys of [
+    { student: 1, class: 1, status: 1 },
+    { status: 1, appealDeadline: 1 },
+    { issuedAt: -1, _id: -1 },
+    { student: 1, issuedAt: -1, _id: -1 },
+  ]) assert.ok(indexes.some((candidate) => JSON.stringify(candidate) === JSON.stringify(keys)));
+});
+
 for (const role of ['student', 'teacher', 'admin']) {
   test(`class list preserves ${role} filter without populating student rosters`, async (t) => {
     let pipeline;
