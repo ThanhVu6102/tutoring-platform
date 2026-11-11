@@ -28,7 +28,7 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 
 ## 2. Giảm dữ liệu và query
 
-- Danh sách lớp dùng aggregation tính `studentCount`, `joinRequestCount` ở database, không truyền/populate cả roster hoặc yêu cầu tham gia. Chỉ populate giáo viên theo lô.
+- Danh sách lớp dùng aggregation tính `studentCount`, `joinRequestCount` ở database, không truyền/populate cả roster hoặc yêu cầu tham gia. Chỉ populate giáo viên theo lô. Bản tối ưu đang ở working tree gộp ba count summary thành group theo status cho contains/history, vẫn chạy trang song song; phương án facet + đọc trang tuần tự bị loại vì đo chậm hơn main.
 - Danh sách lớp giữ `search` theo tên cho client cũ và hỗ trợ `subject`, `grade`, `status`. Admin có thêm `q` tìm tên/mô tả (escape regex), `teacher` theo ObjectId hoặc email chính xác và `sort` trong allowlist `newest`, `oldest`, `name_asc`, `name_desc`. `sort` sai trả 400. Học sinh không được dùng query để mở quyền xem lớp inactive; `teacher` và `sort` của admin không mở rộng phạm vi role khác.
 - `summary=true` dành cho admin bổ sung tổng lớp/active/inactive trên toàn bộ bộ lọc, không lấy số phần tử của trang hiện tại làm thống kê.
 - `view=history` dành cho quản lý lớp lọc lớp có lịch sử/khóa; `view=notifications` lọc các thông báo xử lý còn liên quan. Không thay đổi quyền lớp.
@@ -45,7 +45,7 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 - `Server-Timing: app;dur=...` đo thời gian từ middleware đến lúc ghi response header, không phải thời gian tải mạng hoặc toàn bộ response body.
 - API mặc định `Cache-Control: private, no-store`; chỉ `/api/docs` công khai có cache 300 giây. Không tạo shared cache cho hồ sơ hoặc dữ liệu theo vai trò.
 - Đặt `PERF_LOG_ENABLED=true` nếu cần timing log. Log chỉ có method, mẫu route, status, duration; không log ID thật, query, body, token hay URI database.
-- Chưa thêm dependency `compression`. Cần đo `Content-Encoding` trên deployment để xác minh nén của nền tảng; build thành công không chứng minh response đã được nén.
+- Không thêm dependency `compression`: kiểm tra read-only ngày 2026-11-11 trên deployment main `c9aca17` thấy `/api/docs` trả 200 và `Content-Encoding: br`. Đây là bằng chứng nén ở nền tảng cho response đó, chưa chứng minh mọi response riêng tư đều được nén; không dùng build để suy ra nén HTTP.
 
 ## 4. Frontend
 
@@ -58,11 +58,11 @@ Ví dụ cấu trúc, không phải số đo dữ liệu thực:
 
 ### Giới hạn còn giữ để không làm sai nghiệp vụ
 
-- Lịch sử hồ sơ, thông báo giáo viên và trang kiểm duyệt còn cần đọc đủ các trang liên quan qua `getAllPages`. Các request có giới hạn, nhưng tổng dữ liệu client đọc vẫn tăng theo lịch sử.
-- Trang kiểm duyệt ở bản giai đoạn 1 còn lọc chéo dữ liệu user/cảnh báo/lớp. Giai đoạn 2 triển khai local API/admin tabs phân trang riêng (mục 8), chưa coi là đã deploy hoặc nghiệm thu FE.
+- Lịch sử hồ sơ và thông báo giáo viên còn cần đọc đủ các trang liên quan qua `getAllPages`. Các request có giới hạn, nhưng tổng dữ liệu client đọc vẫn tăng theo lịch sử.
+- Trang kiểm duyệt đã dùng API/admin tabs phân trang riêng (mục 8), merge vào main qua PR #46; phần FE/bộ lọc mới nhất qua PR #48. Tab tài khoản học sinh vẫn dùng `/api/users?role=student&view=moderation`, cũng phân trang; không còn bootstrap tải toàn bộ archive như giai đoạn 1.
 - API cảnh báo, yêu cầu tham gia, roster, bài nộp và các endpoint lịch sử khác ngoài bảy danh sách trên chưa được chuyển toàn bộ sang contract mới.
 - Polling 30 giây hiện có được giữ để không thay cơ chế cập nhật thông báo/trạng thái đã có. Chưa thêm WebSocket hoặc cache liên phiên.
-- Vì các giới hạn và số đo database còn thiếu, chưa coi toàn bộ issue #11 đã nghiệm thu/đủ điều kiện đóng.
+- Các giới hạn và phần nghiệm thu còn lại được theo dõi trong [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md); không coi merge là đồng nghĩa hoàn tất issue #11.
 
 ## 5. Index và kiểm tra query plan
 
@@ -81,8 +81,8 @@ npm run perf:indexes --prefix backend -- --explain
 - Mongoose vẫn có thể tạo index lúc khởi động tùy cấu hình `autoIndex` của môi trường. Cần review việc tạo index trước khi triển khai schema trên database thật.
 - Không tự chạy script trên production. Xem winning plan, docs/keys examined và sort; chỉ cân nhắc bỏ index cũ sau khi có số đo và phê duyệt riêng.
 - Search regex contains không được bảo đảm dùng B-tree index; không tuyên bố mọi tìm kiếm sẽ tránh collection scan.
-- Tổng chính xác vẫn dùng `countDocuments`; đặc biệt filter rỗng của admin có thể tốn công quét đếm theo quy mô dữ liệu. Chưa thay bằng số ước lượng để tránh đổi ý nghĩa thống kê.
-- Chưa chạy `--apply`, `--explain` hoặc benchmark lên MongoDB thật trong lần sửa này. Không có cam kết phần trăm cải thiện latency API khi chưa đo.
+- Tổng vẫn chính xác: bản main dùng `countDocuments` riêng; candidate dùng count trên index `_id` khi filter lớp rỗng và group đếm chung khi contains/history có admin summary. Không đổi sang ước lượng. Chi phí exact count và contains vẫn có thể tăng tuyến tính theo dữ liệu; count contains có thể còn COLLSCAN, không ép hint làm tăng chi phí chỉ để bỏ nhãn scan.
+- Đã chạy MongoDB thật trong Docker bằng dữ liệu giả và EXPLAIN command route thực tế; xem [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md) và [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md). Chưa apply script/benchmark lên MongoDB production, không cam kết phần trăm latency production.
 
 ## 6. Đo latency và kích thước response
 
@@ -114,7 +114,7 @@ Build thành công. Đây là số đo bundle local và kiểm tra request bằn
 - Cần kiểm thử với MongoDB thật, `EXPLAIN`, số đo before/after API và thao tác thực bằng ba vai trò trên Preview/Staging có database/secret riêng.
 - Kiểm tra header nén trên Vercel và các luồng quản trị/lịch sử nhiều trang trước khi chuyển sang main.
 
-## 8. Giai đoạn 2 — phân trang kiểm duyệt (local, chờ nghiệm thu)
+## 8. Giai đoạn 2 — phân trang kiểm duyệt (đã merge, chờ nghiệm thu tổng thể)
 
 Thiết kế [phân trang kiểm duyệt](MODERATION_PAGINATION_PLAN.md) đã được chủ dự án xác nhận cho cả BE và FE. Thêm bốn endpoint admin, không đổi response của các API cũ:
 
@@ -152,4 +152,4 @@ Hai luồng khác lượng dữ liệu có chủ đích: bản mới chỉ tải
 
 Không có pending hết hạn trong workload latency; chưa mô phỏng nhiều transaction hết hạn, load đồng thời, CDN/TLS hoặc nén Vercel. Báo cáo hoàn tất, database/client/container test đã được dọn. Test tích hợp MongoDB riêng xác minh nghiệp vụ hết hạn, tổng/danh sách đúng bộ lọc legacy, quyền truy cập và giữ contract API cũ.
 
-Kiểm tra tại thời điểm bàn giao: backend 105/105 test, frontend 19/19 test (6 suites), tích hợp moderation 5/5 (4 kịch bản + test bao ngoài), frontend production build thành công. Các test frontend không thay thế kiểm tra trực quan/trình duyệt và nghiệm thu của chủ dự án. Chưa đủ điều kiện đánh dấu toàn bộ #11 Done.
+Kiểm tra lịch sử tại giai đoạn 2 (`bd48fc8`): backend 105/105 test, frontend 19/19 test (6 suites), tích hợp moderation 5/5 (4 kịch bản + test bao ngoài), frontend production build thành công. Kết quả chạy lại trên main mới nhất và smoke Chromium xem [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md); không dùng số test lịch sử thay kết quả mới hoặc nghiệm thu của chủ dự án. Chưa tự đánh dấu toàn bộ #11 Done.
