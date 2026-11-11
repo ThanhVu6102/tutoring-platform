@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const empty = { currentPassword: '', newPassword: '', confirmPassword: '' };
 
-export default function ChangePasswordForm({ userRole }) {
+export default function ChangePasswordForm() {
   const [form, setForm] = useState(empty);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +43,7 @@ export default function ChangePasswordForm({ userRole }) {
   return <section className="profile-history" aria-labelledby="change-password-title">
     <header><h2 id="change-password-title">Đổi mật khẩu</h2></header>
     <p>Mật khẩu mới từ 8 ký tự, tối đa 72 byte UTF-8. Các phiên đang đăng nhập vẫn có hiệu lực đến khi hết hạn.</p>
-    {userRole === 'admin' && <p>Nếu tài khoản quản trị được quản lý bằng cấu hình, bạn không thể đổi mật khẩu tại đây.</p>}
+    <p>Mọi tài khoản, kể cả quản trị viên, đều có thể đổi mật khẩu bằng mật khẩu hiện tại.</p>
     {error && <div className="admin-alert" role="alert">{error}</div>}
     {notice && <div className="tool-notice" role="status">{notice}</div>}
     <form className="profile-form" aria-label="Đổi mật khẩu" onSubmit={submit}>

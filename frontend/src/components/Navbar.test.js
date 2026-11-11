@@ -55,3 +55,25 @@ test('avatar falls back after image error and refreshes when the profile changes
     expect(container.querySelector('.navbar-avatar').textContent).toBe('?');
   } finally { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); }
 });
+
+test('quản trị viên mở được hồ sơ và mật khẩu từ menu trên máy tính hoặc di động', async () => {
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  useLocation.mockReturnValue({ pathname: '/admin' });
+  const navigate = jest.fn();
+  useNavigate.mockReturnValue(navigate);
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Navbar userRole="admin" isAuthenticated onLogout={jest.fn()} />));
+    const toggle = container.querySelector('.navbar-menu-toggle');
+    await act(async () => toggle.click());
+    const profileButton = [...container.querySelectorAll('#navbar-actions button')]
+      .find((button) => button.textContent === 'Hồ sơ và mật khẩu');
+    expect(profileButton).toBeDefined();
+    await act(async () => profileButton.click());
+    expect(navigate).toHaveBeenCalledWith('/profile');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(container.textContent).toContain('Quản trị lớp');
+  } finally { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); }
+});

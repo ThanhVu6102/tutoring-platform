@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const { reviewTeacher } = require('../utils/reviewTeacher');
 const { authMiddleware } = require('../middleware/auth');
@@ -37,7 +38,7 @@ test('review rejects invalid decision and oversized notes', async () => {
 test('middleware uses database role and rejects inactive admins', async (t) => {
   let user = { role: 'student', status: 'active' };
   t.mock.method(User, 'findById', () => ({ select: () => ({ lean: async () => user }) }));
-  const token = jwt.sign({ userId: 'a'.repeat(24), role: 'admin' }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: 'a'.repeat(24), role: 'admin' }, process.env.JWT_SECRET);
   const req = { header: () => `Bearer ${token}` };
   let passed = false;
   await authMiddleware(req, response(), () => { passed = true; });
@@ -56,7 +57,7 @@ test('middleware uses database role and rejects inactive admins', async (t) => {
 });
 
 test('malformed token identity returns 401 without querying database', async () => {
-  const token = jwt.sign({ userId: { $ne: null } }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: { $ne: null } }, process.env.JWT_SECRET);
   const res = response();
   await authMiddleware({ header: () => `Bearer ${token}` }, res, () => assert.fail());
   assert.equal(res.statusCode, 401);

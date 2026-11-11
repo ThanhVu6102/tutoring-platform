@@ -34,10 +34,10 @@ router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (r
     try {
       parsedUrl = new URL(videoUrl);
     } catch (_) {
-      return res.status(400).json({ message: 'Video URL is invalid' });
+      return res.status(400).json({ message: 'Đường dẫn video không hợp lệ' });
     }
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return res.status(400).json({ message: 'Video URL must use HTTP or HTTPS' });
+      return res.status(400).json({ message: 'Đường dẫn video phải dùng HTTP hoặc HTTPS' });
     }
 
     const video = new Video({
@@ -51,7 +51,7 @@ router.post('/', authMiddleware, classAvailability(Video), teacherOnly, async (r
     });
 
     await video.save();
-    res.status(201).json({ message: 'Video uploaded successfully', video });
+    res.status(201).json({ message: 'Đã đăng video', video });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -76,7 +76,7 @@ router.get('/:id', authMiddleware, classAvailability(Video), async (req, res) =>
     const video = await Video.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!video) {
-      return res.status(404).json({ message: 'Video not found' });
+      return res.status(404).json({ message: 'Không tìm thấy video' });
     }
 
     res.json(video);
@@ -92,7 +92,7 @@ router.post('/:id/view', authMiddleware, classAvailability(Video), async (req, r
     const video = await Video.findById(req.params.id);
 
     if (!video) {
-      return res.status(404).json({ message: 'Video not found' });
+      return res.status(404).json({ message: 'Không tìm thấy video' });
     }
 
     const existingView = video.viewedBy.findIndex(
@@ -112,7 +112,7 @@ router.post('/:id/view', authMiddleware, classAvailability(Video), async (req, r
     }
 
     await video.save();
-    res.json({ message: 'View recorded' });
+    res.json({ message: 'Đã ghi nhận lượt xem' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -124,15 +124,15 @@ router.delete('/:id', authMiddleware, classAvailability(Video), teacherOnly, asy
     const video = await Video.findById(req.params.id);
 
     if (!video) {
-      return res.status(404).json({ message: 'Video not found' });
+      return res.status(404).json({ message: 'Không tìm thấy video' });
     }
 
     if (req.userRole !== 'admin' && video.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     await Video.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Video deleted' });
+    res.json({ message: 'Đã xóa video' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

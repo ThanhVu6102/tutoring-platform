@@ -59,6 +59,7 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
           {['student', 'teacher'].includes(userRole) && <button type="button" onClick={() => go('/appeals')}>Kháng cáo</button>}
           <button type="button" onClick={() => go(home)}>{userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}</button>
           {userRole === 'admin' && <button type="button" onClick={() => go('/admin/moderation')}>Hồ sơ vi phạm</button>}
+          {userRole === 'admin' && <button type="button" onClick={() => go('/profile')}>Hồ sơ và mật khẩu</button>}
           <button type="button" onClick={handleLogout}>Đăng xuất</button>
         </> : <>
           <button type="button" onClick={() => go('/login')}>Đăng nhập</button>

@@ -7,10 +7,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed:admin": "node seed-admin.js",
-    "test": "node --test tests/accounts.test.js tests/sessions.test.js tests/mainCompatibility.test.js tests/userPrivacy.test.js tests/performance.test.js tests/appeals.test.js tests/changePassword.test.js tests/performanceLab.test.js tests/performanceCodeLab.test.js tests/moderation.test.js",
+    "test": "node --test tests/accounts.test.js tests/adminSecurity.test.js tests/jwtSecurity.test.js tests/quizGrading.test.js tests/assignmentPrivacy.test.js tests/redirectSecurity.test.js tests/sessions.test.js tests/mainCompatibility.test.js tests/userPrivacy.test.js tests/performance.test.js tests/appeals.test.js tests/changePassword.test.js tests/performanceLab.test.js tests/performanceCodeLab.test.js tests/moderation.test.js",
     "test:moderation:integration": "node --test tests/moderation.integration.test.js",
     "test:filters:integration": "node --test tests/classFilters.integration.test.js",
     "test:filters:lab": "node scripts/test-class-filters.js",
+    "test:content:lab": "node scripts/test-content-security.js",
     "test:appeals:integration": "node --test tests/appeals.integration.test.js",
     "perf:benchmark": "node scripts/benchmark-api.js",
     "perf:indexes": "node scripts/api-indexes.js",
@@ -21,6 +22,9 @@
   "keywords": ["tutoring", "education", "api"],
   "author": "",
   "license": "ISC",
+  "overrides": {
+    "follow-redirects": "1.16.3"
+  },
   "dependencies": {
     "express": "^4.18.2",
     "mongoose": "^7.0.0",

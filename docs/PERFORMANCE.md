@@ -1,155 +1,115 @@
-# BE #04 — Tối ưu tải dữ liệu API và frontend
+# BE #04 — Hiệu năng API và frontend
 
-Theo dõi tại [issue #11](https://github.com/ThanhVu6102/tutoring-platform/issues/11). Tài liệu phân biệt phần đã triển khai, số đo local và phần cần xác minh trên môi trường thử nghiệm; không coi test mock là bằng chứng API production đã nhanh hơn.
+[Issue #11](https://github.com/ThanhVu6102/tutoring-platform/issues/11) đã **CLOSED / Done** theo xác nhận nghiệm thu của chủ dự án ngày 2026-11-11. Gói tối ưu cuối `32e6ff8` đã merge vào `develop` qua [PR #50](https://github.com/ThanhVu6102/tutoring-platform/pull/50); không đồng nghĩa đã phát hành gói đó lên `main`.
 
-## 1. Contract danh sách mới
+Cách chạy công cụ: [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md). Contract kiểm duyệt: [APPEALS.md](APPEALS.md#kiem-duyet). Số đo/nghiệm thu nằm ở [cuối trang](#ket-qua).
 
-Các endpoint sau **luôn** trả object phân trang, không còn trả mảng toàn bộ khi thiếu tham số:
+## 1. Contract phân trang
 
-- `GET /api/classes`
-- `GET /api/users` (admin)
-- `GET /api/videos/class/:classId`
-- `GET /api/documents/class/:classId`
-- `GET /api/assignments/class/:classId`
-- `GET /api/announcements/class/:classId`
-- `GET /api/quizzes/class/:classId`
+Bảy danh sách luôn trả object, kể cả khi không truyền page/limit:
 
-Ví dụ cấu trúc, không phải số đo dữ liệu thực:
+| Nhóm | GET endpoint |
+|---|---|
+| Lớp | `/api/classes` |
+| User, chỉ admin | `/api/users` |
+| Học liệu | `/api/{videos,documents,assignments,announcements,quizzes}/class/:classId` |
 
 ```json
 { "data": [], "page": 1, "limit": 20, "total": 0, "totalPages": 0 }
 ```
 
-- Mặc định `page=1`, `limit=20`; giới hạn `limit=100`, `page=10000` để hạn chế offset quá lớn.
-- Tham số không phải số nguyên dương trả `400`; giá trị vượt trần được giới hạn. Khi cần vượt trần page, phải thiết kế cursor thay vì bỏ giới hạn.
-- Sort có `_id` làm khóa phụ để ổn định thứ tự khi trùng thời điểm/hạn nộp. Không bảo đảm snapshot nhất quán nếu dữ liệu đang bị thay đổi giữa các trang.
-- Count và query dữ liệu dùng cùng bộ lọc quyền. Học sinh chỉ thấy lớp active đã tham gia và quiz published.
-- Đây là thay đổi contract: backend và frontend liên quan cần phát hành cùng nhau. Client cũ đang dùng response dạng mảng phải được cập nhật.
+- Mặc định page 1 / limit 20; trần page 10.000 / limit 100. Số nguyên dương vượt trần được cap, tham số sai trả `400`.
+- Count và trang dùng cùng filter quyền; học sinh chỉ thấy lớp active đã tham gia và quiz published. Sort có `_id` làm khóa phụ.
+- Tổng chính xác theo query, không phải snapshot chung khi dữ liệu thay đổi giữa các query/trang.
+- Client cũ nhận mảng phải cập nhật cùng backend. Các API cảnh báo legacy, roster, yêu cầu tham gia và bài nộp không tự chuyển sang contract này.
 
-## 2. Giảm dữ liệu và query
+## 2. Truy vấn và bộ lọc
 
-- Danh sách lớp dùng aggregation tính `studentCount`, `joinRequestCount` ở database, không truyền/populate cả roster hoặc yêu cầu tham gia. Chỉ populate giáo viên theo lô. Bản tối ưu đang ở working tree gộp ba count summary thành group theo status cho contains/history, vẫn chạy trang song song; phương án facet + đọc trang tuần tự bị loại vì đo chậm hơn main.
-- Danh sách lớp giữ `search` theo tên cho client cũ và hỗ trợ `subject`, `grade`, `status`. Admin có thêm `q` tìm tên/mô tả (escape regex), `teacher` theo ObjectId hoặc email chính xác và `sort` trong allowlist `newest`, `oldest`, `name_asc`, `name_desc`. `sort` sai trả 400. Học sinh không được dùng query để mở quyền xem lớp inactive; `teacher` và `sort` của admin không mở rộng phạm vi role khác.
-- `summary=true` dành cho admin bổ sung tổng lớp/active/inactive trên toàn bộ bộ lọc, không lấy số phần tử của trang hiện tại làm thống kê.
-- `view=history` dành cho quản lý lớp lọc lớp có lịch sử/khóa; `view=notifications` lọc các thông báo xử lý còn liên quan. Không thay đổi quyền lớp.
-- Danh sách quiz chỉ trả metadata, `questionCount`, `hasPromptImage`; không tải câu hỏi, đáp án hoặc ảnh base64 để vẽ thẻ. Endpoint chi tiết đề giữ cơ chế hiện có.
-- Danh sách video/tài liệu/bài tập/thông báo dùng projection và `lean()`, không trả lịch sử lượt xem/tải, bài nộp hay read receipts khi không cần.
-- Danh sách user vẫn giữ allowlist theo BE #01/#02. Admin có thể dùng `view=moderation` lấy metadata xử lý kỷ luật thay vì avatar/hồ sơ đầy đủ.
-- `GET /api/classes/:id/content-summary` trả tổng video/tài liệu/quiz/bài tập sau khi kiểm tra quyền lớp; tổng quiz của học sinh chỉ tính published.
+| Nhóm | Cách giảm tải |
+|---|---|
+| Lớp | Aggregation tính `studentCount`/`joinRequestCount`, không populate roster; populate teacher theo lô |
+| Quiz | Chỉ metadata, `questionCount`/`hasPromptImage`; không tải câu hỏi, đáp án hoặc ảnh đề cho thẻ |
+| Học liệu khác | Projection + lean, bỏ lịch sử xem/tải, bài nộp và read receipts khỏi danh sách |
+| User | Giữ [allowlist hồ sơ](USER_PRIVACY.md); `view=moderation` bỏ avatar/hồ sơ nặng |
+| Tổng học liệu | `/api/classes/:id/content-summary` kiểm tra quyền lớp; chỉ đếm quiz published cho student |
 
-## 3. Kết nối và HTTP
+`GET /api/classes` giữ `search` theo tên, filter `subject`/`grade`/`status`. Admin có thêm:
 
-- Promise cache MongoDB bao trọn cả kết nối và khởi tạo admin; các request cùng cold-start không chạy khởi tạo nhiều lần trong cùng instance.
-- Kết nối lỗi sẽ được thử lại ở lần gọi sau. Khởi tạo admin giữ hành vi best-effort hiện có; không thay cơ chế admin hay JWT trong issue này.
-- Không thể tái sử dụng một connection giữa các instance serverless độc lập; cold start vẫn có thể xảy ra.
-- `Server-Timing: app;dur=...` đo thời gian từ middleware đến lúc ghi response header, không phải thời gian tải mạng hoặc toàn bộ response body.
-- API mặc định `Cache-Control: private, no-store`; chỉ `/api/docs` công khai có cache 300 giây. Không tạo shared cache cho hồ sơ hoặc dữ liệu theo vai trò.
-- Đặt `PERF_LOG_ENABLED=true` nếu cần timing log. Log chỉ có method, mẫu route, status, duration; không log ID thật, query, body, token hay URI database.
-- Không thêm dependency `compression`: kiểm tra read-only ngày 2026-11-11 trên deployment main `c9aca17` thấy `/api/docs` trả 200 và `Content-Encoding: br`. Đây là bằng chứng nén ở nền tảng cho response đó, chưa chứng minh mọi response riêng tư đều được nén; không dùng build để suy ra nén HTTP.
+- `q`: contains tên/mô tả, escape regex, không phân biệt hoa thường.
+- `teacher`: ObjectId hoặc email chính xác, chuẩn hóa query email về chữ thường.
+- `sort`: `newest`, `oldest`, `name_asc`, `name_desc`; ngoài allowlist trả `400`.
+- `summary=true`: total/active/inactive trên toàn bộ filter, không phải length trang.
 
-## 4. Frontend
+Các query không mở rộng quyền role khác; student không được dùng status để xem lớp inactive. `view=history` lọc hồ sơ/lịch sử cho quản lý lớp; `view=notifications` lấy thông báo xử lý liên quan.
 
-- Dashboard và trang quản trị lớp tải theo trang; có tìm kiếm debounce ở trang quản trị và giữ dữ liệu cũ khi đang tải lại.
-- Chi tiết lớp chỉ tải nhóm học liệu khi mở tab đó, giữ trang đã tải trong vòng đời component và làm mới khi có thao tác tạo/xóa/xuất bản. Overview lấy tổng qua endpoint count riêng.
-- GET trùng URL/tham số/token đang chạy được gộp; kết quả hoàn tất không được cache lâu dài. Hai tài khoản không dùng chung request.
-- Response cũ không được ghi đè kết quả của URL/filter mới. Khi đổi tài khoản trong lúc đọc nhiều trang, dừng thay vì ghép dữ liệu của hai phiên.
-- Tách bundle các route dashboard, quản trị, chi tiết lớp, hồ sơ và làm bài bằng `React.lazy`/`Suspense`.
-- Chưa có request lấy reference data môn/khối/vai trò riêng để cần thêm cache; không tạo API/cache giả cho mục này.
+Tối ưu cuối: count lớp không filter dùng index `_id_`; contains/history có admin summary gộp ba count thành group theo status, query trang vẫn chạy song song. Bản ghi status cũ/thiếu vẫn góp vào total. Không dùng estimated count hoặc facet gom payload trang lớn.
 
-### Giới hạn còn giữ để không làm sai nghiệp vụ
+## 3. Kết nối, HTTP và index
 
-- Lịch sử hồ sơ và thông báo giáo viên còn cần đọc đủ các trang liên quan qua `getAllPages`. Các request có giới hạn, nhưng tổng dữ liệu client đọc vẫn tăng theo lịch sử.
-- Trang kiểm duyệt đã dùng API/admin tabs phân trang riêng (mục 8), merge vào main qua PR #46; phần FE/bộ lọc mới nhất qua PR #48. Tab tài khoản học sinh vẫn dùng `/api/users?role=student&view=moderation`, cũng phân trang; không còn bootstrap tải toàn bộ archive như giai đoạn 1.
-- API cảnh báo, yêu cầu tham gia, roster, bài nộp và các endpoint lịch sử khác ngoài bảy danh sách trên chưa được chuyển toàn bộ sang contract mới.
-- Polling 30 giây hiện có được giữ để không thay cơ chế cập nhật thông báo/trạng thái đã có. Chưa thêm WebSocket hoặc cache liên phiên.
-- Các giới hạn và phần nghiệm thu còn lại được theo dõi trong [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md); không coi merge là đồng nghĩa hoàn tất issue #11.
+- Cache promise kết nối MongoDB trong **mỗi instance**; lỗi kết nối được thử lại. Không chia sẻ connection giữa các instance serverless; không tự tạo/khôi phục admin khi kết nối lại. Tạo admin ban đầu bằng [thao tác thủ công](ADMIN_BOOTSTRAP.md).
+- `Server-Timing: app;dur=...` đo đến lúc ghi header, không phải toàn bộ thời gian tải mạng/body. `PERF_LOG_ENABLED=true` bật log method/mẫu route/status/duration, không log ID/query/body/token/URI.
+- API riêng tư dùng `Cache-Control: private, no-store`; `/api/docs` công khai cache 300 giây. Brotli đã quan sát trên `/api/docs`, không suy ra mọi response riêng tư đều nén; xem phạm vi kiểm chứng trong báo cáo nghiệm thu.
+- Index schema phục vụ sort/filter lớp, user, học liệu, quiz submissions và cảnh báo. Script `perf:indexes` xem định nghĩa; `--apply` dùng createIndexes, không sync/drop index ngoài schema. Chỉ apply trên DB được phép; Mongoose autoIndex cũng có thể tạo index khi khởi động.
+- Contains có thể còn COLLSCAN; exact count vẫn tăng theo số key/document. Offset trang sâu vẫn tốn chi phí. Không ép hint hoặc đổi semantics tìm kiếm chỉ để làm đẹp EXPLAIN.
 
-## 5. Index và kiểm tra query plan
+## 4. Frontend và giới hạn giữ nguyên
 
-Schema bổ sung index khớp filter/sort có `_id`: danh sách lớp toàn hệ thống/theo giáo viên/học sinh và bộ lọc admin theo subject/grade hoặc sắp xếp tên; user theo deletedAt/role; video/tài liệu theo class/uploadedAt; bài tập theo class/dueDate; thông báo/quiz theo class/createdAt và quiz theo status.
+- Dashboard/admin tải theo trang; tìm kiếm debounce, giữ dữ liệu cũ khi refetch, bỏ response stale. GET trùng URL/tham số/token đang chạy được gộp, không cache kết quả lâu dài giữa tài khoản.
+- Chi tiết lớp lấy tổng riêng và chỉ tải học liệu khi mở tab; giữ tab đã tải đến khi cần invalidation. Route nặng dùng `React.lazy`/`Suspense`.
+- Kiểm duyệt mở summary + warnings trang đầu, tab khác tải theo nhu cầu. Hồ sơ/chuông giáo viên còn có luồng `getAllPages`; tổng lượng đọc vẫn tăng theo lịch sử.
+- Giữ polling 30 giây và transaction finalize cảnh báo hết hạn; chưa có job nền/WebSocket/cache liên phiên. Backlog expiry lớn và write overhead chưa được benchmark.
+- Chưa có API reference môn/khối/vai trò riêng để cần thêm cache; không tạo cache giả cho checklist.
 
-```bash
-# Chỉ xem định nghĩa: không kết nối hoặc ghi database
-npm run perf:indexes --prefix backend
+Nghiệm thu mức tối ưu hiện tại không phải cam kết SLA production, không xác nhận mọi query tránh scan và không tự mở rộng phạm vi [issue #12](https://github.com/ThanhVu6102/tutoring-platform/issues/12).
 
-# Chỉ chạy sau khi được phép, cấu hình MONGODB_URI của database thử nghiệm
-npm run perf:indexes --prefix backend -- --apply
-npm run perf:indexes --prefix backend -- --explain
-```
+<a id="ket-qua"></a>
+## 5. Số đo và nghiệm thu
 
-- Script `--apply` dùng `createIndexes`, không dùng `syncIndexes` để tránh xóa index ngoài schema.
-- Mongoose vẫn có thể tạo index lúc khởi động tùy cấu hình `autoIndex` của môi trường. Cần review việc tạo index trước khi triển khai schema trên database thật.
-- Không tự chạy script trên production. Xem winning plan, docs/keys examined và sort; chỉ cân nhắc bỏ index cũ sau khi có số đo và phê duyệt riêng.
-- Search regex contains không được bảo đảm dùng B-tree index; không tuyên bố mọi tìm kiếm sẽ tránh collection scan.
-- Tổng vẫn chính xác: bản main dùng `countDocuments` riêng; candidate dùng count trên index `_id` khi filter lớp rỗng và group đếm chung khi contains/history có admin summary. Không đổi sang ước lượng. Chi phí exact count và contains vẫn có thể tăng tuyến tính theo dữ liệu; count contains có thể còn COLLSCAN, không ép hint làm tăng chi phí chỉ để bỏ nhãn scan.
-- Đã chạy MongoDB thật trong Docker bằng dữ liệu giả và EXPLAIN command route thực tế; xem [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md) và [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md). Chưa apply script/benchmark lên MongoDB production, không cam kết phần trăm latency production.
+Chủ dự án đã [nghiệm thu mức tối ưu hiện tại](https://github.com/ThanhVu6102/tutoring-platform/issues/11#issuecomment-6798915213). Các kết quả sau đã chạy trên source được nêu, **không phải kiểm thử mới khi sửa tài liệu**. Report/screenshot thô ở `docs/local/performance/` bị ignore, không có sẵn khi clone; DB/container/snapshot của lượt hoàn tất đã dọn.
 
-## 6. Đo latency và kích thước response
+### Code trước/sau BE #04
 
-Script benchmark chỉ GET `/api/classes` và `/api/users`, cần tài khoản admin **thử nghiệm**. Cấu hình qua biến môi trường, không đưa token lên command line hoặc commit báo cáo chứa dữ liệu thật:
+Before `f46880307bb769b5a347736bf60c7e3f04d22f4b` (cha `925022f`) → after `c9aca1771552d8d372bbf2222801c9a16ffc2505` (main sau PR #48). Hai worker dùng snapshot Git chính xác, cùng DB giả **2.000 user / 400 lớp**, cùng index vật lý schema main, không tắt xác thực/quyền.
 
-```powershell
-$env:BENCH_BASE_URL = 'http://localhost:5000'
-# Cấu hình BENCH_TOKEN riêng trong môi trường; không gửi token vào chat/log.
-$env:BENCH_SAMPLES = '10'
-$env:BENCH_LABEL = 'before' # đổi thành after khi đo bản mới
-npm run perf:benchmark --prefix backend
-```
+Report `code-ad9bb1a404b6bba05bdf93db.json`: MongoDB 7.0.45, 2 CPU / 1 GiB, Node v20.20.0, Express loopback/identity encoding, **20 mẫu warm ABBA mỗi phiên bản**; tách request đầu, EXPLAIN ngoài đồng hồ, không chạy cùng build/test/browser khác do agent khởi động.
 
-Đo before/after trên cùng dataset, tài khoản, khu vực, loại máy và điều kiện cold/warm tương đương. Báo cáo tách request đầu (không khẳng định chắc chắn là cold start), median/p95 các lần sau, số byte body sau giải nén và Content-Encoding. Không dùng thời gian test mock làm số đo API.
+| GET / trường hợp | Dòng trước → sau | Byte giải mã trước → sau | Trung vị ms trước → sau | p95 ms trước → sau |
+|---|---:|---:|---:|---:|
+| classes admin trang 1, limit 20 | 400 → 20 | 1.190.684 → 11.930 | 388,62 → 23,12 | 540,14 → 52,41 |
+| classes teacher trang 1, limit 20 | 20 → 20 | 43.700 → 11.955 | 98,20 → 40,40 | 237,59 → 92,70 |
+| classes student trang 1, limit 20 | 4 → 4 | 4.457 → 1.623 | 19,56 → 19,41 | 27,57 → 21,89 |
+| users admin trang 1, limit 20 | 20 → 20 | 37.399 → 36.999 | 21,84 → 15,33 | 28,32 → 18,96 |
+| users admin trang 75, limit 20 | 20 → 20 | 38.919 → 38.519 | 26,61 → 21,51 | 140,69 → 43,32 |
+| users admin không limit | 2.000 → 20 | 3.794.910 → 36.999 | 302,92 → 15,45 | 349,98 → 17,26 |
 
-Số đo local ngày 2026-11-03:
+Classes cũ bỏ qua paging; users cũ có paging khi truyền limit nhưng mặc định tải toàn bộ. Hàng giảm số dòng đo lợi ích giới hạn payload có chủ đích, không phải cùng lượng nội dung. Tổng phạm vi khớp, dấu kiểm tập ID khớp khi cùng số dòng; student gần như không đổi trung vị và thêm một command count (3 → 4), users cùng trang vẫn 3 command/query plan tương tự. Không gán mọi chênh lệch cho index hoặc N+1.
 
-| Chỉ số | Trước | Sau |
-|--------|-------|-----|
-| Initial JS gzip theo CRA build | 94.16 kB | 80.36 kB (giảm khoảng 14.7%) |
-| Request ban đầu của overview lớp học sinh | Code cũ gọi chi tiết + 5 danh sách | Test frontend xác nhận chỉ gọi chi tiết + tổng (2 request) |
+### Tối ưu cuối so với main c9aca17
 
-Build thành công. Đây là số đo bundle local và kiểm tra request bằng mock; chưa phải số đo tốc độ mạng/database thực. Tách bundle không đồng nghĩa giảm tổng dung lượng mọi route cộng lại.
+Report `code-c75e249f5b057154afdad6da.json`: **5.000 user / 5.000 lớp / 50 mẫu warm ABBA mỗi phiên bản**, cùng cấu hình DB/index như trên. Bản sau là working tree đã băm trước commit `32e6ff8`; toàn bộ JSON response chuẩn hóa trước/sau khớp, hash file được đối chiếu sau đo. Chỉ sửa cách count ở pagination/classes, giữ API/quyền/contains/exact total/sort.
 
-## 7. Kiểm tra trước nghiệm thu
+| Trường hợp | Trung vị ms main → mới | p95 ms main → mới | Command main → mới | Document classes xét main → mới |
+|---|---:|---:|---:|---:|
+| Admin trang 1 không filter | 16,57 → 14,09 | 24,16 → 21,20 | 4 → 4 | 5.020 → 20 |
+| q rộng + summary | 24,31 → 23,93 | 29,69 → 30,45 | 6 → 4 | 10.020 → 5.020 |
+| q rộng + history + summary | 23,39 → 22,44 | 27,09 → 25,03 | 6 → 4 | 10.066 → 5.066 |
 
-- Chạy `npm test --prefix backend`, `npm test --prefix frontend -- --watchAll=false --runInBand` và `npm run build --prefix frontend`.
-- Test hiện kiểm tra pagination, projection/filter quyền, quiz metadata, count theo quyền, connection concurrency, request dedup/stale response và tải tab theo nhu cầu.
-- Cần kiểm thử với MongoDB thật, `EXPLAIN`, số đo before/after API và thao tác thực bằng ba vai trò trên Preview/Staging có database/secret riêng.
-- Kiểm tra header nén trên Vercel và các luồng quản trị/lịch sử nhiều trang trước khi chuyển sang main.
+Document xét là tổng plan classes trong request đầu, không gồm user xác thực/populate; command là toàn request. Count `_id_` xét 5.001 key và **0 document**, trang đọc 20 document; exact count không phải O(1). q + summary vẫn một COLLSCAN 5.000 document nhưng bỏ hai count status riêng. Đây là giảm công việc DB, **chưa chứng minh tìm kiếm nhanh hơn đáng kể**: p95 q + summary tăng nhẹ; các endpoint đối chứng không đổi cũng có dao động.
 
-## 8. Giai đoạn 2 — phân trang kiểm duyệt (đã merge, chờ nghiệm thu tổng thể)
+### Kiểm duyệt, bundle và index
 
-Thiết kế [phân trang kiểm duyệt](MODERATION_PAGINATION_PLAN.md) đã được chủ dự án xác nhận cho cả BE và FE. Thêm bốn endpoint admin, không đổi response của các API cũ:
+| Bằng chứng local | Kết quả và cách đọc |
+|---|---|
+| Bootstrap kiểm duyệt `c073105d4c135ef353c9c426.json` | 2.000 user / 400 lớp / 2.000 warnings, 1.200 bản ghi mỗi loại học liệu, pha index schema, 5 mẫu warm/luồng. Legacy → summary + trang đầu: **23 → 2 request**, **2.250.251 → 13.504 byte**, trung vị **540,48 → 16,86 ms**, p95 **561,48 → 19,00 ms**. Không cùng lượng nội dung; chưa có pending hết hạn trong workload latency. Tab student trung vị/p95 93,38/135,79 ms (20 mẫu), class 12,30/14,11 ms. |
+| Bundle | Initial JS gzip ngày 2026-11-03 **94,16 → 80,36 kB**; build frontend c9aca17 ngày 2026-11-11 **80,83 kB**. Overview chuyển từ chi tiết + 5 danh sách sang chi tiết + tổng. Không suy ra nén HTTP hoặc tổng dung lượng mọi route. |
+| EXPLAIN | Index lớp theo ngày/teacher/student, subject+grade, name asc/desc; email `email_1`, users theo deletedAt. Users trang 75 vẫn xét 1.500 document do offset. Thống kê aggregation có thể chỉ ở cursor trước bước cuối. |
+| Warning index ABBA `b3f436ec95121e745ab9f66c.json` | 2.000 user / 400 lớp / 2.000 warnings, A/B mỗi nhóm 40 mẫu đơn hoặc 10 bootstrap. B bỏ expiry COLLSCAN và list blocking SORT; trung vị/p95 ms: student **16,06/22,07 → 13,04/25,76**, admin **373,67/591,62 → 333,64/528,19**, bootstrap **732,75/949,94 → 615,48/868,22**. Đối chứng cũng nhanh hơn nên chưa quy toàn bộ lợi ích cho index. Baseline: `13840898f5985100adf38cdb.json`. |
+| Phương án loại bỏ `code-73fc5298efe8607be287cc81.json` | Facet ID/count rồi đọc trang tuần tự chậm hơn main trên 5.000 lớp: q rộng 16,75 → 22,82 ms, q + summary 18,40 → 27,76 ms, history 16,11 → 24,81 ms. Không giữ chỉ để bỏ nhãn COLLSCAN; không gom payload lớn vào facet vì giới hạn BSON 16 MiB. |
 
-- `GET /api/moderation/summary`: `{totalWarnings, openWarnings, violationClasses}` trên toàn bộ dữ liệu, không lấy số phần tử của trang.
-- `GET /api/moderation/warnings?page=1&limit=20&status=appealed`.
-- `GET /api/moderation/students?page=1&limit=20`.
-- `GET /api/moderation/classes?page=1&limit=20`.
+### Kiểm thử và giới hạn nghiệm thu
 
-Ba danh sách trả `{data, page, limit, total, totalPages}`, mặc định 20 / tối đa 100; số trang vượt trần được cap như bảy danh sách cũ. Status không hợp lệ ở danh sách warnings mới trả 400. Warning list sort `(issuedAt desc, _id desc)`; hai nhóm còn lại sort `(createdAt desc, _id desc)`.
-
-Học sinh ảnh hưởng được lọc ở MongoDB bằng lookup tồn tại cảnh báo (kể cả dismissed), hoặc các cờ/chế tài như UI cũ; chỉ student chưa xóa mềm. Lookup có limit 1 và không đưa danh sách ID toàn bộ ra Node/client; facet tính trang và total sau cùng một bộ lọc. Lớp chỉ có lịch sử nhưng hiện active/none không tự được đưa vào tab lớp.
-
-Các route đều kiểm tra admin từ database trước khi đọc/ghi, giữ BE #01/#02 và `private, no-store`. Các user lồng chỉ populate trường cần cho thẻ, danh sách không trả avatar base64/roster/toàn bộ lịch sử.
-
-`AdminModeration` gọi summary + trang đầu warnings, chỉ tải tab khác khi mở, giữ trang từng tab và dùng component Pagination hiện có. Sau review, làm mới summary/trang đang mở và đánh dấu tab khác cần tải lại; có khóa gửi lặp, retry, lỗi/empty riêng. Các trang hồ sơ/chuông vẫn dùng API cũ, chưa sửa trong bước này.
-
-Các endpoint mới vẫn chờ xử lý cảnh báo hết hạn bằng transaction hiện có. Chưa chuyển sang job nền hoặc chấp nhận kết quả chưa finalize. Summary/list là các request độc lập, không cam kết snapshot chung khi có quyết định đồng thời; số tổng vẫn exact theo từng query, không dùng ước lượng.
-
-Lab [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md) giữ workload cũ và thêm bootstrap mới trên cùng dataset để đo request/payload/latency. Không lấy test mock làm số đo mạng production. Test tích hợp riêng: `npm run test:moderation:integration --prefix backend` với `MODERATION_TEST_MONGODB_URI` của replica set test được cho phép; tạo/drop đúng DB ngẫu nhiên `moderation_test_<id>`, không đọc `.env` hoặc bootstrap admin.
-
-Ba index StudentWarning candidate phục vụ expiry/admin/student ordering được thử trong lab; ABBA xác nhận query plan nhưng latency còn nhiễu, chưa nghiệm thu throughput hoặc write overhead. Không tự apply/deploy index production.
-
-### Kết quả luồng kiểm duyệt local sau triển khai
-
-Report local `c073105d4c135ef353c9c426.json` dùng cùng database/dataset giữa legacy và API mới: 2.000 user, 400 lớp, 2.000 cảnh báo, mỗi loại học liệu 1.200 bản ghi. MongoDB 7.0.45, 2 CPU/1 GiB RAM, Node v20.20.0. Kết quả dưới đây ở pha index schema; bootstrap gồm 5 mẫu warm/luồng, request đầu ghi riêng.
-
-| Bootstrap trang kiểm duyệt | Legacy tải toàn bộ | Summary + trang warnings đầu |
-|---|---:|---:|
-| HTTP request | 23 | 2 |
-| Body tổng sau giải nén | 2.250.251 byte | 13.504 byte |
-| Median local | 540,48 ms | 16,86 ms |
-| p95 local | 561,48 ms | 19,00 ms |
-
-Hai luồng khác lượng dữ liệu có chủ đích: bản mới chỉ tải trang/tab đang xem, chưa tải toàn bộ nội dung legacy. Không dùng số này làm cam kết cải thiện production hoặc tốc độ mọi tab. Tab học sinh trang đầu đo riêng median 93,38 ms / p95 135,79 ms (20 mẫu warm); exact total + lookup vẫn phụ thuộc quy mô dữ liệu. Tab lớp median 12,30 ms / p95 14,11 ms.
-
-Không có pending hết hạn trong workload latency; chưa mô phỏng nhiều transaction hết hạn, load đồng thời, CDN/TLS hoặc nén Vercel. Báo cáo hoàn tất, database/client/container test đã được dọn. Test tích hợp MongoDB riêng xác minh nghiệp vụ hết hạn, tổng/danh sách đúng bộ lọc legacy, quyền truy cập và giữ contract API cũ.
-
-Kiểm tra lịch sử tại giai đoạn 2 (`bd48fc8`): backend 105/105 test, frontend 19/19 test (6 suites), tích hợp moderation 5/5 (4 kịch bản + test bao ngoài), frontend production build thành công. Kết quả chạy lại trên main mới nhất và smoke Chromium xem [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md); không dùng số test lịch sử thay kết quả mới hoặc nghiệm thu của chủ dự án. Chưa tự đánh dấu toàn bộ #11 Done.
+- Source backend cuối: **111/111** unit/HTTP; **15/15** MongoDB integration (13 kịch bản + 2 test bao ngoài), gồm filter/sort/quyền giả mạo, summary chính xác, trang rỗng/vượt cuối, status legacy, contract cũ, transaction expiry, query count/trang song song và trang thumbnail tổng 20 MiB.
+- Frontend c9aca17: **31/31**, 10 suites, build thành công; không sửa source frontend trong bước tối ưu cuối. Không tự coi kết quả này đại diện toàn bộ develop sau khi tích hợp FE khác.
+- Chromium cuối **27/27**, report `browser-55419c7fd0c5e487b88a98c7/report.json`: ba role, 1440×1000 / 390×844, paging/filter/empty/reset/retry, tab tải theo nhu cầu, review single-submit + làm mới tổng, lazy học liệu, admin guard, menu mobile không tràn ngang/page crash. JWT/data giả local, chặn mạng ngoài; chỉ ca 503 là transport mock, không phải test login/thiết bị vật lý/production. Không dùng lượt lỗi hoặc bị restart làm bằng chứng.
+- Deployment main c9aca17: `/api/docs` HTTP 200, `Content-Encoding: br`, cache public 300 giây; **chưa xác minh nén mọi payload riêng tư có auth**. Chưa đo tải đồng thời, tồn đọng expiry lớn, chi phí ghi, TLS/CDN/cold start; không apply index/seed production trong lab.
+- Contains vẫn có thể scan toàn tập; exact count/deep offset vẫn tăng chi phí theo dữ liệu. Index tìm kiếm chuyên dụng, field dẫn xuất/backfill hoặc dịch vụ search cần duyệt riêng; không tự đổi sang prefix/full-text/count ước lượng. Done của #11 không có nghĩa các phần này đã triển khai.

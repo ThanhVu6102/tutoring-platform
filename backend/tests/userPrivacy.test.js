@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Class = require('../models/Class');
@@ -37,7 +38,7 @@ async function appURL(t, path, router, role = 'student') {
 
 function headers() {
   return { Authorization: `Bearer ${jwt.sign({ userId: viewerId },
-    process.env.JWT_SECRET || 'your-secret-key')}` };
+    process.env.JWT_SECRET)}` };
 }
 
 // Kiểm tra allowlist cho cả document Mongoose lẫn object thường, kể cả trường mới.

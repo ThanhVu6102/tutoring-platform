@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const StudentWarning = require('../models/StudentWarning');
@@ -11,7 +12,7 @@ const { accessibleClass } = require('../utils/classSessions');
 const studentId = 'a'.repeat(24);
 const teacherId = 'b'.repeat(24);
 const classId = 'c'.repeat(24);
-const token = jwt.sign({ userId: studentId, role: 'admin' }, process.env.JWT_SECRET || 'your-secret-key');
+const token = jwt.sign({ userId: studentId, role: 'admin' }, process.env.JWT_SECRET);
 const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 const query = (value) => ({
   select() { return this; }, populate() { return this; }, sort() { return this; },

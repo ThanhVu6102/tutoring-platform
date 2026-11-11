@@ -1,53 +1,50 @@
-# MongoDB workflow integration
+# Luồng tài khoản, buổi học và điểm danh
 
-Branch `fix/integrate-mongodb-workflow` is based on `origin/main`, not the older `develop` branch. Existing main features are retained: class join codes and requests, policy acceptance, warning/appeal workflows, suspensions/bans, profile editing and uploads.
+Tài liệu mô tả hành vi đã tích hợp, không phải kế hoạch theo branch cũ. Quy tắc kháng cáo/chế tài chi tiết ở [APPEALS.md](APPEALS.md); dữ liệu được phép trả ở [USER_PRIVACY.md](USER_PRIVACY.md).
 
-## Accounts
+## 1. Tài khoản
 
-- Roles remain `admin`, `teacher`, `student` for frontend compatibility.
-- Student registrations become active; teacher registrations wait for admin approval without receiving a token.
-- Registration still requires `acceptedPolicies: true` and records policy acceptance/version.
-- `PUT /api/users/:id/approve` and `/reject` atomically review pending teachers and record reviewer metadata.
-- Middleware checks current database role, lifecycle status, soft deletion, manual blocking, permanent bans and suspensions. Legacy accounts without a status field remain active unless another restriction applies.
-- Audit logging is best-effort; account review metadata is stored atomically on the user document.
+- Giữ ba role `admin`, `teacher`, `student`. Học sinh đăng ký được active; giáo viên chờ admin duyệt và chưa nhận token.
+- Đăng ký yêu cầu `acceptedPolicies: true`, lưu thời điểm/phiên bản chấp nhận chính sách.
+- `PUT /api/users/:id/approve` hoặc `/reject` xét duyệt nguyên tử tài khoản giáo viên pending, lưu người/thời điểm/ghi chú xử lý.
+- Middleware lấy role và trạng thái hiện tại từ DB; kiểm tra xóa mềm, khóa thủ công, cấm vĩnh viễn và đình chỉ. Tài khoản legacy thiếu status vẫn hoạt động nếu không có hạn chế khác.
+- Metadata xét duyệt nằm cùng user document; audit log là best-effort, không thay tính nguyên tử của quyết định.
 
-## Sessions and attendance
+## 2. API buổi học và điểm danh
 
-All endpoints require `Authorization: Bearer <token>`.
+Mọi endpoint yêu cầu `Authorization: Bearer <token>` và quyền lớp tương ứng.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/classes/:id/sessions` | Create a session for the class teacher/admin |
-| GET | `/api/classes/:id/sessions?page=1&limit=20` | Paginated list, limit at most 100 |
-| GET | `/api/sessions/:id` | Session details, excluding attendance roster |
-| PUT | `/api/sessions/:id/status` | Change session status |
-| GET | `/api/sessions/:id/attendances` | Teacher/admin roster or student's own attendance |
-| POST | `/api/sessions/:id/check-in` | Teacher/admin records attendance |
+| Method / URL | Chức năng |
+|---|---|
+| `POST /api/classes/:id/sessions` | Giáo viên phụ trách/admin tạo buổi học |
+| `GET /api/classes/:id/sessions?page=1&limit=20` | Danh sách phân trang, limit tối đa 100 |
+| `GET /api/sessions/:id` | Chi tiết, không kèm toàn bộ danh sách điểm danh |
+| `PUT /api/sessions/:id/status` | Chuyển trạng thái buổi học |
+| `GET /api/sessions/:id/attendances` | Giáo viên/admin xem danh sách; student chỉ xem điểm danh của mình |
+| `POST /api/sessions/:id/check-in` | Giáo viên/admin ghi điểm danh |
 
-Create body:
+Ví dụ body tạo buổi học:
 
 ```json
 {
-  "title": "Chapter 1 review",
+  "title": "Ôn tập chương 1",
   "startsAt": "2026-11-01T19:00:00+07:00",
   "endsAt": "2026-11-01T20:30:00+07:00",
-  "location": "Room 201"
+  "location": "Phòng 201"
 }
 ```
 
-- Dates must have a timezone; end time must be after start time.
-- Session creation requires MongoDB Atlas or a replica set. It locks the teacher and class inside a transaction before checking teacher schedule overlap. Standalone MongoDB returns `503`, without an unsafe nontransactional fallback.
-- Attendance is embedded in the session and initialized as `absent` for students enrolled when the session is created. Later enrollments do not automatically alter older rosters.
-- Attendance body: `{ "student_id": "24-character ObjectId", "status": "present", "note": "" }`.
-- Attendance statuses: `present`, `absent`, `late`, `excused`; only ongoing/completed sessions can be updated. Student must still belong to the class and exist in its session snapshot.
-- Session transitions: scheduled to ongoing/completed/cancelled; ongoing to completed/cancelled. Terminal states cannot be reopened.
-- No student self-check-in, QR, rescheduling, student timetable clash detection or room clash detection yet.
-- Locked/archived classes reject student access and attendance/status writes. Managers can read history. Creating sessions in inactive classes is not allowed.
-- Deleting a class now archives it instead of removing its history. Existing main admin reopening and policy lock/appeal flows remain available.
-- Creation/status changes emit best-effort audit logs. Creator, status actor and attendance recorder are stored directly on the session.
+## 3. Quy tắc dữ liệu
 
-## Validation
+- Ngày giờ phải có múi giờ, kết thúc sau bắt đầu. Tạo buổi học yêu cầu Atlas/replica set: transaction khóa ghi teacher/class trước khi kiểm tra trùng lịch giáo viên. MongoDB standalone trả `503`, không fallback sang ghi rời rạc.
+- Điểm danh được nhúng trong session, khởi tạo `absent` cho học sinh thuộc lớp lúc tạo. Học sinh vào sau không tự được thêm vào danh sách buổi học cũ.
+- Body điểm danh: `{ "student_id": "<ObjectId 24 ký tự hex>", "status": "present", "note": "" }`. Status: `present`, `absent`, `late`, `excused`; chỉ cập nhật buổi ongoing/completed. Student phải còn thuộc lớp và có trong danh sách lúc tạo buổi.
+- Chuyển trạng thái: `scheduled → ongoing/completed/cancelled`, `ongoing → completed/cancelled`. Không mở lại trạng thái kết thúc.
+- Lớp khóa/lưu trữ chặn student và thao tác ghi điểm danh/trạng thái; quản lý vẫn đọc lịch sử. Không tạo buổi trong lớp inactive.
+- Xóa lớp chuyển thành lưu trữ để giữ lịch sử; giữ luồng admin mở lại lớp và xử lý khóa/kháng cáo hiện có. Người tạo, người đổi trạng thái, người điểm danh được lưu trực tiếp; audit log best-effort.
 
-Run `npm test` in `backend`. Tests use mocked database operations and HTTP routers; real MongoDB transactions/concurrency still need integration testing on a replica set.
+## 4. Kiểm thử và ngoài phạm vi
 
-Not yet implemented: separate tutor/student profiles, parent links, tuition/payments, tutor reviews, activation emails, refresh tokens or frontend session/attendance screens. Default admin credentials and JWT fallback still need production hardening.
+`npm test --prefix backend` kiểm tra nghiệp vụ bằng mock/HTTP; không thay kiểm chứng transaction và cạnh tranh trên replica set thật.
+
+Chưa có tự điểm danh/QR, dời lịch, kiểm tra trùng lịch học sinh/phòng, màn hình buổi học/điểm danh riêng; các hạng mục hồ sơ gia sư/phụ huynh/học phí/đánh giá, email kích hoạt và refresh token không thuộc phần tích hợp này. Bảo mật cấu hình admin/JWT là phạm vi riêng, không được coi đã xử lý bởi các API này.

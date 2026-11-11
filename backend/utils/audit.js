@@ -27,7 +27,7 @@ async function writeAudit({ actorId, action, targetType, targetId, oldData, newD
     });
   } catch (error) {
     // Ghi log lỗi không chặn nghiệp vụ: thao tác chính vẫn thành công dù log lỗi.
-    console.error('Audit log failed:', error?.message || error);
+    console.error('Không thể ghi nhật ký thao tác:', error?.message || error);
     return null;
   }
 }

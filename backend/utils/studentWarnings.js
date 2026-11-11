@@ -6,8 +6,8 @@ const { id, fail, appealInput, reviewInput } = require('./appealValidation');
 
 async function warningConflict(warningId, studentId) {
   const filter = { _id: warningId, ...(studentId ? { student: studentId } : {}) };
-  if (!await StudentWarning.exists(filter)) fail(404, 'Warning not found');
-  fail(409, 'This warning has already changed or is no longer open for this action');
+  if (!await StudentWarning.exists(filter)) fail(404, 'Không tìm thấy cảnh báo');
+  fail(409, 'Cảnh báo đã thay đổi hoặc không còn cho phép thao tác này');
 }
 
 // Hạn gửi và quyền sở hữu nằm ngay trong điều kiện ghi, không dựa vào bản đọc trước đó.
@@ -39,7 +39,7 @@ const confirmStudentWarning = async (warningId, adminResponse, { reviewedBy, exp
     const student = await User.findOneAndUpdate(
       { _id: candidate.student }, { $inc: { warningRevision: 1 } }, { session, new: true }
     );
-    if (!student) fail(409, 'The student for this warning no longer exists');
+    if (!student) fail(409, 'Học sinh nhận cảnh báo này không còn tồn tại');
 
     const now = new Date();
     const warning = await StudentWarning.findOneAndUpdate(filter, { $set: {
