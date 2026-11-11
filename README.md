@@ -126,7 +126,7 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 * Danh sách lớp trả `studentCount`/`joinRequestCount` thay vì populate roster; danh sách quiz trả `questionCount`/`hasPromptImage`, không tải đề/ảnh base64. Endpoint chi tiết giữ chức năng hiện có.
 * Dashboard phân trang; chi tiết lớp tải học liệu theo tab và lấy tổng qua `GET /api/classes/:id/content-summary`. Các route nặng được lazy-load.
 * Kết nối MongoDB và bước khởi tạo dùng chung promise trong mỗi instance. API riêng tư không cache ở CDN; có `Server-Timing` và logging timing tùy chọn.
-* Công cụ và giới hạn: [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Chưa đo latency/query plan trên MongoDB thật; các màn hình lịch sử/kiểm duyệt vẫn có phần đọc nhiều trang để giữ đúng thống kê. Chưa coi toàn bộ issue đã nghiệm thu.
+* Công cụ và giới hạn: [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [bằng chứng nghiệm thu](docs/PERFORMANCE_ACCEPTANCE.md). Đã đo trên MongoDB Docker/dữ liệu giả; kiểm duyệt phân trang theo tab, còn một số lịch sử/thông báo đọc nhiều trang. Không coi số đo local hoặc merge là nghiệm thu toàn bộ issue.
 
 ---
 

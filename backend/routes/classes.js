@@ -264,9 +264,13 @@ router.get('/', authMiddleware, async (req, res) => {
       },
       populate: { path: 'teacher', select: 'name email role' },
       sort,
+      countHint: Object.keys(filter).length === 0 ? '_id_' : undefined,
+      countSummary: req.userRole === 'admin' && req.query.summary === 'true' && Boolean(q || search || req.query.view === 'history'),
     });
     // Tổng theo filter toàn bộ, không lấy số phần tử của trang hiện tại để làm thống kê.
     if (req.userRole === 'admin' && req.query.summary === 'true') {
+      // Contains/history đã tính total/active/inactive chung một lần lọc.
+      if (q || search || req.query.view === 'history') return res.json(await resultPromise);
       // Các count độc lập chạy cùng lúc với trang dữ liệu, không chờ thêm một vòng DB.
       const [result, [active, inactive]] = await Promise.all([resultPromise, Promise.all([
         filter.status === 'inactive' ? 0 : Class.countDocuments({ ...filter, status: 'active' }),

@@ -12,7 +12,7 @@ const classId = 'b'.repeat(24);
 // Query giả ghi lại thao tác để chứng minh limit/projection được gửi xuống DB.
 function query(value, calls = {}) {
   const chain = { then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); } };
-  for (const method of ['select', 'sort', 'skip', 'limit', 'populate']) {
+  for (const method of ['select', 'sort', 'skip', 'limit', 'populate', 'hint']) {
     chain[method] = (arg) => { calls[method] = arg; return chain; };
   }
   chain.lean = async () => { calls.lean = true; return value; };
@@ -53,6 +53,59 @@ test('readPage uses bounded lean queries and the same permission filter for coun
   assert.deepEqual(calls.sort, { createdAt: -1, _id: -1 });
   assert.equal(result.total, 42);
   assert.equal(result.totalPages, 5);
+});
+
+test('readPage combines exact summary counts while preserving a parallel bounded page and empty totals', async () => {
+  const filter = { teacher: viewerId, $or: [{ name: /literal/i }, { description: /literal/i }] };
+  const pipelines = [];
+  let empty = false;
+  const Model = {
+    aggregate: async (steps) => {
+      pipelines.push(steps);
+      return steps.at(-1).$group && !empty ? [{ _id: 'active', count: 40 }, { _id: 'inactive', count: 2 }] : [];
+    },
+    countDocuments: () => assert.fail('Summary group must replace independent counts'),
+    populate: async (data) => data,
+  };
+  const options = { projection: { name: 1 }, countSummary: true, populate: { path: 'teacher' } };
+  const result = await readPage(Model, { query: { page: '9', limit: '10' } }, filter, options);
+  assert.equal(pipelines.length, 2);
+  assert.ok(pipelines.every((pipeline) => pipeline[0].$match === filter));
+  assert.deepEqual(pipelines[0].slice(1), [{ $sort: { createdAt: -1, _id: -1 } }, { $skip: 80 }, { $limit: 10 }, { $project: { name: 1 } }]);
+  assert.deepEqual(pipelines[1][1].$group, { _id: '$status', count: { $sum: 1 } });
+  assert.deepEqual(result.summary, { total: 42, active: 40, inactive: 2 });
+  assert.equal(result.totalPages, 5);
+  assert.deepEqual(result.data, []);
+  empty = true;
+  const noMatches = await readPage(Model, { query: {} }, filter, options);
+  assert.equal(noMatches.totalPages, 0);
+  assert.deepEqual(noMatches.summary, { total: 0, active: 0, inactive: 0 });
+});
+
+test('summary count does not serialize page content behind count completion', async () => {
+  const filter = { teacher: viewerId };
+  let started = 0;
+  const releases = [];
+  const Model = { aggregate: (pipeline) => ({ then: (resolve) => {
+    started++;
+    releases.push(() => resolve(pipeline.at(-1).$group ? [{ _id: 'active', count: 1 }, { _id: null, count: 2 }] : [{ name: 'Lớp' }]));
+  } }) };
+  const pending = readPage(Model, { query: {} }, filter, { projection: { name: 1 }, countSummary: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(started, 2);
+  releases.forEach((release) => release());
+  const result = await pending;
+  assert.equal(result.total, 3);
+  assert.deepEqual(result.summary, { total: 3, active: 1, inactive: 0 });
+  assert.equal(result.data[0].name, 'Lớp');
+});
+
+test('readPage uses only the server-selected exact-count hint', async () => {
+  const calls = {};
+  const Model = { find: () => query([], {}), countDocuments: () => query(123, calls) };
+  const result = await readPage(Model, { query: { hint: 'client-must-not-control-this' } }, {}, { countHint: '_id_' });
+  assert.equal(calls.hint, '_id_');
+  assert.equal(result.total, 123);
 });
 
 test('sort/filter indexes are declared without connecting to a database', () => {
@@ -126,7 +179,7 @@ for (const role of ['student', 'teacher', 'admin']) {
 test('admin class summary uses global counts instead of the current page size', async (t) => {
   t.mock.method(Class, 'aggregate', async () => [{ name: 'Một lớp trên trang' }]);
   t.mock.method(Class, 'populate', async (data) => data);
-  t.mock.method(Class, 'countDocuments', async (filter) => filter.status === 'active' ? 40 : filter.status === 'inactive' ? 2 : 42);
+  t.mock.method(Class, 'countDocuments', (filter) => query(filter.status === 'active' ? 40 : filter.status === 'inactive' ? 2 : 42));
   const base = await appURL(t, '/api/classes', require('../routes/classes'), 'admin');
   const response = await fetch(`${base}/api/classes?summary=true`, { headers: headers() });
   assert.equal(response.status, 200);

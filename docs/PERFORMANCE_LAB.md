@@ -94,7 +94,7 @@ Sau hai lượt đo ở database mới khác nhau, chủ dự án xác nhận th
 
 Mỗi pha vẫn bỏ request đầu khỏi thống kê warm, lưu các warm trial không có nội dung response/query/secret để có thể đối chiếu. Các workload không liên quan cảnh báo là đối chứng. Không gộp p95 bằng cách lấy trung bình p95 từng pha. Thứ tự ABBA giảm nhiễu thời gian nhưng không loại hết ảnh hưởng cache/CPU; chưa đo ghi dữ liệu và chưa phải benchmark production hoặc load đồng thời.
 
-### Kết quả local đã quan sát (chưa deploy)
+### Kết quả local đã quan sát (không phải số đo production)
 
 Report local `b3f436ec95121e745ab9f66c.json` dùng 2.000 user / 400 lớp / 2.000 cảnh báo, 20 mẫu warm cho workload đơn ở mỗi pha và 5 mẫu bootstrap. Kiểm tra index vật lý xác nhận A/B chỉ khác đúng ba candidate. Cleanup database/container thành công.
 
@@ -107,3 +107,39 @@ Report local `b3f436ec95121e745ab9f66c.json` dùng 2.000 user / 400 lớp / 2.00
 Thống kê gộp từ mẫu thô: A/B mỗi nhóm có 40 mẫu đơn hoặc 10 mẫu bootstrap. Query plan bỏ COLLSCAN của kiểm tra hết hạn và blocking SORT của hai danh sách cảnh báo trong cả hai pha B; khi quay lại A thì các scan/sort cũ xuất hiện lại.
 
 Đây **không phải cam kết cải thiện latency do index**: đối chứng classes/users cũng nhanh hơn ở pha B, có drift theo thời gian, và p95 student tăng. Chưa đo write overhead hoặc production. Danh sách admin vẫn trả 1.520.616 byte và bootstrap vẫn 23 request / 2.250.251 byte. Cần phân trang/giảm tải dữ liệu để xử lý điểm nghẽn đó; thay đổi API/FE cần xác nhận riêng.
+
+## So sánh snapshot code trước/sau — bổ sung ngày 2026-11-11
+
+```powershell
+# Dry-run, không tạo tài nguyên
+npm run perf:code:lab --prefix backend
+# Chỉ chạy sau khi được phép tạo Docker local/dữ liệu giả
+npm run perf:code:lab --prefix backend -- --run --samples 20
+# So sánh main c9aca17 với application tracked đang sửa, cùng payload/filter
+npm run perf:code:lab --prefix backend -- --candidate --run --classes 5000 --users 5000 --samples 20
+# Filter + moderation integration, tự tạo/dọn replica set riêng
+npm run test:filters:lab --prefix backend
+```
+
+- Runner `performance-code-lab.js` trích đúng các file JS tracked thuộc routes/models/utils/middleware/config của hai Git commit cố định: `f46880307bb769b5a347736bf60c7e3f04d22f4b` (trước BE #04) và `c9aca1771552d8d372bbf2222801c9a16ffc2505` (main sau PR #48). Không checkout/đổi worktree; mỗi snapshot có hash SHA-256 từng file trong report.
+- Hai worker Node riêng nạp router thật từ snapshot, dùng dependency backend đang cài qua NODE_PATH. Không import server.js, nạp .env hay bootstrap admin. Đây là so sánh hai revision tổng thể, không chỉ riêng một commit hoặc tác động độc lập của index.
+- Cùng database `perf_code_<24hex>`, cùng user/lớp giả và cùng index vật lý của schema main cho cả hai phiên bản. Các candidate warning index không tham gia thí nghiệm này. Không giả định đây là bộ index production trước đây.
+- Container `tutoring-code-<24hex>` có nhãn `tutoring.lab=be04-code`/run ID; giới hạn tài nguyên/loopback/tmpfs giống lab cũ. Helper `isolated-mongo.js` chỉ dọn đúng container đã xác minh nhãn và đúng database phát sinh của lần chạy.
+- Worker chỉ cho GET hai pathname `/api/classes` và `/api/users` ở HTTP server loopback của chính nó. Runner không nhận URI, token hoặc snapshot tùy ý từ CLI; JWT/secret ngẫu nhiên trong bộ nhớ, log thư viện bị chặn. Quan sát command trong mỗi request và dừng nếu có command không thuộc danh sách đọc; đây không phải sandbox bảo vệ khỏi mã Git độc hại.
+- Có request đầu riêng (kèm EXPLAIN ngoài đồng hồ), sau đó các block ABBA tuần tự; số mẫu thực tế là `2 × ceil(samples/2)` mỗi phiên bản. Không chạy đồng thời hai request đo. Report lưu median/p95, byte giải mã, row count, total, command count và digest tập ID, không lưu body/token/raw query.
+- Tổng scope trước/sau phải bằng nhau; khi cùng số dòng thì digest ID phải khớp. Classes cũ bỏ qua paging, users cũ có paging khi có limit nhưng không có limit thì unbounded: xem đúng `comparison` và `returnedRows`, không gộp thành một tuyên bố tối ưu query tương đương.
+- EXPLAIN bổ sung trên bộ lọc mới chỉ chạy revision sau: subject/grade/status, teacher ID/email, name sort, q và history. Không lấy các query code cũ chưa hỗ trợ để giả làm before/after ngang điều kiện.
+- Report nằm ở `docs/local/performance/code-<id>.json`; snapshot tạm được dọn sau khi dừng worker. Kết quả và ngoại lệ scan: [PERFORMANCE_ACCEPTANCE.md](PERFORMANCE_ACCEPTANCE.md).
+- `--candidate` giữ before là main `c9aca17`, đọc bản working tree của đúng danh sách application JS tracked tại commit đó cho after. Không nhận revision/path tùy ý; report ghi rõ source working tree và hash từng file, không gọi bản chưa commit là một Git revision mới. Hai phiên bản vẫn chạy trên cùng index vật lý/dataset. Runner so digest toàn bộ JSON đã chuẩn hóa key cho từng workload để bắt sai khác summary, order hoặc projection, không chỉ so số dòng.
+- Chế độ candidate bổ sung timing/EXPLAIN q hiếm/rộng/rỗng, summary và history, dùng cùng query ở cả before/after. Lượt 6 mẫu có thể chạy cùng regression để kiểm tra harness nhưng không dùng kết luận latency; lượt chính chạy riêng sau các test/build/browser do agent khởi động đã hoàn tất.
+- `test:filters:lab` chạy hai suite MongoDB thật tuần tự, mỗi suite tự tạo/drop database ngẫu nhiên riêng. Không đọc URI ứng dụng; có thể chạy riêng test filter bằng `test:filters:integration` với biến `CLASS_FILTERS_TEST_MONGODB_URI` của replica set test được phép.
+
+## Smoke test Chromium local
+
+Sau khi được cho phép, cài Playwright/Chromium riêng trong thư mục công cụ tạm (không sửa dependency ứng dụng), build frontend rồi chạy:
+
+```powershell
+node backend/scripts/browser-smoke.js --tools-dir 'C:\path\to\temporary-playwright-tools'
+```
+
+Runner phục vụ production build + router thật trên cùng origin loopback và MongoDB Docker riêng, dùng JWT giả để kiểm tra ba role. Mọi request ra origin khác bị chặn trước khi đi mạng; không dùng tài khoản/secret production. Một ca lỗi 503 được mô phỏng ở lớp transport để kiểm tra retry; các API đọc/review còn lại đi router/MongoDB thật. Screenshot và report ở `docs/local/performance/browser-<id>/`, không phải bằng chứng nghiệm thu trực quan của chủ dự án hay test đăng nhập/production.
