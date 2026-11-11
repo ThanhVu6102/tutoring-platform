@@ -5,6 +5,7 @@
 | [Luồng dữ liệu](MONGODB_WORKFLOW.md) | Tài khoản, buổi học, điểm danh và transaction |
 | [Hồ sơ và mật khẩu](USER_PRIVACY.md) | Quyền riêng tư, trường được phép trả và [đổi mật khẩu](USER_PRIVACY.md#doi-mat-khau) |
 | [Khởi tạo quản trị viên](ADMIN_BOOTSTRAP.md) | Tạo tài khoản ban đầu thủ công, không ghi đè mật khẩu hoặc khôi phục tài khoản hiện có |
+| [Bảo mật backend](BACKEND_SECURITY.md) | JWT fail closed, giới hạn kiểm thử và checklist xoay khóa vận hành |
 | [Kháng cáo và kiểm duyệt](APPEALS.md) | Cảnh báo/chế tài, khóa lớp, lịch sử và [API kiểm duyệt](APPEALS.md#kiem-duyet) |
 | [Hiệu năng](PERFORMANCE.md) | Phân trang, truy vấn, tải frontend, số đo và [nghiệm thu BE #04](PERFORMANCE.md#ket-qua) |
 | [Công cụ kiểm chứng](PERFORMANCE_LAB.md) | Chạy benchmark, MongoDB integration và Chromium an toàn |

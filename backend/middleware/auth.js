@@ -9,6 +9,7 @@
 
 // Nạp jsonwebtoken để giải mã và xác thực token do API login cấp.
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../config/jwt');
 // Nạp model User để đối chiếu trạng thái mới nhất trong DB với token.
 // (Token cũ có thể còn hạn 7 ngày dù admin vừa khóa / xóa / hạ quyền.)
 const User = require('../models/User');
@@ -36,10 +37,16 @@ const authMiddleware = async (req, res, next) => {
     return res.status(401).json({ message: 'Vui lòng đăng nhập' });
   }
 
+  let secret;
+  try {
+    secret = jwtSecret();
+  } catch {
+    return res.status(503).json({ message: 'Dịch vụ xác thực chưa sẵn sàng' });
+  }
   let decoded;
   try {
     // B3: Giải mã + xác thực chữ ký token. Sai khóa / hết hạn sẽ ném lỗi.
-    decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
     // Token phải chứa userId và role hợp lệ thì mới xem xét tiếp.
     if (typeof decoded?.userId !== 'string' || !/^[a-f\d]{24}$/i.test(decoded.userId)) {
       return res.status(401).json({ message: 'Phiên đăng nhập không hợp lệ' });

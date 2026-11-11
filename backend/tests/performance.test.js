@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const { pagination, readPage } = require('../utils/pagination');
 const { cachedConnection } = require('../utils/mongoConnection');
 const User = require('../models/User');
@@ -29,7 +30,7 @@ async function appURL(t, prefix, router, role = 'student') {
   t.after(() => { server.closeAllConnections(); server.close(); });
   return `http://127.0.0.1:${server.address().port}`;
 }
-const headers = () => ({ Authorization: `Bearer ${jwt.sign({ userId: viewerId }, process.env.JWT_SECRET || 'your-secret-key')}` });
+const headers = () => ({ Authorization: `Bearer ${jwt.sign({ userId: viewerId }, process.env.JWT_SECRET)}` });
 
 test('pagination defaults, caps and rejects malformed values', () => {
   assert.deepEqual(pagination(), { page: 1, limit: 20 });

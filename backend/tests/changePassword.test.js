@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const { changePassword } = require('../utils/changePassword');
 const actorId = 'a'.repeat(24);
@@ -98,7 +99,7 @@ test('HTTP password route authenticates, hides secrets and blocks inactive users
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
-  const token = jwt.sign({ userId: actorId }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: actorId }, process.env.JWT_SECRET);
   const request = async (authenticated = true) => {
     const result = await fetch(`http://127.0.0.1:${server.address().port}/api/users/password`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', ...(authenticated ? { Authorization: `Bearer ${token}` } : {}) },

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const Class = require('../models/Class');
 const User = require('../models/User');
 const ClassSession = require('../models/ClassSession');
@@ -206,7 +207,7 @@ test('HTTP routes enforce student privacy and manager-only writes', async (t) =>
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
   const base = `http://127.0.0.1:${server.address().port}`;
-  const token = jwt.sign({ userId: ids.student, role: 'admin' }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: ids.student, role: 'admin' }, process.env.JWT_SECRET);
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   const result = await fetch(`${base}/api/sessions/${ids.session}/attendances`, { headers });
   assert.equal(result.status, 200);

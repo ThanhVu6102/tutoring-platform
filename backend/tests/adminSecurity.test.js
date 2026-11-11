@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const StudentWarning = require('../models/StudentWarning');
 const { adminBootstrapConfig, bootstrapAdmin } = require('../utils/adminBootstrap');

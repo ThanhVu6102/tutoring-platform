@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const StudentWarning = require('../models/StudentWarning');
@@ -20,7 +21,7 @@ async function client(t, role = 'admin') {
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
-  const token = jwt.sign({ userId: id, role: 'admin' }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: id, role: 'admin' }, process.env.JWT_SECRET);
   return async (path, authenticated = true) => {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/moderation/${path}`, {
       headers: authenticated ? { Authorization: `Bearer ${token}` } : {},

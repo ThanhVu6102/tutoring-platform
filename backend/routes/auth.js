@@ -10,6 +10,7 @@
 const express = require('express');
 // Nạp jsonwebtoken để ký (sign) token đăng nhập cho client.
 const jwt = require('jsonwebtoken');
+const { requireJwtConfiguration } = require('../config/jwt');
 // Nạp model User để truy vấn MongoDB (tìm user, tạo user mới).
 const User = require('../models/User');
 const StudentWarning = require('../models/StudentWarning');
@@ -19,6 +20,8 @@ const { sendError } = require('../utils/respond');
 
 // Tạo router riêng cho nhóm API /api/auth.
 const router = express.Router();
+// Chặn trước khi đọc/ghi tài khoản, kể cả đăng ký giáo viên chưa cấp token.
+router.use(requireJwtConfiguration);
 const POLICY_VERSION = '0.1.1';
 
 // ----------------------------------------------------------------------------
@@ -97,8 +100,8 @@ router.post('/register', async (req, res) => {
 
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key', // khóa bí mật, nên đặt JWT_SECRET trên env.
-      { expiresIn: '7d' }
+      req.jwtSecret,
+      { expiresIn: '7d', algorithm: 'HS256' }
     );
 
     // B6c: Trả về 201 (Created) kèm token + thông tin cơ bản để frontend lưu localStorage.
@@ -202,8 +205,8 @@ router.post('/login', async (req, res) => {
     // Đúng cả hai -> ký JWT với role thật trong DB.
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      req.jwtSecret,
+      { expiresIn: '7d', algorithm: 'HS256' }
     );
 
     // Trả về token + info để frontend lưu và phân quyền hiển thị.

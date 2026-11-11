@@ -193,9 +193,10 @@ MongoDB gồm 8 collections chính:
 3. Tại thư mục `/backend`, tạo tệp `.env`:
    ```env
    MONGODB_URI=mongodb://localhost:27017/tutoring-platform
-   JWT_SECRET=ma_bao_mat_jwt_cua_ban
    PORT=5000
    ```
+
+`JWT_SECRET` phải được cấp riêng qua môi trường/secret manager: sinh ít nhất 32 byte ngẫu nhiên bằng CSPRNG, không dùng giá trị mẫu hoặc ghi khóa vào Git/log. Xem [chính sách JWT và xoay khóa](docs/BACKEND_SECURITY.md).
 
 ### Bước 2: Cài dependencies và tạo admin
 ```bash
@@ -240,7 +241,7 @@ Frontend và backend deploy chung 1 domain: `vercel.json` build `frontend/build`
    * `Database` > Connect > Drivers (Node.js) > copy chuỗi `mongodb+srv://...`, thêm tên db: `...mongodb.net/tutoring-platform?...`.
 2. Vercel Dashboard > project > Settings > Environment Variables, thêm cho cả Production:
    * `MONGODB_URI` = chuỗi Atlas ở trên (Type Secret).
-   * `JWT_SECRET` = chuỗi ngẫu nhiên dài.
+   * `JWT_SECRET` = khóa sinh ngẫu nhiên theo [chính sách JWT](docs/BACKEND_SECURITY.md); thiếu/sai sẽ từ chối xác thực, không dùng khóa dự phòng.
 3. Push code lên `main` (Vercel tự deploy) hoặc bấm Redeploy sau khi thêm env.
 4. Kiểm tra: mở `https://<domain-cua-ban>.vercel.app/api/health` phải ra `{"status":"ok"}`, rồi mới test đăng ký/đăng nhập bằng tab ẩn danh (tránh cache bản cũ).
 
