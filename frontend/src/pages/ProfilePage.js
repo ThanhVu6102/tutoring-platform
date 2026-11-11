@@ -99,7 +99,7 @@ const ProfilePage = () => {
       <header className="profile-heading">
         <p className="admin-eyebrow">TÀI KHOẢN</p>
         <h1>Thông tin cá nhân</h1>
-        <p>{role === 'teacher' ? 'Quản lý hồ sơ giáo viên và xem lịch sử xử lý lớp học.' : 'Quản lý hồ sơ học sinh và xem lịch sử cảnh báo.'}</p>
+        <p>{role === 'teacher' ? 'Quản lý hồ sơ giáo viên và xem lịch sử xử lý lớp học.' : role === 'admin' ? 'Quản lý hồ sơ quản trị.' : 'Quản lý hồ sơ học sinh và xem lịch sử cảnh báo.'}</p>
       </header>
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
@@ -125,9 +125,10 @@ const ProfilePage = () => {
       </section>
 
       {/* Form mật khẩu độc lập với lưu hồ sơ để không truyền nhầm thông tin bí mật. */}
-      <ChangePasswordForm />
+      <ChangePasswordForm userRole={role} />
 
-      <section className="profile-history">
+      {/* Lịch sử cảnh báo và xử lý lớp chỉ thuộc hồ sơ học sinh, giáo viên. */}
+      {role !== 'admin' && <section className="profile-history">
         <header><h2>{role === 'teacher' ? 'Lịch sử thông báo về lớp' : 'Lịch sử cảnh báo'}</h2></header>
         {role === 'student' && warnings.length === 0 && <p className="admin-state">Bạn chưa nhận cảnh báo nào.</p>}
         {role === 'student' && warnings.map((warning) => (
@@ -140,7 +141,7 @@ const ProfilePage = () => {
             {warning.appealMessage && <p><strong>Kháng cáo:</strong> {warning.appealMessage}</p>}
             {warning.adminResponse && <p><strong>Phản hồi Admin:</strong> {warning.adminResponse}</p>}
             {warning.violationCounted && <small>Đã tính {warning.classWarningCount}/3 cảnh báo trong lớp.</small>}
-            {warning.accountSanction && <small>Chế tài: {warning.accountSanction}</small>}
+            {warning.accountSanction && warning.accountSanction !== 'none' && <small>Chế tài: {warning.accountSanction}</small>}
           </article>
         ))}
 
@@ -156,7 +157,7 @@ const ProfilePage = () => {
             {item.adminResponse && <p><strong>Phản hồi Admin:</strong> {item.adminResponse}</p>}
           </article>
         ))}
-      </section>
+      </section>}
     </main>
   );
 };

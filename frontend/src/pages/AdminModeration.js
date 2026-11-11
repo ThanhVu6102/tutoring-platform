@@ -183,7 +183,7 @@ const AdminModeration = () => {
                       )}
                       {warning.violationCounted && <small className="warning-counted-note">Đã tính {warning.classWarningCount}/3 cảnh báo trong lớp.</small>}
                       {warning.classRemovalApplied && <small className="warning-counted-note">Học sinh đã bị gỡ khỏi lớp.</small>}
-                      {warning.accountSanction && <small className="warning-counted-note">{sanctionLabels[warning.accountSanction] || warning.accountSanction}</small>}
+                      {warning.accountSanction && warning.accountSanction !== 'none' && <small className="warning-counted-note">{sanctionLabels[warning.accountSanction] || warning.accountSanction}</small>}
                       <button className="btn btn-secondary" onClick={() => toggleWarningVisibility(warning._id)} type="button">{hiddenWarnings.has(warning._id) ? 'Hiện lại thông báo' : 'Ẩn thông báo'}</button>
                     </article>
                   ))}
