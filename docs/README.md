@@ -1,24 +1,20 @@
-# Tài liệu dự án
-
-Thư mục `docs/` tập trung tài liệu kỹ thuật của EKLASSES.
-
-## Tài liệu hiện có
+# Tài liệu EKLASSES
 
 | Tài liệu | Nội dung |
-|----------|----------|
-| [MongoDB workflow](MONGODB_WORKFLOW.md) | Vòng đời tài khoản, buổi học, điểm danh và yêu cầu transaction |
-| [Quyền riêng tư hồ sơ](USER_PRIVACY.md) | Quy tắc lọc dữ liệu và phân quyền hồ sơ trong API |
-| [Đổi mật khẩu](CHANGE_PASSWORD.md) | API và form chính chủ, giới hạn tài khoản quản trị/phiên JWT |
-| [Kháng cáo — BE #03](APPEALS.md) | API cảnh báo học sinh/khóa lớp, chuyển trạng thái, chế tài và kiểm thử transaction |
-| [Hiệu năng](PERFORMANCE.md) | Phân trang, tối ưu tải dữ liệu, công cụ đo và giới hạn kiểm thử |
-| [Lab hiệu năng — BE #04 giai đoạn 2](PERFORMANCE_LAB.md) | Docker local cách ly, dữ liệu giả, baseline/query plan thực tế và giới hạn của phép đo |
-| [Phân trang kiểm duyệt](MODERATION_PAGINATION_PLAN.md) | Contract admin riêng, thống kê chính xác và phạm vi FE đã được xác nhận |
+|---|---|
+| [Luồng dữ liệu](MONGODB_WORKFLOW.md) | Tài khoản, buổi học, điểm danh và transaction |
+| [Hồ sơ và mật khẩu](USER_PRIVACY.md) | Quyền riêng tư, trường được phép trả và [đổi mật khẩu](USER_PRIVACY.md#doi-mat-khau) |
+| [Khởi tạo quản trị viên](ADMIN_BOOTSTRAP.md) | Tạo tài khoản ban đầu thủ công, không ghi đè mật khẩu hoặc khôi phục tài khoản hiện có |
+| [Bảo mật backend](BACKEND_SECURITY.md) | JWT fail closed, giới hạn kiểm thử và checklist xoay khóa vận hành |
+| [Kháng cáo và kiểm duyệt](APPEALS.md) | Cảnh báo/chế tài, khóa lớp, lịch sử và [API kiểm duyệt](APPEALS.md#kiem-duyet) |
+| [Hiệu năng](PERFORMANCE.md) | Phân trang, truy vấn, tải frontend, số đo và [nghiệm thu BE #04](PERFORMANCE.md#ket-qua) |
+| [Công cụ kiểm chứng](PERFORMANCE_LAB.md) | Chạy benchmark, MongoDB integration và Chromium an toàn |
 
-## Cách tổ chức
+## Quy ước
 
-- [README chính](../README.md) ở thư mục gốc: giới thiệu dự án và hướng dẫn chạy nhanh.
-- [Quy tắc làm việc](../project-rules.md) ở thư mục gốc: hướng dẫn phát triển dự án.
-- `local/`: tài liệu nội bộ và mẫu tham khảo, được `.gitignore` loại trừ; không có sẵn khi clone repository.
-- Tài liệu API, kiến trúc, cơ sở dữ liệu và triển khai mới sẽ được bổ sung vào `docs/` khi cần.
+- [README gốc](../README.md) hướng dẫn cài đặt/chạy nhanh; [quy tắc dự án](../project-rules.md) mô tả quy trình phát triển. Tài liệu chức năng giữ contract/nghiệp vụ; tài liệu hiệu năng giữ số đo, hướng dẫn lab giữ lệnh chạy, tránh lặp.
+- Nội dung tiếng Việt; giữ định danh mã nguồn, URL, khóa JSON và giá trị kỹ thuật để khớp hệ thống. Số test gắn với source/thời điểm đã chạy, không tự đại diện cho bản mới.
+- `local/` giữ tài liệu nội bộ, mẫu tham khảo và report thô, được ignore và không có sẵn khi clone; không dọn/xóa dữ liệu trong đó. Mẫu README không phải đặc tả dự án.
+- Không đưa mật khẩu/token/URI thật vào tài liệu chia sẻ. `/api/docs` chỉ liệt kê endpoint rút gọn, không phải OpenAPI đầy đủ. Done của một issue không xác nhận mọi kiểm tra production đều đạt.
 
-Không đưa mật khẩu, token hoặc thông tin kết nối thật vào tài liệu được chia sẻ. Mẫu README trong `local/` chỉ để tham khảo cách trình bày, không phải đặc tả EKLASSES.
+Đã hợp nhất: `CHANGE_PASSWORD.md` → `USER_PRIVACY.md`; `MODERATION_PAGINATION_PLAN.md` → `APPEALS.md`; `PERFORMANCE_ACCEPTANCE.md` → `PERFORMANCE.md`. Bản cũ vẫn tra được trong lịch sử Git.

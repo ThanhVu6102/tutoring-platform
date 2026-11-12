@@ -34,12 +34,23 @@ const passwordForm = () => container.querySelector('form[aria-label="Đổi mậ
 
 test('profile renders independent accessible password fields and rejects mismatched confirmation', async () => {
   expect(container.querySelector('form input').value).toBe('Học sinh test');
+  expect(container.textContent).not.toContain('Tài khoản quản trị được quản lý bằng cấu hình');
   expect(container.querySelector('input[name="currentPassword"]').autocomplete).toBe('current-password');
   expect(container.querySelector('input[name="newPassword"]').type).toBe('password');
   fill('Not matching!');
   await act(async () => Simulate.submit(passwordForm()));
   expect(container.textContent).toContain('Mật khẩu nhập lại không khớp.');
   expect(axios.patch).not.toHaveBeenCalled();
+});
+
+test('hồ sơ admin cho phép đổi mật khẩu và không hiện hạn chế cấu hình đã bỏ', async () => {
+  localStorage.setItem('userRole', 'admin');
+  await act(async () => root.render(<ProfilePage />));
+  expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
+  expect(container.textContent).toContain('Mọi tài khoản, kể cả quản trị viên, đều có thể đổi mật khẩu');
+  expect(container.textContent).not.toContain('không thể đổi mật khẩu tại đây');
+  expect(passwordForm()).not.toBeNull();
+  expect(container.textContent).not.toContain('Lịch sử cảnh báo');
 });
 
 test('password change sends only required fields, blocks duplicates and clears fields after success', async () => {
@@ -83,4 +94,25 @@ test('rejects new passwords shorter than eight characters or over 72 UTF-8 bytes
     expect(container.textContent).toContain('không vượt quá 72 byte UTF-8');
   }
   expect(axios.patch).not.toHaveBeenCalled();
+});
+
+test('quản trị viên đổi mật khẩu chính chủ mà không tải lịch sử cảnh báo học sinh hoặc giáo viên', async () => {
+  localStorage.setItem('userRole', 'admin');
+  axios.get.mockClear();
+  axios.get.mockResolvedValue({ data: { name: 'Quản trị viên kiểm thử', email: 'admin@example.test', role: 'admin' } });
+  await act(async () => root.render(<ProfilePage key="admin" />));
+  expect(axios.get).toHaveBeenCalledTimes(1);
+  expect(axios.get).toHaveBeenCalledWith('/api/users/profile');
+  expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
+  expect(container.textContent).not.toContain('Lịch sử cảnh báo');
+  expect(container.textContent).not.toContain('không thể đổi mật khẩu');
+  expect(passwordForm()).not.toBeNull();
+  axios.patch.mockResolvedValue({ data: { message: 'Đổi mật khẩu thành công.' } });
+  fill();
+  await act(async () => Simulate.submit(passwordForm()));
+  expect(axios.patch).toHaveBeenCalledWith('/api/users/password', {
+    currentPassword: 'Old-password!', newPassword: 'New-password!',
+  });
+  expect(container.textContent).toContain('Đổi mật khẩu thành công.');
+  expect(axios.put).not.toHaveBeenCalled();
 });

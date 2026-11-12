@@ -3,7 +3,7 @@ const { id, fail, noticeInput, appealInput, reviewInput } = require('./appealVal
 
 async function readClass(classId) {
   const cls = await Class.findById(id(classId, 'classId')).select('+lockRevision').lean();
-  if (!cls) fail(404, 'Class not found');
+  if (!cls) fail(404, 'Không tìm thấy lớp học');
   return cls;
 }
 
@@ -18,15 +18,15 @@ async function updateNotice(cls, fields, history, conditions = {}) {
       ...(history ? { $push: { lockNoticeHistory: history } } : {}) },
     { new: true, runValidators: true }
   );
-  if (!updated) fail(409, 'The class notice has changed; reload before trying again');
+  if (!updated) fail(409, 'Thông báo của lớp đã thay đổi; vui lòng tải lại trước khi thử lại');
   return updated;
 }
 
 async function issueClassLockNotice(classId, actorId, body) {
   const input = noticeInput(body);
   const cls = await readClass(classId);
-  if (cls.status !== 'active') fail(409, 'Reopen the class before issuing a new notice');
-  if (['pending', 'appealed'].includes(cls.lockNotice?.status)) fail(409, 'This class already has an unresolved lock notice');
+  if (cls.status !== 'active') fail(409, 'Vui lòng mở lại lớp trước khi gửi thông báo mới');
+  if (['pending', 'appealed'].includes(cls.lockNotice?.status)) fail(409, 'Lớp học đang có thông báo khóa chưa được xử lý');
   const issuedAt = new Date();
   const notice = { ...input, status: 'pending', issuedAt, issuedBy: id(actorId),
     appealDeadline: new Date(issuedAt.getTime() + 86400000), appealMessage: '', appealedAt: null,
@@ -39,10 +39,10 @@ async function appealClassLockNotice(classId, actorId, body) {
   const message = appealInput(body);
   const cls = await readClass(classId);
   actorId = id(actorId);
-  if (String(cls.teacher).toLowerCase() !== actorId) fail(403, 'Not authorized to appeal this class notice');
-  if (cls.status !== 'active' || cls.lockNotice?.status !== 'pending') fail(409, 'This notice is no longer open for appeal');
+  if (String(cls.teacher).toLowerCase() !== actorId) fail(403, 'Bạn không có quyền kháng cáo thông báo của lớp này');
+  if (cls.status !== 'active' || cls.lockNotice?.status !== 'pending') fail(409, 'Thông báo này không còn tiếp nhận kháng cáo');
   const now = new Date();
-  if (!(cls.lockNotice.appealDeadline > now)) fail(409, 'The 24-hour appeal window has closed');
+  if (!(cls.lockNotice.appealDeadline > now)) fail(409, 'Đã hết thời hạn kháng cáo 24 giờ');
   return updateNotice(cls, { 'lockNotice.status': 'appealed', 'lockNotice.appealMessage': message,
     'lockNotice.appealedAt': now, 'lockNotice.appealedBy': actorId }, null,
   { 'lockNotice.status': 'pending', 'lockNotice.appealDeadline': { $gt: now } });
@@ -52,10 +52,10 @@ async function reviewClassLockNotice(classId, actorId, body) {
   const { decision, response } = reviewInput(body, ['lock', 'dismiss']);
   const cls = await readClass(classId);
   const current = cls.lockNotice;
-  if (!['pending', 'appealed'].includes(current?.status)) fail(409, 'There is no unresolved lock notice');
+  if (!['pending', 'appealed'].includes(current?.status)) fail(409, 'Không có thông báo khóa đang chờ xử lý');
   const now = new Date();
   if (current.status === 'pending' && !(current.appealDeadline && current.appealDeadline <= now)) {
-    fail(409, 'The 24-hour appeal window is still open');
+    fail(409, 'Vẫn còn trong thời hạn kháng cáo 24 giờ');
   }
   const resolved = { ...current, status: decision === 'lock' ? 'locked' : 'dismissed',
     resolvedAt: now, reviewedBy: id(actorId), adminResponse: response };
@@ -69,16 +69,16 @@ async function reviewClassLockNotice(classId, actorId, body) {
 async function reopenClass(classId, actorId) {
   const cls = await readClass(classId);
   const current = cls.lockNotice;
-  if (cls.status === 'active' && (!current?.status || current.status === 'none')) fail(409, 'Class is already active');
+  if (cls.status === 'active' && (!current?.status || current.status === 'none')) fail(409, 'Lớp học đang hoạt động');
   const now = new Date();
   let history;
   if (current?.status && current.status !== 'none') {
-    history = { ...current, reopenedAt: now, reopenedBy: id(actorId), reopenResponse: 'Class reopened by administrator' };
+    history = { ...current, reopenedAt: now, reopenedBy: id(actorId), reopenResponse: 'Quản trị viên đã mở lại lớp học' };
     // Nếu admin hủy thông báo chưa chốt bằng API mở lớp cũ, ghi quyết định hủy.
     // Với thông báo đã khóa, giữ nguyên quyết định, phản hồi và người duyệt trước đó.
     if (['pending', 'appealed'].includes(current.status)) {
       Object.assign(history, { status: 'dismissed', resolvedAt: now, reviewedBy: id(actorId),
-        adminResponse: 'Class reopened by administrator' });
+        adminResponse: 'Quản trị viên đã mở lại lớp học' });
     }
   }
   return updateNotice(cls, { status: 'active', lockNotice: { status: 'none' } }, history);

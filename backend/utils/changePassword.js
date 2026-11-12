@@ -1,15 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { isSuperAdminEmail } = require('./superAdmin');
 const { activeAccountFilter } = require('./accountAccess');
 const { fail } = require('./sessionValidation');
-
-// Tài khoản quản trị do cấu hình chi phối không được báo đổi thành công giả:
-// luồng đăng nhập đặc biệt vẫn có thể khôi phục/chấp nhận mật khẩu cấu hình.
-function configuredAdmin(email) {
-  return isSuperAdminEmail(email) || Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD
-    && email?.toLowerCase() === process.env.ADMIN_EMAIL.trim().toLowerCase());
-}
 
 async function changePassword(userId, body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) fail(400, 'Dữ liệu không hợp lệ');
@@ -22,7 +14,6 @@ async function changePassword(userId, body) {
   }
   const user = await User.findOne({ _id: userId, ...activeAccountFilter() }).select('email +password');
   if (!user) fail(403, 'Tài khoản không hoạt động hoặc không còn tồn tại');
-  if (configuredAdmin(user.email)) fail(403, 'Mật khẩu tài khoản quản trị này được quản lý bằng cấu hình, không thể đổi tại hồ sơ');
   if (!await bcrypt.compare(currentPassword, user.password)) fail(400, 'Mật khẩu hiện tại không đúng');
   if (currentPassword === newPassword) fail(400, 'Mật khẩu mới phải khác mật khẩu hiện tại');
 

@@ -15,13 +15,16 @@ const getReadIds = () => {
   }
 };
 
-const NotificationsBell = ({ userRole }) => {
+const NotificationsBell = ({ userRole, pathname }) => {
   const [items, setItems] = useState([]);
   const [readIds, setReadIds] = useState(getReadIds);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
+
+  // Đóng bảng thông báo khi người dùng sang màn hình khác, kể cả qua nút hồ sơ.
+  useEffect(() => { setIsOpen(false); }, [pathname]);
 
   useEffect(() => {
     let isMounted = true;

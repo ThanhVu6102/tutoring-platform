@@ -18,7 +18,8 @@ beforeEach(() => {
   localStorage.setItem('userRole', 'admin');
   localStorage.setItem('token', 'moderation-test-token');
   warningData = [{ _id: 'w', student: { name: 'Student', email: 'test@example.test' },
-    class: { name: 'Class' }, status: 'appealed', issuedAt: '2026-01-01', appealDeadline: '2027-01-01' }];
+    class: { name: 'Class' }, status: 'appealed', accountSanction: 'none',
+    issuedAt: '2026-01-01', appealDeadline: '2027-01-01' }];
   axios.get.mockImplementation(async (url, config) => ({ data: url.endsWith('/summary') ? summary
     : page(url.endsWith('/warnings') ? warningData : [], config.params.page) }));
   container = document.createElement('div');
@@ -39,6 +40,7 @@ test('initial moderation loads only summary and one warning page; totals are not
   expect(axios.get.mock.calls.map(([url]) => url).sort()).toEqual(['/api/moderation/summary', '/api/moderation/warnings']);
   expect([...container.querySelectorAll('.admin-summary strong')].map((item) => item.textContent)).toEqual(['2500', '73', '42']);
   expect(container.textContent).toContain('55 kết quả');
+  expect(container.textContent).not.toContain('none');
 });
 
 test('tabs load lazily, preserve their page and do not fetch every page or legacy APIs', async () => {
@@ -120,4 +122,24 @@ test('hiding a warning only changes the current admin view and persists after re
   expect(container.querySelector('.admin-warning-card')).toBeNull();
   await click('Hiện 1 thông báo đã ẩn');
   expect(container.querySelector('.admin-warning-card')).toBeTruthy();
+});
+
+test('hide-only action is available for every warning state and isolated per admin', async () => {
+  localStorage.setItem('userId', 'admin-a');
+  warningData = ['pending', 'appealed', 'confirmed', 'dismissed'].map((status) => ({
+    _id: `warning-${status}`, student: { name: status }, class: { name: 'Class' },
+    status, issuedAt: '2026-01-01', appealDeadline: '2027-01-01',
+  }));
+  await render();
+  expect(container.querySelectorAll('.admin-warning-card')).toHaveLength(4);
+  expect([...container.querySelectorAll('.admin-warning-card')].every((card) =>
+    [...card.querySelectorAll('button')].some((button) => button.textContent === 'Ẩn thông báo'))).toBe(true);
+  await click('Ẩn thông báo');
+  expect(container.querySelectorAll('.admin-warning-card')).toHaveLength(3);
+  expect(axios.patch).not.toHaveBeenCalled();
+  act(() => root.unmount());
+  localStorage.setItem('userId', 'admin-b');
+  root = createRoot(container);
+  await render();
+  expect(container.querySelectorAll('.admin-warning-card')).toHaveLength(4);
 });

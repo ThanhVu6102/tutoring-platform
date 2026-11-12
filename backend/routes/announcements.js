@@ -23,7 +23,7 @@ router.post('/', authMiddleware, classAvailability(Announcement), teacherOnly, a
     });
 
     await announcement.save();
-    res.status(201).json({ message: 'Announcement created successfully', announcement });
+    res.status(201).json({ message: 'Đã tạo thông báo', announcement });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -47,7 +47,7 @@ router.get('/:id', authMiddleware, classAvailability(Announcement), async (req, 
     const announcement = await Announcement.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!announcement) {
-      return res.status(404).json({ message: 'Announcement not found' });
+      return res.status(404).json({ message: 'Không tìm thấy thông báo' });
     }
 
     res.json(announcement);
@@ -62,7 +62,7 @@ router.post('/:id/read', authMiddleware, classAvailability(Announcement), async 
     const announcement = await Announcement.findById(req.params.id);
 
     if (!announcement) {
-      return res.status(404).json({ message: 'Announcement not found' });
+      return res.status(404).json({ message: 'Không tìm thấy thông báo' });
     }
 
     const alreadyRead = announcement.readBy.find(
@@ -77,7 +77,7 @@ router.post('/:id/read', authMiddleware, classAvailability(Announcement), async 
       await announcement.save();
     }
 
-    res.json({ message: 'Announcement marked as read' });
+    res.json({ message: 'Đã đánh dấu thông báo là đã đọc' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -90,11 +90,11 @@ router.put('/:id', authMiddleware, classAvailability(Announcement), teacherOnly,
     const announcement = await Announcement.findById(req.params.id);
 
     if (!announcement) {
-      return res.status(404).json({ message: 'Announcement not found' });
+      return res.status(404).json({ message: 'Không tìm thấy thông báo' });
     }
 
     if (req.userRole !== 'admin' && announcement.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     if (title) announcement.title = title;
@@ -104,7 +104,7 @@ router.put('/:id', authMiddleware, classAvailability(Announcement), teacherOnly,
     announcement.updatedAt = new Date();
     await announcement.save();
 
-    res.json({ message: 'Announcement updated successfully' });
+    res.json({ message: 'Đã cập nhật thông báo' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -116,15 +116,15 @@ router.delete('/:id', authMiddleware, classAvailability(Announcement), teacherOn
     const announcement = await Announcement.findById(req.params.id);
 
     if (!announcement) {
-      return res.status(404).json({ message: 'Announcement not found' });
+      return res.status(404).json({ message: 'Không tìm thấy thông báo' });
     }
 
     if (announcement.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     await Announcement.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Announcement deleted' });
+    res.json({ message: 'Đã xóa thông báo' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

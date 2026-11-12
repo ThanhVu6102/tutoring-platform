@@ -1,6 +1,5 @@
-// Một promise bao trọn kết nối và khởi tạo; các request cold-start không cùng
-// chạy ensureSuperAdmin nhiều lần sau khi chỉ chờ chung mongoose.connect.
-function cachedConnection(state, connect, initialize, onInitializeError = () => {}) {
+// Một promise bao trọn kết nối và bước khởi tạo tùy chọn cho cold-start.
+function cachedConnection(state, connect, initialize = async () => {}, onInitializeError = () => {}) {
   return async function connectDB() {
     if (state.conn) return state.conn;
     if (!state.promise) {

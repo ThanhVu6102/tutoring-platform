@@ -898,6 +898,9 @@ input:focus, select:focus, textarea:focus {
 
 /* ----- Responsive: mobile <=768px giữ thương hiệu trên một hàng và mở menu bằng nút. ----- */
 @media (max-width: 768px) {
+  /* Vùng chạm của nút và liên kết thao tác đạt ít nhất 44px trên màn hình nhỏ. */
+  .btn, .admin-back, .password-visibility-button, .policy-modal-close { min-height: 44px; }
+  .policy-open-link { display: inline-flex; align-items: center; min-height: 44px; }
   .navbar {
     flex-direction: row;
     gap: 0.5rem;
@@ -2396,6 +2399,9 @@ input:focus, select:focus, textarea:focus {
   padding: 1rem;
   background: rgba(25, 35, 31, 0.62);
 }
+
+/* Modal đọc chính sách nằm trong form đăng ký; nâng cả stacking context lên trên navbar. */
+.auth-container.is-reading-policy { z-index: 2000; }
 
 .policy-reader-backdrop {
   z-index: 4000;

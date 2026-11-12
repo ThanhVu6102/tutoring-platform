@@ -125,7 +125,7 @@ const RegisterPage = ({ onLogin }) => {
 
   return (
     // Khung giữa màn hình (dùng chung CSS với Login).
-    <div className="auth-container">
+    <div className={`auth-container${showPolicies ? ' is-reading-policy' : ''}`}>
       <div className="auth-box">
         {/* Logo. */}
         <div className="auth-brand">

@@ -17,10 +17,10 @@ router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async
     try {
       parsedUrl = new URL(fileUrl);
     } catch (_) {
-      return res.status(400).json({ message: 'Document URL is invalid' });
+      return res.status(400).json({ message: 'Đường dẫn tài liệu không hợp lệ' });
     }
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return res.status(400).json({ message: 'Document URL must use HTTP or HTTPS' });
+      return res.status(400).json({ message: 'Đường dẫn tài liệu phải dùng HTTP hoặc HTTPS' });
     }
 
     const document = new Document({
@@ -34,7 +34,7 @@ router.post('/', authMiddleware, classAvailability(Document), teacherOnly, async
     });
 
     await document.save();
-    res.status(201).json({ message: 'Document uploaded successfully', document });
+    res.status(201).json({ message: 'Đã đăng tài liệu', document });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -59,7 +59,7 @@ router.get('/:id', authMiddleware, classAvailability(Document), async (req, res)
     const document = await Document.findById(req.params.id).populate('teacher', USER_POPULATE_FIELDS);
 
     if (!document) {
-      return res.status(404).json({ message: 'Document not found' });
+      return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
     }
 
     res.json(document);
@@ -74,13 +74,13 @@ router.post('/:id/download', authMiddleware, classAvailability(Document), async 
     const document = await Document.findById(req.params.id);
 
     if (!document) {
-      return res.status(404).json({ message: 'Document not found' });
+      return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
     }
 
     document.downloads += 1;
     await document.save();
 
-    res.json({ message: 'Download recorded' });
+    res.json({ message: 'Đã ghi nhận lượt tải' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -92,15 +92,15 @@ router.delete('/:id', authMiddleware, classAvailability(Document), teacherOnly, 
     const document = await Document.findById(req.params.id);
 
     if (!document) {
-      return res.status(404).json({ message: 'Document not found' });
+      return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
     }
 
     if (req.userRole !== 'admin' && document.teacher.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này' });
     }
 
     await Document.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Document deleted' });
+    res.json({ message: 'Đã xóa tài liệu' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

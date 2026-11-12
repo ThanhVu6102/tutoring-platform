@@ -1,39 +1,52 @@
-# BE #01 / BE #02 — Bảo vệ dữ liệu hồ sơ trong API
+# Hồ sơ và mật khẩu
 
-## Quy tắc đã thống nhất
+## 1. Dữ liệu theo người xem
 
-- Người dùng đã đăng nhập vẫn xem được hồ sơ công khai của người khác, không thêm điều kiện cùng lớp.
-- Hồ sơ công khai chỉ có `_id`/`id`, `name`, `role`, `avatar`, `bio` nếu có trong dữ liệu nguồn.
-- Chính chủ và admin giữ các trường trước đây nhận được, kể cả `review`, nhưng phải nằm trong allowlist.
-- Không trả `password`, `scheduleRevision` hoặc trường mới chưa được cho phép, kể cả cho admin.
-- Email người khác bị ẩn cả trong hồ sơ lồng nhau của lớp, yêu cầu tham gia, tài liệu, video, thông báo, bài tập, bài kiểm tra và cảnh báo. Admin vẫn được xem.
-- API không tự bổ sung trường mà query/response cũ chưa trả; allowlist chỉ loại bỏ trường không được phép.
+| Người xem đã xác thực | Dữ liệu được phép |
+|---|---|
+| Người khác | `_id`/`id`, `name`, `role`, `avatar`, `bio` nếu nguồn có |
+| Chính chủ/admin | Các trường riêng tư đã có trong allowlist, gồm `phone` và metadata xét duyệt |
 
-## BE #02 — Chính sách đã được xác nhận khi triển khai
+- Không yêu cầu cùng lớp để xem hồ sơ công khai. Email người khác bị ẩn cả trong hồ sơ lồng của lớp, yêu cầu tham gia, học liệu, bài nộp và cảnh báo; admin vẫn xem được.
+- Không trả `password`, `scheduleRevision` hoặc trường mới chưa được cho phép, kể cả cho admin. Allowlist chỉ lọc, không tự bổ sung trường nguồn/query cũ không trả.
+- DTO không nhận các tên biến thể `phone_number`, `id_card_number`, CCCD hoặc trường mới chỉ vì chúng xuất hiện trong dữ liệu legacy/mock.
+- `review` chỉ có `reviewedBy`, `reviewedAt`, `note`; hồ sơ người duyệt khi populate tiếp tục lọc theo người xem.
 
-- Issue GitHub #23 ban đầu yêu cầu `name`/`email`. Khi triển khai BE #02, chủ dự án xác nhận **giữ chính sách BE #01**, không mở lại quyền xem email người khác.
-- Người dùng khác vẫn chỉ nhận ID, tên, vai trò, avatar, bio nếu có; không thay API contract hoặc sửa frontend để hiển thị email.
-- `GET /api/users/:id` chọn bộ trường ngay ở query theo danh tính đã được middleware xác thực. Xem người khác chỉ truy vấn bộ trường công khai; chính chủ/admin dùng allowlist riêng.
-- `GET /api/users/profile` tiếp tục lấy hồ sơ chính chủ bằng allowlist riêng. Query parameter `role`, `userId` hoặc `fields` không được dùng để mở rộng projection.
-- DTO lọc lần nữa trước khi gửi; `phone_number`, `id_card_number`, CCCD và các tên trường mới không tự được phép, kể cả khi có trong dữ liệu cũ hoặc object mock. Trường `phone` hiện có chỉ được phép theo quy tắc chính chủ/admin.
-- Bên trong `review`, chỉ cho phép `reviewedBy`, `reviewedAt`, `note`; trường mới lồng bên trong cũng không tự được đưa ra response. Nếu `reviewedBy` được populate thì tiếp tục lọc hồ sơ người duyệt theo người xem.
-- Các populate có thể chứa đồng thời chính chủ/người khác vẫn dùng allowlist truy vấn hiện có và DTO lọc theo từng user. Không tuyên bố rằng toàn bộ populate đã được tối thiểu hóa theo từng người ngay ở database; giữ cách này để không làm mất dữ liệu tự xem đã cho phép ở BE #01.
-- Không thêm trường CCCD vào schema, không migration dữ liệu và không sửa các query nội bộ phục vụ đăng nhập, seed hoặc xử lý nghiệp vụ.
-- Nội dung issue trên GitHub cần phản ánh quyết định mới trước khi nghiệm thu; tài liệu này không có nghĩa issue đã được cập nhật hoặc đóng.
+## 2. Quyết định BE #02 và cách áp dụng
 
-## Chức năng các phần thay đổi
+[Issue #23](https://github.com/ThanhVu6102/tutoring-platform/issues/23) ban đầu đề cập name/email, nhưng chủ dự án xác nhận **giữ chính sách BE #01**, không mở lại email người khác hoặc sửa UI để hiển thị email đó.
 
-Các đường dẫn mã nguồn dưới đây tính từ thư mục gốc dự án.
+- `GET /api/users/:id` chọn trường ngay ở query theo danh tính đã xác thực; `/api/users/profile` dùng allowlist chính chủ. Query `role`, `userId`, `fields` không mở rộng quyền/projection.
+- DTO lọc lại trước khi gửi. Populate có nhiều người giữ query allowlist chung và lọc từng user, tránh mất dữ liệu chính chủ được phép xem; không tuyên bố mọi populate đã tối thiểu hóa riêng cho từng người ở DB.
+- Không thêm CCCD vào schema, migration dữ liệu hoặc sửa query nội bộ phục vụ đăng nhập/seed/nghiệp vụ.
 
-- `backend/utils/userPrivacy.js`: định nghĩa allowlist cố định; chọn trường query bằng `userQueryFields`; lọc DTO theo người xem và thông tin xét duyệt lồng nhau; giữ nguyên ID chưa populate và thời gian.
-- `backend/middleware/userPrivacy.js`: lọc response JSON trước khi gửi client; không sửa document hay dữ liệu kiểm tra quyền trong handler.
-- `backend/routes/users.js`: áp dụng allowlist cho hồ sơ chính chủ, hồ sơ theo ID và danh sách quản trị; giữ định dạng response cũ.
-- Các router lớp học, nội dung và cảnh báo: áp dụng bộ lọc chung. Các populate trước đây không giới hạn trường nay chọn allowlist rõ ràng.
-- `frontend/src/pages/ClassDetail.js`: chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh khi người xem là admin; giữ nguyên thao tác duyệt và thêm học sinh bằng email đã biết.
-- `backend/tests/userPrivacy.test.js`: kiểm tra quyền chính chủ/admin/người khác, projection hồ sơ, trường điện thoại/CCCD và tên biến thể, trường mới lồng trong review, tham số giả quyền và response HTTP mà không cần MongoDB thật.
+## 3. Vị trí triển khai và kiểm thử
 
-## Kiểm thử
+Quyền riêng tư **nội dung bài nộp bài tập** (file/điểm/nhận xét), khác với hồ sơ user lồng nhau, được mô tả ở [BE #08](BACKEND_SECURITY.md). Học sinh chỉ nhận bài nộp chính chủ; danh sách chỉ có metadata.
 
-Chạy `npm test` trong `backend/`. Đây không phải thay đổi khóa JWT, thông tin admin mặc định hoặc quyền truy cập nội dung lớp; các vấn đề đó thuộc issue riêng.
+| File | Vai trò |
+|---|---|
+| `backend/utils/userPrivacy.js` | Allowlist, `userQueryFields`, DTO theo người xem; giữ ID chưa populate và thời gian |
+| `backend/middleware/userPrivacy.js` | Lọc JSON response, không sửa document/kiểm tra quyền trong handler |
+| `backend/routes/users.js` và router lớp/học liệu/cảnh báo | Áp dụng query fields và bộ lọc chung, giữ dạng response |
+| `frontend/src/pages/ClassDetail.js` | Chỉ admin thấy email roster/yêu cầu tham gia; giữ thao tác thêm bằng email đã biết |
+| `backend/tests/userPrivacy.test.js` | Mock projection + HTTP: chính chủ/admin/người khác, review lồng, trường mới và giả quyền |
 
-Test query dùng mock để kiểm tra projection được truyền tới Mongoose; chưa thay thế kiểm thử với MongoDB thật hoặc xác minh deployment.
+Chạy `npm test --prefix backend`. Test mock không thay kiểm thử MongoDB/deployment; phần này không thay khóa JWT, cấu hình admin mặc định hoặc quyền truy cập nội dung lớp.
+
+<a id="doi-mat-khau"></a>
+## 4. Đổi mật khẩu chính chủ — issue #41
+
+`PATCH /api/users/password` yêu cầu Bearer token và tài khoản hoạt động:
+
+```json
+{ "currentPassword": "<mật khẩu hiện tại>", "newPassword": "<mật khẩu mới>" }
+```
+
+- Chỉ chọn tài khoản bằng ID trong phiên. Mật khẩu hiện tại không rỗng, tối đa 72 byte UTF-8; mật khẩu mới ít nhất 8 ký tự, tối đa 72 byte và khác mật khẩu cũ. Không cắt khoảng trắng.
+- Kiểm tra bcrypt, băm mới với hệ số 10; ghi có điều kiện theo giá trị băm cũ và trạng thái tài khoản, tránh ghi đè khi cạnh tranh hoặc sau khi bị chặn. Không tự đổi mật khẩu tài khoản hiện có hay di chuyển dữ liệu.
+- `200 {message}` không trả mật khẩu/giá trị băm/token; `400` dữ liệu hoặc mật khẩu hiện tại sai, `401` thiếu phiên, `403`/`423` không đủ điều kiện, `409` cạnh tranh, `500` lỗi chung không lộ dữ liệu bí mật.
+- Mọi tài khoản đang hoạt động, **kể cả quản trị viên**, được đổi mật khẩu chính chủ sau khi xác minh mật khẩu hiện tại. Đăng nhập chỉ đối chiếu giá trị băm trong DB; mật khẩu mặc định/cấu hình không được ghi đè mật khẩu mới, tự khôi phục tài khoản hay nâng quyền. Biến `ADMIN_*` chỉ phục vụ tạo tài khoản ban đầu bằng thao tác thủ công, không reset tài khoản đã tồn tại.
+- JWT cũ **còn hiệu lực đến khi hết hạn**; chưa thu hồi phiên/reset qua email. Cho phép đổi mật khẩu không đồng nghĩa đã có cơ chế kết thúc mọi phiên cũ; thay đổi cơ chế JWT cần xử lý riêng.
+- Biểu mẫu hồ sơ có mật khẩu hiện tại/mới/nhập lại, kiểm tra khớp và giới hạn UTF-8, chặn gửi lặp, báo kết quả, xóa ba ô khi thành công. Không lưu mật khẩu trong localStorage/sessionStorage hoặc gửi cùng cập nhật hồ sơ; không thêm thư viện.
+- Kiểm thử: `backend/tests/changePassword.test.js`, `frontend/src/pages/ProfilePage.test.js`; chạy `npm test --prefix backend`, `npm test --prefix frontend -- --watchAll=false --runInBand`, `npm run build --prefix frontend`. Mock không thay kiểm tra đăng nhập cũ/mới trên môi trường được phép; không công khai thông tin đăng nhập test.

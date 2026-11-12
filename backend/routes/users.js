@@ -60,7 +60,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
 
     // Không thấy (có thể đã bị xóa mềm) -> 404.
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
     }
 
     // Chính chủ giữ thông tin hiện có theo allowlist, không trả trường nội bộ mới.
@@ -85,25 +85,25 @@ router.put('/profile', authMiddleware, async (req, res) => {
 
     // Không thấy -> 404.
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
     }
 
     if (avatar !== undefined && avatar) {
       if (typeof avatar !== 'string') {
-        return res.status(400).json({ message: 'Avatar phải là chuỗi URL hoặc ảnh base64' });
+        return res.status(400).json({ message: 'Ảnh đại diện phải là chuỗi URL hoặc ảnh base64' });
       }
       if (avatar.startsWith('data:image/')) {
         if (!/^data:image\/(png|jpeg|webp);base64,/.test(avatar) || avatar.length > 3_000_000) {
-          return res.status(400).json({ message: 'Avatar must be PNG, JPG or WebP and smaller than 2 MB' });
+          return res.status(400).json({ message: 'Ảnh đại diện phải là PNG, JPG hoặc WebP và nhỏ hơn 2 MB' });
         }
       } else {
         try {
           const avatarUrl = new URL(avatar);
           if (!['http:', 'https:'].includes(avatarUrl.protocol)) {
-            return res.status(400).json({ message: 'Avatar URL must use HTTP or HTTPS' });
+            return res.status(400).json({ message: 'Đường dẫn ảnh đại diện phải dùng HTTP hoặc HTTPS' });
           }
         } catch (_) {
-          return res.status(400).json({ message: 'Avatar URL is invalid' });
+          return res.status(400).json({ message: 'Đường dẫn ảnh đại diện không hợp lệ' });
         }
       }
     }
@@ -120,7 +120,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
     await user.save();
 
     res.json({
-      message: 'Profile updated successfully',
+      message: 'Đã cập nhật hồ sơ',
       user: {
         id: user._id,
         name: user.name,
@@ -151,7 +151,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     // Không thấy -> 404.
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
     }
 
     // Người khác chỉ thấy ID, tên, vai trò, avatar, bio; chính chủ/admin giữ dữ liệu cũ.

@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('./helpers/jwtEnvironment');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Class = require('../models/Class');
@@ -25,7 +26,7 @@ async function appClient(t, role = 'admin') {
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
   // Token cố ý ghi role admin: quyền thực tế vẫn phải lấy từ database.
-  const token = jwt.sign({ userId: ids.actor, role: 'admin' }, process.env.JWT_SECRET || 'your-secret-key');
+  const token = jwt.sign({ userId: ids.actor, role: 'admin' }, process.env.JWT_SECRET);
   return async (method, path, body, authenticated = true) => {
     const result = await fetch(`http://127.0.0.1:${server.address().port}/api${path}`, {
       method, headers: { 'Content-Type': 'application/json', ...(authenticated ? { Authorization: `Bearer ${token}` } : {}) },
