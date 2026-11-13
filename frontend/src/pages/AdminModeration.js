@@ -34,6 +34,7 @@ const AdminModeration = () => {
   const reviewPending = useRef(false);
   const [error, setError] = useState('');
   const [deletingStudent, setDeletingStudent] = useState(null);
+  const deletePending = useRef(false);
   const [notice, setNotice] = useState('');
   const [hiddenWarnings, setHiddenWarnings] = useState(readHiddenWarnings);
   const [showHiddenWarnings, setShowHiddenWarnings] = useState(false);
@@ -112,7 +113,9 @@ const AdminModeration = () => {
 
   // Xóa mềm tài khoản học sinh qua API quản trị; dữ liệu lịch sử được backend giữ lại.
   const handleDeleteStudent = async (student) => {
-    if (deletingStudent || !window.confirm(`Xóa tài khoản học sinh ${student.name} (${student.email})?`)) return;
+    if (deletePending.current || !window.confirm(`Xóa tài khoản học sinh ${student.name} (${student.email})?`)) return;
+    // Khóa đồng bộ để hai lần bấm trước khi React cập nhật nút chỉ gửi một request.
+    deletePending.current = true;
     setDeletingStudent(student._id);
     setError('');
     setNotice('');
@@ -123,6 +126,7 @@ const AdminModeration = () => {
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Không thể xóa tài khoản học sinh.');
     } finally {
+      deletePending.current = false;
       setDeletingStudent(null);
     }
   };
