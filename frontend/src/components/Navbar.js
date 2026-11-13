@@ -38,7 +38,7 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
   const firstLetter = (profile?.name || '?').trim().charAt(0).toLocaleUpperCase('vi-VN') || '?';
 
   return (
-    <nav className="navbar" aria-label="Điều hướng chính">
+    <nav className={`navbar${userRole === 'admin' ? ' navbar-admin' : ''}`} aria-label="Điều hướng chính">
       <div className="nav-icon-group" aria-hidden="true"><div className="nav-decor nav-decor-center"><img src="/centerlogo.png" alt="" /></div></div>
       <div className="navbar-brand">
         <img src={isAuthenticated ? roleLogo : '/logo1.png'} alt="EKLASSES" className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'} />
@@ -59,6 +59,7 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
           {['student', 'teacher'].includes(userRole) && <button type="button" onClick={() => go('/appeals')}>Kháng cáo</button>}
           <button type="button" onClick={() => go(home)}>{userRole === 'admin' ? 'Quản trị lớp' : 'Trang chủ'}</button>
           {userRole === 'admin' && <button type="button" onClick={() => go('/admin/moderation')}>Hồ sơ vi phạm</button>}
+          {userRole === 'admin' && <button type="button" onClick={() => go('/admin/accounts')}>Quản lý tài khoản</button>}
           {userRole === 'admin' && <button type="button" onClick={() => go('/profile')}>Hồ sơ và mật khẩu</button>}
           <button type="button" onClick={handleLogout}>Đăng xuất</button>
         </> : <>

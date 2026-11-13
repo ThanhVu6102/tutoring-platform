@@ -4,15 +4,17 @@ Chào mừng bạn đến với **EKLASSES** - nền tảng quản lý lớp h�
 
 Tài liệu kỹ thuật và hướng dẫn liên quan được tập trung tại [docs/README.md](docs/README.md).
 
+Tra cứu nhanh: [quản lý tài khoản](docs/ADMIN_ACCOUNTS.md), [hồ sơ và mật khẩu](docs/USER_PRIVACY.md), [bảo mật](docs/BACKEND_SECURITY.md), [hiệu năng](docs/PERFORMANCE.md). Trạng thái issue, phiên bản phát hành và việc còn lại nằm riêng tại [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md); chức năng trên source không mặc nhiên đã có trên production.
+
 ---
 
 ## 0. LIÊN KẾT WEBSITE (WEBSITE LINKS)
 
 | Môi trường | Địa chỉ | Ghi chú |
 |------------|---------|---------|
-| Production (Vercel) | `https://tutoring-platform-pi-beige.vercel.app/login?fbclid=IwY2xjawVj8ndleHRuA2FlbQIxMQBwZG9mA3NydGMGYXBwX2lkATAAAR9_wia8QGr6BbRDXPzAeQa3IHnaCIYKxGy1V7PABdxPGpF8F2di7qlVPwZVGA_aem_BSzupzMycDZxjweQqAtvhg` | Frontend + API fullstack chung 1 domain (thay `<domain-cua-ban>` bằng domain thật sau khi deploy) |
-| Health check (production) | `https://<domain-cua-ban>.vercel.app/api/health` | Phải trả về `{"status":"ok"}` thì backend mới sống |
-| API docs (production) | `https://<domain-cua-ban>.vercel.app/api/docs` | Danh sách endpoint rút gọn |
+| Production (Vercel) | https://tutoring-platform-pi-beige.vercel.app | Frontend + API chung một domain |
+| Health check (production) | https://tutoring-platform-pi-beige.vercel.app/api/health | Kiểm tra backend; không thay kiểm chứng đăng nhập/database |
+| API docs (production) | https://tutoring-platform-pi-beige.vercel.app/api/docs | Danh sách endpoint rút gọn, không phải OpenAPI đầy đủ |
 | Local frontend | `http://localhost:3000` | Chạy bằng `npm start --prefix frontend` |
 | Local backend | `http://localhost:5000` | Chạy bằng `npm run dev --prefix backend` |
 | Health check (local) | `http://localhost:5000/api/health` | Phải trả về `{"status":"ok"}` |
@@ -45,11 +47,11 @@ graph TD
 ```
 
 ### 1.1. Công nghệ Frontend (Create React App)
-* **Framework chính:** React 18 + React Router v6 (SPA, phân route `/login`, `/register`, `/dashboard`, `/class/:id`, `/quiz/:quizId/take`).
+* **Framework chính:** React 18 + React Router v6; các trang quản trị và nội dung nặng dùng lazy loading.
 * **Gọi API:** Axios tập trung tại `src/config/api.js` — tự đọc `REACT_APP_API_URL`, tự gắn `Authorization: Bearer <token>` cho mọi request.
 * **Bài giảng video:** `react-player` phát video theo URL.
 * **Thống kê:** `recharts` vẽ biểu đồ (điểm số, tiến độ học tập).
-* **Styling:** 1 file CSS duy nhất `src/styles/App.css` + style inline theo component; giao diện tiếng Việt, thương hiệu EKLASSES.
+* **Styling:** `src/styles/App.css` và CSS riêng cho một số component/trang; giao diện tiếng Việt, thương hiệu EKLASSES.
 
 ### 1.2. Công nghệ Backend & Database
 * **Runtime Environment:** Node.js v18+ kết hợp Express framework (`backend/server.js`, export `app` để vừa chạy local `node server.js` vừa chạy serverless trên Vercel qua `api/index.js`).
@@ -64,7 +66,9 @@ graph TD
 
 ### 2.1. Xác thực & Phân quyền (`/login`, `/register`)
 * Đăng ký 2 vai trò public: **Học sinh / Giáo viên** (đăng ký `admin` và email admin gốc bị chặn ở backend).
+* Học sinh được kích hoạt khi đăng ký; giáo viên ở trạng thái chờ duyệt, chưa được cấp token cho đến khi admin duyệt.
 * Đăng nhập trả về JWT + `{ id, name, email, role }`, lưu `token/userId/userRole` vào localStorage.
+* Backend lấy vai trò/trạng thái hiện tại từ database để kiểm tra quyền, không chỉ dựa vào role trên trình duyệt hoặc token cũ.
 * Admin dùng mật khẩu/trạng thái trong DB như mọi role; không có nhánh đăng nhập ưu tiên từ cấu hình.
 * `ADMIN_EMAIL` + `ADMIN_PASSWORD` (tùy chọn `ADMIN_NAME`) chỉ dùng cho bootstrap thủ công; không ghi đè mật khẩu đã đổi.
 * Tạo admin mới: `npm run seed:admin --prefix backend` với cấu hình tường minh theo mục 0.1; email đã tồn tại sẽ bị từ chối, không khôi phục tự động.
@@ -72,10 +76,10 @@ graph TD
 ### 2.2. Dashboard (`/dashboard`)
 * Giáo viên: xem lớp mình dạy + tạo lớp mới (tên, mô tả, môn, khối).
 * Học sinh: xem các lớp đã tham gia.
-* Admin: xem **tất cả** lớp + tạo lớp như giáo viên.
+* Admin dùng `/admin` để quản lý danh sách lớp, tìm kiếm, lọc và phân trang toàn hệ thống.
 
 ### 2.3. Chi tiết lớp học (`/class/:id`)
-* 5 tab: Tổng quan, Video, Tài liệu, Kiểm tra, Bài tập + Thông báo.
+* Các tab Tổng quan, Video, Tài liệu, Kiểm tra, Bài tập, Thông báo; tab Học sinh dành cho giáo viên/admin.
 * Giáo viên: thêm học sinh bằng email (`POST /api/classes/:id/enroll`), đăng thông báo theo độ ưu tiên (`low/normal/high`).
 * Học sinh: xem nội dung, nộp bài.
 
@@ -88,10 +92,14 @@ graph TD
 * **Video:** thêm video theo URL + thumbnail, đếm lượt xem theo học sinh (`POST /api/videos/:id/view`).
 * **Tài liệu:** thêm tài liệu theo URL + loại/dung lượng file, đếm lượt tải (`POST /api/documents/:id/download`).
 * **Bài tập:** giao bài có hạn nộp + tổng điểm, học sinh nộp file URL, giáo viên chấm điểm + feedback.
-* Tab **Bài tập** có khung nộp/xem kết quả chính chủ và chấm bài cho giáo viên phụ trách/admin; danh sách chỉ tải metadata. URL chỉ nhận HTTP(S), điểm trong thang của bài; xem [contract và kiểm thử #29](docs/BACKEND_SECURITY.md).
+* Tab **Bài tập** có khung nộp/xem kết quả chính chủ và chấm bài cho giáo viên phụ trách/admin; danh sách chỉ tải metadata. URL chỉ nhận HTTP(S), điểm trong thang của bài; xem [quyền truy cập và kiểm thử](docs/BACKEND_SECURITY.md).
 * **Thông báo:** đăng thông báo theo lớp, theo dõi ai đã đọc (`readBy`).
 
-### 2.6. Quyền riêng tư hồ sơ — BE #01 / BE #02 ([#22](https://github.com/ThanhVu6102/tutoring-platform/issues/22), [#23](https://github.com/ThanhVu6102/tutoring-platform/issues/23))
+### 2.6. Hồ sơ, mật khẩu và quyền riêng tư (`/profile`)
+
+* Mọi vai trò cập nhật hồ sơ và đổi mật khẩu chính chủ tại `/profile`; hai form lưu riêng, không gửi mật khẩu cùng cập nhật hồ sơ.
+* Đổi mật khẩu yêu cầu mật khẩu hiện tại, mật khẩu mới và nhập lại. Mật khẩu mới ít nhất 8 ký tự, tối đa 72 byte UTF-8; xóa các ô sau thành công, không lưu mật khẩu vào storage.
+* JWT đã cấp vẫn có hiệu lực tới hạn; đổi mật khẩu chưa tự đăng xuất các phiên khác.
 
 Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**, không chỉ ẩn trên giao diện:
 
@@ -102,26 +110,25 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 | Admin | Giữ thông tin quản trị hiện có theo allowlist, gồm email và thông tin xét duyệt |
 
 * Không trả `password`, `scheduleRevision` hay trường mới chưa được cho phép, kể cả cho admin.
-* BE #02 giữ chính sách BE #01 theo xác nhận của chủ dự án, không mở quyền xem email người khác theo mô tả `name`/`email` ban đầu của issue. Query hồ sơ theo ID chỉ lấy bộ trường công khai nếu người xem không phải chính chủ/admin; DTO vẫn lọc lại response và giới hạn trường lồng trong `review`.
+* Query hồ sơ theo ID chỉ lấy bộ trường công khai nếu người xem không phải chính chủ/admin; DTO lọc lại response và giới hạn trường lồng trong `review`.
 * Quy tắc áp dụng cả hồ sơ trực tiếp và hồ sơ lồng trong lớp học, yêu cầu tham gia, video, tài liệu, thông báo, bài tập, bài kiểm tra/bài nộp và cảnh báo học sinh.
 * Giáo viên không nhận email của học sinh qua các response trên. Giao diện lớp học chỉ hiển thị email trong yêu cầu tham gia và danh sách học sinh cho admin.
 * Chức năng thêm học sinh bằng email đã biết vẫn giữ nguyên; không bổ sung điều kiện cùng lớp khi xem hồ sơ công khai.
-* Chi tiết chức năng các đoạn code thay đổi: [docs/USER_PRIVACY.md](docs/USER_PRIVACY.md).
-* Phạm vi BE #01 không xử lý tài khoản admin mặc định hoặc khóa JWT dự phòng; đây là các vấn đề bảo mật riêng, không nên coi bản sửa này là đã bảo đảm an toàn toàn hệ thống.
+* Contract và quy tắc dữ liệu: [docs/USER_PRIVACY.md](docs/USER_PRIVACY.md). Cấu hình JWT/bootstrap admin được mô tả riêng trong tài liệu bảo mật.
 
 ---
 
-## 2.7. Hiệu năng tải dữ liệu — BE #04 ([issue #11](https://github.com/ThanhVu6102/tutoring-platform/issues/11))
+### 2.7. Hiệu năng tải dữ liệu
 
 * Danh sách lớp, user (admin), video, tài liệu, thông báo, bài tập và quiz luôn trả `{ data, page, limit, total, totalPages }`: mặc định 20, tối đa 100 bản ghi/trang. **Đây là thay đổi contract**, frontend/client cũ nhận mảng phải được cập nhật cùng backend.
 * Danh sách lớp trả `studentCount`/`joinRequestCount` thay vì populate roster; danh sách quiz trả `questionCount`/`hasPromptImage`, không tải đề/ảnh base64. Endpoint chi tiết giữ chức năng hiện có.
 * Dashboard phân trang; chi tiết lớp tải học liệu theo tab và lấy tổng qua `GET /api/classes/:id/content-summary`. Các route nặng được lazy-load.
 * Kết nối MongoDB dùng chung promise trong mỗi instance, không tự tạo/khôi phục tài khoản admin. API riêng tư không cache ở CDN; có `Server-Timing` và logging timing tùy chọn.
-* Công cụ và giới hạn: [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [bằng chứng nghiệm thu](docs/PERFORMANCE.md#ket-qua). BE #04 đã được chủ dự án nghiệm thu Done; số đo dùng MongoDB Docker/dữ liệu giả, không phải cam kết hiệu năng production. Kiểm duyệt phân trang theo tab; một số lịch sử/thông báo vẫn đọc nhiều trang.
+* Kiểm duyệt phân trang theo tab; một số lịch sử/thông báo vẫn đọc nhiều trang. Thiết kế và [kết quả đo local](docs/PERFORMANCE.md#ket-qua) ở [docs/PERFORMANCE.md](docs/PERFORMANCE.md), không phải cam kết hiệu năng production.
 
 ---
 
-## 2.8. Kháng cáo — BE #03 ([issue #24](https://github.com/ThanhVu6102/tutoring-platform/issues/24))
+### 2.8. Kháng cáo (`/appeals`, `/admin/moderation`)
 
 * Học sinh gửi kháng cáo cảnh báo trong 7 ngày; giáo viên phụ trách gửi kháng cáo thông báo khóa lớp trong 24 giờ. Admin xét duyệt và lưu người xử lý/thời điểm/phản hồi.
 * Quyết định và lịch sử chống ghi đè khi thao tác đồng thời. Xác nhận cảnh báo, gỡ khỏi lớp và cập nhật chế tài cùng transaction, cần MongoDB Atlas hoặc replica set.
@@ -130,9 +137,19 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 
 ---
 
+### 2.9. Quản lý tài khoản (`/admin/accounts`)
+
+Admin mở **Quản lý tài khoản** (`/admin/accounts`) để tìm tên/email, lọc học sinh/giáo viên/quản trị và trạng thái, phân trang, duyệt/từ chối giáo viên chờ duyệt. Dùng API/phân quyền hiện có; không thêm đổi vai trò hoặc reset mật khẩu. Contract, cách kiểm thử và giới hạn: [docs/ADMIN_ACCOUNTS.md](docs/ADMIN_ACCOUNTS.md).
+
+### 2.10. Buổi học và điểm danh (API)
+
+Giáo viên phụ trách/admin tạo buổi học, cập nhật trạng thái và ghi điểm danh; học sinh chỉ xem điểm danh chính mình. Tạo lịch và các thao tác transaction yêu cầu MongoDB replica set/Atlas. Chưa có màn hình buổi học/điểm danh riêng; xem [docs/MONGODB_WORKFLOW.md](docs/MONGODB_WORKFLOW.md).
+
+---
+
 ## 3. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
 
-MongoDB gồm 8 collections chính:
+Các collection tài khoản và học liệu chính:
 
 ### Collection `users` (Học sinh, Giáo viên, Admin)
 * `_id` (ObjectId, Khóa chính)
@@ -140,6 +157,7 @@ MongoDB gồm 8 collections chính:
 * `email` (String, bắt buộc, unique)
 * `password` (String, bắt buộc, hash bcrypt)
 * `role` (String, enum `student`/`teacher`/`admin`, bắt buộc)
+* `status` (`pending`/`active`/`inactive`/`left`/`rejected`), `isBlocked`, `review` (người/thời điểm/ghi chú xét duyệt)
 * `avatar` (String, mặc định null) / `bio` (String) / `phone` (String)
 * `enrolledClasses` ([ObjectId ref `Class`])
 * `createdAt` / `updatedAt` (Date)
@@ -184,13 +202,15 @@ MongoDB gồm 8 collections chính:
 * `priority` (enum `low`/`normal`/`high`, mặc định `normal`)
 * `readBy[]`: { `student`, `readAt` }
 
+Ngoài ra có `ClassSession` (buổi học và điểm danh), `StudentWarning` (cảnh báo/kháng cáo/chế tài) và `AuditLog` (nhật ký thao tác). Quy tắc dữ liệu và transaction nằm trong [luồng dữ liệu](docs/MONGODB_WORKFLOW.md) và [kháng cáo](docs/APPEALS.md).
+
 ---
 
 ## 4. HƯỚNG DẪN CÀI ĐẶT CỤC BỘ (LOCAL SETUP)
 
 ### Bước 1: Chuẩn bị
 1. Clone dự án về máy, cài Node.js v18+.
-2. Chạy MongoDB local (`mongodb://localhost:27017`) hoặc tạo cluster free trên MongoDB Atlas.
+2. Chuẩn bị MongoDB Atlas hoặc MongoDB local. Các luồng tạo buổi học/xử lý chế tài cần **replica set**, không dùng MongoDB standalone thay transaction.
 3. Tại thư mục `/backend`, tạo tệp `.env`:
    ```env
    MONGODB_URI=mongodb://localhost:27017/tutoring-platform
@@ -216,17 +236,21 @@ npm run dev --prefix backend
 npm start --prefix frontend
 ```
 
-Kiểm tra backend sống: mở `http://localhost:5000/api/health` phải ra `{"status":"ok"}`.
+Kiểm tra backend sống: mở `http://localhost:5000/api/health` phải ra `{"status":"ok"}`. Sau đó kiểm tra đăng nhập và API có xác thực; health check không chứng minh cấu hình JWT/database đã sẵn sàng cho mọi chức năng.
 
-### Bước 4: Chạy kiểm thử backend
+### Bước 4: Chạy kiểm thử và build
 
 ```bash
 npm test --prefix backend
+npm test --prefix frontend -- --watchAll=false --runInBand
+npm run build --prefix frontend
 ```
 
 Bộ test sử dụng `node:test`, gồm vòng đời tài khoản, lịch/điểm danh, tương thích luồng hiện có và bảo vệ dữ liệu hồ sơ (`backend/tests/userPrivacy.test.js`). Các test này dùng mock dữ liệu và HTTP local, không cần MongoDB thật.
 
 Test quyền riêng tư kiểm tra chính chủ/admin/người khác, trường mới chưa được cho phép, hồ sơ lồng nhau, danh sách học sinh, yêu cầu vào lớp và bài nộp. Chạy test backend không thay thế việc build/kiểm thử frontend hoặc kiểm thử với database thật.
+
+Kiểm thử MongoDB và browser dùng lab/dữ liệu giả riêng: [hướng dẫn công cụ](docs/PERFORMANCE_LAB.md), [quản lý tài khoản](docs/ADMIN_ACCOUNTS.md), [đổi mật khẩu](docs/USER_PRIVACY.md#doi-mat-khau). Không chạy test ghi dữ liệu lên production; kết quả và việc còn lại được theo dõi trong [PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ---
 
@@ -238,56 +262,20 @@ Frontend và backend deploy chung 1 domain: `vercel.json` build `frontend/build`
 
 1. Tạo cluster MongoDB Atlas (M0 free):
    * `Database Access` > tạo user + password, quyền Read/Write.
-   * `Network Access` > `Add IP Address` > **Allow Access from Anywhere (`0.0.0.0/0`)** — bắt buộc vì IP của Vercel động.
+   * `Network Access`: cấp quyền kết nối phù hợp hạ tầng Vercel. Nếu phải dùng `0.0.0.0/0` do IP động, cần đánh giá rủi ro, dùng DB user quyền tối thiểu và quản lý credential an toàn; không mặc định coi mở toàn mạng là bắt buộc.
    * `Database` > Connect > Drivers (Node.js) > copy chuỗi `mongodb+srv://...`, thêm tên db: `...mongodb.net/tutoring-platform?...`.
 2. Vercel Dashboard > project > Settings > Environment Variables, thêm cho cả Production:
    * `MONGODB_URI` = chuỗi Atlas ở trên (Type Secret).
    * `JWT_SECRET` = khóa sinh ngẫu nhiên theo [chính sách JWT](docs/BACKEND_SECURITY.md); thiếu/sai sẽ từ chối xác thực, không dùng khóa dự phòng.
 3. Push code lên `main` (Vercel tự deploy) hoặc bấm Redeploy sau khi thêm env.
-4. Kiểm tra: mở `https://<domain-cua-ban>.vercel.app/api/health` phải ra `{"status":"ok"}`, rồi mới test đăng ký/đăng nhập bằng tab ẩn danh (tránh cache bản cũ).
+4. Kiểm tra `/api/health` trên domain đã triển khai, sau đó xác minh đăng nhập và các luồng chính bằng tài khoản kiểm thử được phép.
 
-Sự cố thường gặp: quên Redeploy sau khi thêm env, thiếu `/tutoring-platform` trong chuỗi Atlas, chưa allow IP `0.0.0.0/0`, test lại email đã đăng ký (backend báo `Email này đã được đăng ký`).
+Sự cố thường gặp: chưa Redeploy sau khi đổi env, sai tên database/quyền kết nối Atlas, JWT secret thiếu/sai hoặc đăng ký lại email đã tồn tại.
 
 ---
 
-## 6. CHANGELOG
+## 6. TÀI LIỆU VÀ THEO DÕI
 
-### BE #01 — Bảo vệ dữ liệu hồ sơ người dùng
-
-* Áp dụng allowlist theo quyền người xem cho hồ sơ và các tham chiếu user lồng nhau.
-* Ẩn email học sinh trên trang lớp học dành cho giáo viên; giữ quyền xem của admin.
-* Bổ sung chú thích và tài liệu tiếng Việt, cùng test hồi quy chống lộ dữ liệu.
-* Tích hợp nền `fix/integrate-mongodb-workflow` vào `feature/auth` để giữ các luồng lớp học/chính sách và kiểm thử tương thích.
-
-| Commit | Ngày | Nội dung |
-|--------|------|----------|
-| `f20156e` | 2026-09-30 | feat(auth): hardcoded super admin with admin role management and Vietnamese inline docs |
-| `d992e08` | 2026-09-30 | feat(database): auto-ensure super admin on connectDB with Vietnamese inline docs |
-| `be94610` | 2026-09-30 | docs(models): Vietnamese inline notes for Announcement |
-| `9e8f387` | 2026-09-30 | docs(models): Vietnamese inline notes for Assignment |
-| `618b773` | 2026-09-30 | docs(classes): Vietnamese inline notes for Class model and ClassDetail page |
-| `ee96a96` | 2026-09-30 | docs(models): Vietnamese inline notes for Document |
-| `a52ace3` | 2026-09-30 | docs(quizzes): Vietnamese inline notes for Quiz models and QuizTaking page |
-| `3ca1488` | 2026-09-30 | docs(models): Vietnamese inline notes for Video |
-| `9e7c87b` | 2026-09-30 | docs(ui-auth): Vietnamese inline notes for Login, Register and api config |
-| `50281bf` | 2026-09-30 | docs(ui-setup): Vietnamese inline notes for App, Navbar, Dashboard and CSS |
-| `e955f53` | 2026-09-28 | feat: static admin login via env without seed |
-| `de900b7` | 2026-09-28 | feat: add admin role with seed script |
-| `5bfb933` | 2026-09-28 | fix: resolve api deps and validate register input |
-| `493fc98` | 2026-09-28 | fix: fullstack Vercel deploy and detailed register error |
-| `799b451` | 2026-09-26 | fix: set framework to create-react-app to resolve services error |
-| `99e212d` | 2026-09-14 | fix: configure Vercel frontend deployment |
-| `df46962` | 2026-09-14 | fix: Resolve ESLint warnings in ClassDetail and QuizTaking |
-| `1e86f76` | 2026-09-14 | fix: Add buildCommand with CI=false to frontend service in vercel.json |
-| `f402fa4` | 2026-09-14 | fix: Add vercel.json buildCommand to bypass CI warning |
-| `838f0d0` | 2026-09-14 | fix: Disable CI warning check on Vercel build |
-| `eea65f1` | 2026-09-12 | Update vercel.json |
-| `9aa521f` | 2026-09-12 | Create vercel.json |
-| `a9e3afc` | 2026-09-12 | feat: Setup React App, Router and Layout components |
-| `b014082` | 2026-09-12 | Merge feature/videos - full backend sync |
-| `4a61bc7` | 2026-09-12 | Merge content branches - documents, quizzes, assignments, announcements |
-| `f590827` | 2026-09-12 | Merge feature/auth - users routes |
-| `3bb94ff` | 2026-09-12 | chore: Add backend foundation - server, package, gitignore |
-| `0f0abe9` | 2026-09-11 | feat: Add JWT authentication (register, login) |
-| `05cb1ae` | 2026-09-11 | feat: Add video upload and management |
-| `49b794e` | 2026-09-11 | feat: Add classes CRUD endpoints |
+- [Chỉ mục tài liệu](docs/README.md): hướng dẫn theo từng chức năng.
+- [Trạng thái dự án](docs/PROJECT_STATUS.md): issue, phát hành, kết quả kiểm tra và việc còn lại.
+- [Quy tắc phát triển](project-rules.md): phạm vi thay đổi, bảo mật, kiểm thử và quy trình Git.

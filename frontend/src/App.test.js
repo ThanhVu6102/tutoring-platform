@@ -8,6 +8,7 @@ jest.mock('./components/Navbar', () => () => <nav aria-label="Điều hướng c
 jest.mock('./pages/ProfilePage', () => () => <h1>Hồ sơ chính chủ kiểm thử</h1>);
 jest.mock('./pages/LoginPage', () => () => <h1>Đăng nhập kiểm thử</h1>);
 jest.mock('./pages/AdminModeration', () => () => <h1>Quản trị tài khoản kiểm thử</h1>);
+jest.mock('./pages/AdminAccounts', () => () => <h1>Danh sách vai trò kiểm thử</h1>);
 jest.mock('./pages/Dashboard', () => () => <h1>Trang chủ kiểm thử</h1>);
 const act = React.act || legacyAct;
 let container;
@@ -72,4 +73,21 @@ test('navbar vẫn hiện trên trang khác', async () => {
   localStorage.setItem('userRole', 'student');
   await act(async () => root.render(<App />));
   expect(container.querySelector('nav[aria-label="Điều hướng chính"]')).not.toBeNull();
+});
+
+test.each(['student', 'teacher'])('%s không mở được quản lý tài khoản', async (role) => {
+  localStorage.setItem('token', 'synthetic-route-test-token');
+  localStorage.setItem('userRole', role);
+  window.history.replaceState({}, '', '/admin/accounts');
+  await act(async () => root.render(<App />));
+  expect(window.location.pathname).toBe('/dashboard');
+  expect(container.textContent).not.toContain('Danh sách vai trò kiểm thử');
+});
+
+test('admin mở được trang quản lý tài khoản', async () => {
+  localStorage.setItem('token', 'synthetic-route-test-token');
+  localStorage.setItem('userRole', 'admin');
+  window.history.replaceState({}, '', '/admin/accounts');
+  await act(async () => root.render(<App />));
+  expect(container.textContent).toContain('Danh sách vai trò kiểm thử');
 });

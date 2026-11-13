@@ -1,0 +1,17 @@
+.accounts-filters { border: 0; padding: 0; min-width: 0; }
+.accounts-filters legend { font-weight: 700; margin-bottom: .75rem; }
+.accounts-filters > div { display: grid; gap: .5rem; }
+.accounts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; margin-top: 1rem; }
+.account-card { min-width: 0; padding: 1.25rem; border: 1px solid #dbe2ea; border-radius: 12px; background: #fff; }
+.account-card h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+.account-card h2, .account-email, .account-review p { overflow-wrap: anywhere; }
+.account-card dl { margin: 1rem 0; }
+.account-card dl div { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+.account-card dt { font-weight: 600; }
+.account-card dd { margin: 0; }
+.account-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.account-review { margin-top: 1.5rem; min-width: 0; }
+.account-review form { display: grid; gap: .5rem; }
+.account-review textarea { width: 100%; box-sizing: border-box; padding: .75rem; font: inherit; border: 1px solid #b8c2cf; border-radius: 8px; resize: vertical; }
+.admin-accounts :focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 600px) { .account-actions .btn { width: 100%; } }

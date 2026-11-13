@@ -1,6 +1,6 @@
 # Kháng cáo và kiểm duyệt
 
-Contract backend của [issue #24](https://github.com/ThanhVu6102/tutoring-platform/issues/24): kháng cáo **cảnh báo học sinh** và **thông báo khóa lớp**. Trang kháng cáo riêng thuộc FE #08 / issue #20; tài liệu này không thay trạng thái nghiệm thu frontend.
+Luồng kháng cáo **cảnh báo học sinh** và **thông báo khóa lớp**, gồm API, quyền truy cập và cách lưu quyết định. Người dùng thao tác trên trang Kháng cáo; admin xử lý tại Hồ sơ vi phạm.
 
 ## Xác thực và dữ liệu
 
@@ -115,7 +115,7 @@ npm run test:appeals:integration --prefix backend
 
 Bộ tích hợp kiểm tra HTTP gửi/xem/duyệt, deadline, người thực hiện, dữ liệu cũ, quyền xem lớp, các cặp request đồng thời, bộ đếm qua nhiều lớp và rollback thật khi cố tình gây lỗi ở bước lưu cuối. Unit test bổ sung payload sai, thiếu quyền, xử lý `503` và che lỗi nội bộ.
 
-Kiểm thử API không thay nghiệm thu giao diện; trạng thái màn hình kháng cáo riêng được theo dõi tại #20.
+Kết quả kiểm tra và trạng thái phát hành được theo dõi tại [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Vị trí triển khai
 

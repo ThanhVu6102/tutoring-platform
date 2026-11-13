@@ -136,6 +136,11 @@ html, body, #root {
 .navbar-avatar span { display: grid; place-items: center; width: 100%; height: 100%; font-size: 1.2rem; font-weight: 800; }
 .navbar .navbar-menu-toggle { display: none; }
 
+/* Thêm mục tài khoản: nút admin được xuống dòng, không đè icon trang trí giữa thanh. */
+.navbar-admin { gap: 1rem; }
+.navbar-admin .nav-icon-group { display: none; }
+.navbar-admin .navbar-user { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+
 .navbar-role-logo {
   display: block;
   width: min(190px, 38vw);

@@ -62,3 +62,20 @@ test('malformed token identity returns 401 without querying database', async () 
   await authMiddleware({ header: () => `Bearer ${token}` }, res, () => assert.fail());
   assert.equal(res.statusCode, 401);
 });
+
+test('admin user list rejects malformed pagination as 400 before loading the collection', async (t) => {
+  const express = require('express');
+  const app = express();
+  app.use('/api/users', require('../routes/users'));
+  t.mock.method(User, 'findById', () => ({ select: () => ({ lean: async () => ({ role: 'admin', status: 'active' }) }) }));
+  t.mock.method(User, 'find', () => assert.fail('Invalid paging must not read users'));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+  const token = jwt.sign({ userId: 'a'.repeat(24), role: 'admin' }, process.env.JWT_SECRET);
+  for (const query of ['page=invalid', 'limit=0', 'page=-1', 'page=1.5', 'limit%5Bbad%5D=20']) {
+    const result = await fetch(`http://127.0.0.1:${server.address().port}/api/users?${query}`, { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal(result.status, 400);
+    assert.deepEqual(await result.json(), { message: 'Tham số phân trang không hợp lệ' });
+  }
+});

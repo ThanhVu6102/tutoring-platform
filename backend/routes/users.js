@@ -200,6 +200,8 @@ router.get('/', authMiddleware, adminOnly, async (req, res) => {
       map: (user) => userForViewer(user, req),
     }));
   } catch (error) {
+    // Validation page/limit của readPage không phải lỗi server; không trả chi tiết nội bộ.
+    if (error.statusCode === 400) return res.status(400).json({ message: 'Tham số phân trang không hợp lệ' });
     return sendError(res, error);
   }
 });
