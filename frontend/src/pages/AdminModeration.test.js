@@ -109,6 +109,30 @@ test('student accounts load on demand and soft deletion refreshes their page', a
   } finally { confirm.mockRestore(); }
 });
 
+test('student deletion blocks a second request while pending and allows retry after an API error', async () => {
+  const student = { _id: 'student-1', name: 'Học sinh A', email: 'student@example.test' };
+  axios.get.mockImplementation(async (url, config) => ({ data: url.endsWith('/summary') ? summary
+    : page(url === '/api/users' ? [student] : url.endsWith('/warnings') ? warningData : [], config.params.page) }));
+  let rejectDelete;
+  axios.delete.mockReturnValueOnce(new Promise((resolve, reject) => { rejectDelete = reject; }))
+    .mockResolvedValueOnce({ data: { message: 'Đã xóa người dùng' } });
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(true);
+  try {
+    await render();
+    await click('Tài khoản học sinh');
+    const deleteButton = [...container.querySelectorAll('button')].find((item) => item.textContent === 'Xóa tài khoản');
+    act(() => { Simulate.click(deleteButton); Simulate.click(deleteButton); });
+    expect(axios.delete).toHaveBeenCalledTimes(1);
+    expect(deleteButton.disabled).toBe(true);
+    await act(async () => rejectDelete({ response: { data: { message: 'Không thể xóa học sinh này' } } }));
+    expect(container.textContent).toContain('Không thể xóa học sinh này');
+    expect(deleteButton.disabled).toBe(false);
+    await click('Xóa tài khoản');
+    expect(axios.delete).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('Đã xóa tài khoản Học sinh A.');
+  } finally { confirm.mockRestore(); }
+});
+
 test('hiding a warning only changes the current admin view and persists after reload', async () => {
   localStorage.setItem('userId', 'admin-a');
   await render();

@@ -7,6 +7,8 @@ jest.mock('./config/api', () => ({}));
 jest.mock('./components/Navbar', () => () => null);
 jest.mock('./pages/ProfilePage', () => () => <h1>Hồ sơ chính chủ kiểm thử</h1>);
 jest.mock('./pages/LoginPage', () => () => <h1>Đăng nhập kiểm thử</h1>);
+jest.mock('./pages/AdminModeration', () => () => <h1>Quản trị tài khoản kiểm thử</h1>);
+jest.mock('./pages/Dashboard', () => () => <h1>Trang chủ kiểm thử</h1>);
 const act = React.act || legacyAct;
 let container;
 let root;
@@ -40,4 +42,13 @@ test('không có phiên đăng nhập vẫn bị chuyển khỏi hồ sơ sang �
   expect(container.textContent).toContain('Đăng nhập kiểm thử');
   expect(container.textContent).not.toContain('Hồ sơ chính chủ kiểm thử');
   expect(window.location.pathname).toBe('/login');
+});
+
+test.each(['student', 'teacher'])('vai trò %s không mở được trang xóa tài khoản học sinh', async (role) => {
+  localStorage.setItem('token', 'synthetic-route-test-token');
+  localStorage.setItem('userRole', role);
+  window.history.replaceState({}, '', '/admin/moderation');
+  await act(async () => root.render(<App />));
+  expect(window.location.pathname).toBe('/dashboard');
+  expect(container.textContent).not.toContain('Quản trị tài khoản kiểm thử');
 });
