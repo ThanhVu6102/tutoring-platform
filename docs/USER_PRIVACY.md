@@ -12,9 +12,9 @@
 - DTO không nhận các tên biến thể `phone_number`, `id_card_number`, CCCD hoặc trường mới chỉ vì chúng xuất hiện trong dữ liệu legacy/mock.
 - `review` chỉ có `reviewedBy`, `reviewedAt`, `note`; hồ sơ người duyệt khi populate tiếp tục lọc theo người xem.
 
-## 2. Quyết định BE #02 và cách áp dụng
+## 2. Truy vấn và lọc dữ liệu
 
-[Issue #23](https://github.com/ThanhVu6102/tutoring-platform/issues/23) ban đầu đề cập name/email, nhưng chủ dự án xác nhận **giữ chính sách BE #01**, không mở lại email người khác hoặc sửa UI để hiển thị email đó.
+Email người khác không được hiển thị trong hồ sơ công khai; quyền xem email dành cho chính chủ và admin theo allowlist.
 
 - `GET /api/users/:id` chọn trường ngay ở query theo danh tính đã xác thực; `/api/users/profile` dùng allowlist chính chủ. Query `role`, `userId`, `fields` không mở rộng quyền/projection.
 - DTO lọc lại trước khi gửi. Populate có nhiều người giữ query allowlist chung và lọc từng user, tránh mất dữ liệu chính chủ được phép xem; không tuyên bố mọi populate đã tối thiểu hóa riêng cho từng người ở DB.
@@ -22,7 +22,7 @@
 
 ## 3. Vị trí triển khai và kiểm thử
 
-Quyền riêng tư **nội dung bài nộp bài tập** (file/điểm/nhận xét), khác với hồ sơ user lồng nhau, được mô tả ở [BE #08](BACKEND_SECURITY.md). Học sinh chỉ nhận bài nộp chính chủ; danh sách chỉ có metadata.
+Quyền riêng tư **nội dung bài nộp bài tập** (file/điểm/nhận xét), khác với hồ sơ user lồng nhau, được mô tả ở [Bảo mật backend](BACKEND_SECURITY.md). Học sinh chỉ nhận bài nộp chính chủ; danh sách chỉ có metadata.
 
 | File | Vai trò |
 |---|---|
@@ -35,7 +35,7 @@ Quyền riêng tư **nội dung bài nộp bài tập** (file/điểm/nhận xé
 Chạy `npm test --prefix backend`. Test mock không thay kiểm thử MongoDB/deployment; phần này không thay khóa JWT, cấu hình admin mặc định hoặc quyền truy cập nội dung lớp.
 
 <a id="doi-mat-khau"></a>
-## 4. Đổi mật khẩu chính chủ — issue #41
+## 4. Đổi mật khẩu chính chủ
 
 `PATCH /api/users/password` yêu cầu Bearer token và tài khoản hoạt động:
 
@@ -51,10 +51,10 @@ Chạy `npm test --prefix backend`. Test mock không thay kiểm thử MongoDB/d
 - Biểu mẫu hồ sơ có mật khẩu hiện tại/mới/nhập lại, kiểm tra khớp và giới hạn UTF-8, chặn gửi lặp, báo kết quả, xóa ba ô khi thành công. Không lưu mật khẩu trong localStorage/sessionStorage hoặc gửi cùng cập nhật hồ sơ; không thêm thư viện.
 - Kiểm thử: `backend/tests/changePassword.test.js`, `frontend/src/pages/ProfilePage.test.js`; chạy `npm test --prefix backend`, `npm test --prefix frontend -- --watchAll=false --runInBand`, `npm run build --prefix frontend`. Mock không thay kiểm tra đăng nhập cũ/mới trên môi trường được phép; không công khai thông tin đăng nhập test.
 
-### Kiểm chứng giao diện FE/BE #02 — 2026-11-13
+### Giao diện và kiểm thử
 
 - Đường dẫn `/profile`: học sinh/giáo viên mở qua avatar **Mở hồ sơ cá nhân** trên navbar; admin mở **Hồ sơ và mật khẩu** (trong menu điều hướng trên mobile). Form **Đổi mật khẩu** nằm riêng bên dưới form lưu hồ sơ.
-- `LoginPage.js` không còn log Axios response/config khi đăng nhập lỗi vì object có thể chứa body request kèm mật khẩu. `LoginPage.test.js` kiểm tra lỗi xác thực/mạng không log dữ liệu nhạy cảm và giữ điều hướng đăng nhập của ba vai trò.
+- `LoginPage.js` không log Axios response/config khi đăng nhập lỗi vì object có thể chứa body request kèm mật khẩu. `LoginPage.test.js` kiểm tra lỗi xác thực/mạng không log dữ liệu nhạy cảm và giữ điều hướng đăng nhập của ba vai trò.
 - Chạy browser harness sau build, với Playwright/Chromium đã cài trong thư mục công cụ tạm riêng, không thêm dependency ứng dụng:
 
 ```powershell
@@ -64,10 +64,4 @@ npm run test:password:browser --prefix backend -- --tools-dir 'C:\path\to\tempor
 
 `backend/scripts/password-ui-smoke.js` tạo Docker MongoDB replica set riêng, dùng router thật và production build. Mỗi viewport 1440×1000 và 390×844 có ba học sinh giả, một giáo viên và một admin mới; mật khẩu/khóa sinh ngẫu nhiên, không nạp `.env` hoặc nhận URI/tài khoản ngoài. Browser đăng nhập thật, không inject JWT; chặn mạng ngoài trước khi nhập thông tin. Kiểm tra nhập lại sai không PATCH, sai mật khẩu hiện tại không ghi DB, chặn gửi lặp, payload chỉ có `currentPassword`/`newPassword`, bcrypt lưu đúng, xóa ba ô, không lưu mật khẩu vào storage, lưu hồ sơ độc lập và đăng nhập lại bằng mật khẩu cũ/mới.
 
-Report/screenshot chỉ lưu local/ignored trong `docs/local/security/password-ui-<id>/`; screenshot chụp sau khi các ô mật khẩu trống. Không công bố credential/hash/JWT. Kết quả local không thay nghiệm thu UI của chủ dự án hoặc kiểm chứng deployment. Không đổi lại ba tài khoản Preview lịch sử; ghi chú API Preview trước đây không chứng minh đã nghiệm thu FE. Giữ nguyên hiệu lực JWT cũ, không thêm reset mật khẩu hoặc thay đổi contract.
-
-Kết quả nhánh `test/febe-02-password-flow` trên nền develop `c18b4ab`: backend **135/135**, frontend **61/61** (13 suite), build thành công; MongoDB hồi quy **35/35** (4 suite tính cả test bao ngoài), audit backend `--omit=dev` **0 vulnerabilities** tại thời điểm chạy. Không dùng số kiểm thử của nhánh #29 chưa merge làm bằng chứng cho nhánh này.
-
-Chromium **50/50** đạt, report `docs/local/security/password-ui-662f5dcb9ac4b01dacbb1f62/report.json`, kèm 10 screenshot sau đăng nhập lại. Đã xem ảnh học sinh mobile/admin desktop; các phiên không lỗi trang, không tràn ngang hoặc gọi mạng ngoài. DB và container của lượt browser cùng các lượt MongoDB hồi quy đã dọn sạch. Lưu hồ sơ sau đổi mật khẩu dùng phiên hiện có thành công, phù hợp chính sách không tự thu hồi JWT. Chỉ commit/push nhánh riêng và cập nhật bằng chứng; issue chưa được chủ dự án nghiệm thu UI, chưa đánh dấu Done/đóng hoặc tự tạo/merge PR.
-
-Lượt browser đầu `password-ui-fadf7869b26477c600ac67c2` dừng sau 4 kiểm tra vì harness chưa chấp nhận hộp xác nhận đăng xuất của navbar. Đã bổ sung thao tác đồng ý hộp thoại trong test, không sửa hành vi ứng dụng; lượt lỗi đã dọn DB/container, giữ report local để đối chiếu, không tính là đạt toàn bộ.
+Report/screenshot lưu local/ignored trong `docs/local/security/password-ui-<id>/`; screenshot chụp sau khi các ô mật khẩu trống. Không công bố credential/hash/JWT. Kết quả kiểm thử và trạng thái phát hành ở [PROJECT_STATUS.md](PROJECT_STATUS.md).

@@ -1,5 +1,7 @@
 # Kiểm tra giao diện FE04 và FE11
 
+Phạm vi: giao diện sáng cố định và responsive trên các trang công khai, dashboard, chi tiết lớp và biểu mẫu. Trạng thái phát hành và kết quả kiểm tra các chức năng khác ở [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
 Kiểm tra trên production build tại loopback với backend và MongoDB replica set QA riêng, tài khoản `example.test`/QA. Không dùng dữ liệu production.
 
 ## Kết quả

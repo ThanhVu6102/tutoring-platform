@@ -1,8 +1,8 @@
-# BE #04 — Hiệu năng API và frontend
+# Hiệu năng API và frontend
 
-[Issue #11](https://github.com/ThanhVu6102/tutoring-platform/issues/11) đã **CLOSED / Done** theo xác nhận nghiệm thu của chủ dự án ngày 2026-11-11. Gói tối ưu cuối `32e6ff8` đã merge vào `develop` qua [PR #50](https://github.com/ThanhVu6102/tutoring-platform/pull/50); không đồng nghĩa đã phát hành gói đó lên `main`.
+Thiết kế phân trang, giới hạn payload, truy vấn và tải giao diện của EKLASSES. Trạng thái issue/phát hành và hạn chế kiểm chứng được theo dõi tại [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-Cách chạy công cụ: [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md). Contract kiểm duyệt: [APPEALS.md](APPEALS.md#kiem-duyet). Số đo/nghiệm thu nằm ở [cuối trang](#ket-qua).
+Cách chạy công cụ: [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md). Contract kiểm duyệt: [APPEALS.md](APPEALS.md#kiem-duyet). Số đo nằm ở [cuối trang](#ket-qua).
 
 ## 1. Contract phân trang
 
@@ -52,7 +52,7 @@ Tối ưu cuối: count lớp không filter dùng index `_id_`; contains/history
 
 - Cache promise kết nối MongoDB trong **mỗi instance**; lỗi kết nối được thử lại. Không chia sẻ connection giữa các instance serverless; không tự tạo/khôi phục admin khi kết nối lại. Tạo admin ban đầu bằng [thao tác thủ công](ADMIN_BOOTSTRAP.md).
 - `Server-Timing: app;dur=...` đo đến lúc ghi header, không phải toàn bộ thời gian tải mạng/body. `PERF_LOG_ENABLED=true` bật log method/mẫu route/status/duration, không log ID/query/body/token/URI.
-- API riêng tư dùng `Cache-Control: private, no-store`; `/api/docs` công khai cache 300 giây. Brotli đã quan sát trên `/api/docs`, không suy ra mọi response riêng tư đều nén; xem phạm vi kiểm chứng trong báo cáo nghiệm thu.
+- API riêng tư dùng `Cache-Control: private, no-store`; `/api/docs` công khai cache 300 giây. Brotli đã quan sát trên `/api/docs`, không suy ra mọi response riêng tư đều nén.
 - Index schema phục vụ sort/filter lớp, user, học liệu, quiz submissions và cảnh báo. Script `perf:indexes` xem định nghĩa; `--apply` dùng createIndexes, không sync/drop index ngoài schema. Chỉ apply trên DB được phép; Mongoose autoIndex cũng có thể tạo index khi khởi động.
 - Contains có thể còn COLLSCAN; exact count vẫn tăng theo số key/document. Offset trang sâu vẫn tốn chi phí. Không ép hint hoặc đổi semantics tìm kiếm chỉ để làm đẹp EXPLAIN.
 
@@ -64,18 +64,18 @@ Tối ưu cuối: count lớp không filter dùng index `_id_`; contains/history
 - Giữ polling 30 giây và transaction finalize cảnh báo hết hạn; chưa có job nền/WebSocket/cache liên phiên. Backlog expiry lớn và write overhead chưa được benchmark.
 - Chưa có API reference môn/khối/vai trò riêng để cần thêm cache; không tạo cache giả cho checklist.
 
-Nghiệm thu mức tối ưu hiện tại không phải cam kết SLA production, không xác nhận mọi query tránh scan và không tự mở rộng phạm vi [issue #12](https://github.com/ThanhVu6102/tutoring-platform/issues/12).
+Các tối ưu không bảo đảm mọi query tránh scan hoặc đạt một SLA cố định trên production.
 
 <a id="ket-qua"></a>
-## 5. Số đo và nghiệm thu
+## 5. Kết quả đo local
 
-Chủ dự án đã [nghiệm thu mức tối ưu hiện tại](https://github.com/ThanhVu6102/tutoring-platform/issues/11#issuecomment-6798915213). Các kết quả sau đã chạy trên source được nêu, **không phải kiểm thử mới khi sửa tài liệu**. Report/screenshot thô ở `docs/local/performance/` bị ignore, không có sẵn khi clone; DB/container/snapshot của lượt hoàn tất đã dọn.
+Kết quả gắn với phiên bản và cấu hình đo, không phải cam kết hiệu năng production. Report thô ở `docs/local/performance/` bị ignore; cách tái lập tại [PERFORMANCE_LAB.md](PERFORMANCE_LAB.md).
 
 ### Code trước/sau BE #04
 
-Before `f46880307bb769b5a347736bf60c7e3f04d22f4b` (cha `925022f`) → after `c9aca1771552d8d372bbf2222801c9a16ffc2505` (main sau PR #48). Hai worker dùng snapshot Git chính xác, cùng DB giả **2.000 user / 400 lớp**, cùng index vật lý schema main, không tắt xác thực/quyền.
+Before `f46880307bb769b5a347736bf60c7e3f04d22f4b` → after `c9aca1771552d8d372bbf2222801c9a16ffc2505`. Hai worker dùng snapshot Git chính xác, cùng DB giả **2.000 user / 400 lớp**, cùng index vật lý, không tắt xác thực/quyền.
 
-Report `code-ad9bb1a404b6bba05bdf93db.json`: MongoDB 7.0.45, 2 CPU / 1 GiB, Node v20.20.0, Express loopback/identity encoding, **20 mẫu warm ABBA mỗi phiên bản**; tách request đầu, EXPLAIN ngoài đồng hồ, không chạy cùng build/test/browser khác do agent khởi động.
+Report `code-ad9bb1a404b6bba05bdf93db.json`: MongoDB 7.0.45, 2 CPU / 1 GiB, Node v20.20.0, Express loopback/identity encoding, **20 mẫu warm ABBA mỗi phiên bản**; tách request đầu, EXPLAIN ngoài đồng hồ, không chạy cùng workload build/test/browser khác.
 
 | GET / trường hợp | Dòng trước → sau | Byte giải mã trước → sau | Trung vị ms trước → sau | p95 ms trước → sau |
 |---|---:|---:|---:|---:|
@@ -110,10 +110,8 @@ Document xét là tổng plan classes trong request đầu, không gồm user x�
 | Warning index ABBA `b3f436ec95121e745ab9f66c.json` | 2.000 user / 400 lớp / 2.000 warnings, A/B mỗi nhóm 40 mẫu đơn hoặc 10 bootstrap. B bỏ expiry COLLSCAN và list blocking SORT; trung vị/p95 ms: student **16,06/22,07 → 13,04/25,76**, admin **373,67/591,62 → 333,64/528,19**, bootstrap **732,75/949,94 → 615,48/868,22**. Đối chứng cũng nhanh hơn nên chưa quy toàn bộ lợi ích cho index. Baseline: `13840898f5985100adf38cdb.json`. |
 | Phương án loại bỏ `code-73fc5298efe8607be287cc81.json` | Facet ID/count rồi đọc trang tuần tự chậm hơn main trên 5.000 lớp: q rộng 16,75 → 22,82 ms, q + summary 18,40 → 27,76 ms, history 16,11 → 24,81 ms. Không giữ chỉ để bỏ nhãn COLLSCAN; không gom payload lớn vào facet vì giới hạn BSON 16 MiB. |
 
-### Kiểm thử và giới hạn nghiệm thu
+### Giới hạn phép đo
 
-- Source backend cuối: **111/111** unit/HTTP; **15/15** MongoDB integration (13 kịch bản + 2 test bao ngoài), gồm filter/sort/quyền giả mạo, summary chính xác, trang rỗng/vượt cuối, status legacy, contract cũ, transaction expiry, query count/trang song song và trang thumbnail tổng 20 MiB.
-- Frontend c9aca17: **31/31**, 10 suites, build thành công; không sửa source frontend trong bước tối ưu cuối. Không tự coi kết quả này đại diện toàn bộ develop sau khi tích hợp FE khác.
-- Chromium cuối **27/27**, report `browser-55419c7fd0c5e487b88a98c7/report.json`: ba role, 1440×1000 / 390×844, paging/filter/empty/reset/retry, tab tải theo nhu cầu, review single-submit + làm mới tổng, lazy học liệu, admin guard, menu mobile không tràn ngang/page crash. JWT/data giả local, chặn mạng ngoài; chỉ ca 503 là transport mock, không phải test login/thiết bị vật lý/production. Không dùng lượt lỗi hoặc bị restart làm bằng chứng.
+- Kiểm thử tích hợp bao phủ filter/sort/quyền, summary, trang rỗng/vượt cuối, status legacy, transaction expiry, query count/trang song song và trang thumbnail tổng 20 MiB. Số test và snapshot tương ứng nằm ở [PROJECT_STATUS.md](PROJECT_STATUS.md).
 - Deployment main c9aca17: `/api/docs` HTTP 200, `Content-Encoding: br`, cache public 300 giây; **chưa xác minh nén mọi payload riêng tư có auth**. Chưa đo tải đồng thời, tồn đọng expiry lớn, chi phí ghi, TLS/CDN/cold start; không apply index/seed production trong lab.
-- Contains vẫn có thể scan toàn tập; exact count/deep offset vẫn tăng chi phí theo dữ liệu. Index tìm kiếm chuyên dụng, field dẫn xuất/backfill hoặc dịch vụ search cần duyệt riêng; không tự đổi sang prefix/full-text/count ước lượng. Done của #11 không có nghĩa các phần này đã triển khai.
+- Contains vẫn có thể scan toàn tập; exact count/deep offset vẫn tăng chi phí theo dữ liệu. Index tìm kiếm chuyên dụng, field dẫn xuất/backfill hoặc dịch vụ search chưa được triển khai; không tự đổi semantics sang prefix/full-text/count ước lượng.

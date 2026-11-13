@@ -1,4 +1,4 @@
-# Bootstrap và chuyển đổi tài khoản quản trị — BE #05 / #26
+# Bootstrap và chuyển đổi tài khoản quản trị
 
 ## Hành vi mới
 
@@ -15,9 +15,9 @@
 4. Nếu email đã tồn tại (kể cả student, admin bị khóa/xóa), script báo lỗi và **không sửa** password/role/trạng thái. Unique index email ngăn insert trùng; không dùng lệnh này để khôi phục tài khoản.
 5. Xóa `ADMIN_PASSWORD` khỏi môi trường bootstrap và không đưa biến bootstrap vào runtime web. Kiểm tra đăng nhập bằng mật khẩu được cấp qua kênh riêng.
 
-## Chuyển đổi hệ thống đã triển khai (cần người vận hành xác nhận)
+## Chuyển đổi hệ thống đã triển khai
 
-**Chỉ sửa code không vô hiệu hóa hash cũ đang nằm trong DB hoặc token đã cấp.** Nếu DB vẫn lưu mật khẩu từng công khai thì mật khẩu đó vẫn so sánh bcrypt thành công cho đến khi được đổi. Không tự coi issue đã nghiệm thu production.
+**Chỉ sửa code không vô hiệu hóa hash cũ đang nằm trong DB hoặc token đã cấp.** Nếu DB vẫn lưu mật khẩu từng công khai thì mật khẩu đó vẫn so sánh bcrypt thành công cho đến khi được đổi.
 
 - [ ] Kiểm kê các tài khoản admin gốc và admin từ env trên đúng môi trường qua kênh riêng; không đăng danh tính/dữ liệu thực lên issue.
 - [ ] Trong cửa sổ bảo trì hoặc chặn truy cập auth công khai, triển khai code đã bỏ bypass/startup reset; bảo đảm instance cũ không còn phục vụ. Không mở lại đăng nhập trước khi thay hash cũ.
@@ -26,7 +26,7 @@
 - [ ] Đánh giá token/phiên đã cấp và dấu hiệu truy cập trái phép. Nếu có rủi ro, xoay `JWT_SECRET` mạnh qua secret manager ở mọi instance rồi ngừng instance giữ khóa cũ để vô hiệu hóa toàn bộ token HS256 hiện tại (mọi role phải đăng nhập lại). Không ghi giá trị secret hoặc token vào log. Chưa có thu hồi từng phiên; #27 xử lý cấu hình JWT/fail-closed riêng.
 - [ ] Ghi nhận người thực hiện, thời điểm, môi trường và xác nhận rotation/revocation qua kênh vận hành riêng; chỉ công bố trạng thái không nhạy cảm.
 
-Các bước vận hành trên **chưa được chạy/xác nhận** trong lần sửa local này. Không truy cập hoặc sửa DB production.
+Checklist áp dụng riêng cho từng môi trường và cần người vận hành xác nhận; test local không thay kiểm tra rotation/revocation. Trạng thái xác nhận vận hành được theo dõi tại [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Kiểm thử local
 

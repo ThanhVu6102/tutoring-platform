@@ -1,8 +1,10 @@
-# Quản lý tài khoản — FE/BE #03 / issue #63
+# Quản lý tài khoản
 
 ## Phạm vi
 
 Trang `/admin/accounts` dành cho admin, mở bằng **Quản lý tài khoản** trên navbar (menu thu gọn trên mobile). Phân loại dựa trên role trong database, không xác minh nghề nghiệp/danh tính ngoài đời.
+
+Trang dùng chung cơ chế vai trò và xét duyệt tài khoản với backend. Danh sách học sinh trong Hồ sơ vi phạm phục vụ nghiệp vụ kiểm duyệt riêng, không thay danh sách quản lý tài khoản.
 
 - Tên/email, vai trò **Học sinh / Giáo viên / Quản trị viên**, trạng thái **Chờ duyệt / Đang hoạt động / Tạm nghỉ / Đã rời trung tâm / Bị từ chối**.
 - Trạng thái khóa/đình chỉ hiển thị riêng với trạng thái vòng đời. Legacy thiếu status hiển thị đang hoạt động theo chính sách backend hiện có.
@@ -20,7 +22,7 @@ Trang `/admin/accounts` dành cho admin, mở bằng **Quản lý tài khoản**
 
 Giữ các role/status/schema/JSON keys hiện có. `view=moderation` lấy metadata, không tải avatar base64. DTO không trả mật khẩu/hash/revision hoặc trường nội bộ; quyền và trạng thái hiện tại luôn kiểm tra từ DB, không tin role sửa trong localStorage/JWT. Không thêm thư viện, migration hoặc dữ liệu mẫu trong ứng dụng.
 
-`GET /api/users` nay trả **400** cho lỗi validation page/limit từ helper `readPage`, thay vì rơi vào `sendError` và trả 500. Sửa giới hạn ở route danh sách user, không thay helper lỗi dùng chung hoặc nới validation.
+`GET /api/users` trả **400** nếu page/limit không hợp lệ; mặc định 20 tài khoản/trang, giới hạn 100.
 
 Quyết định xét duyệt dùng compare-and-set theo `teacher + pending + deletedAt:null`; đối thủ hoặc hồ sơ đã xử lý trả 409, không ghi đè. Metadata người/thời điểm/ghi chú nằm trong user. Audit log tiếp tục best-effort theo [luồng tài khoản](MONGODB_WORKFLOW.md), không tuyên bố audit cùng transaction với user.
 
@@ -43,28 +45,4 @@ npm run test:accounts:browser --prefix backend -- --tools-dir 'C:\path\to\tempor
 
 `accounts-ui-smoke.js` tạo lab MongoDB Docker replica set sở hữu riêng và dùng production build/router thật, không nạp `.env` hoặc nhận URI ngoài. Admin đăng nhập qua UI; token giả đã ký chỉ dùng kiểm tra route/API từ chối cho student/teacher. Kiểm tra phân trang/filter, privacy, xác nhận/submit lặp, ghi chú, người/thời điểm/audit thật, đăng nhập trước/sau xét duyệt và hai quyết định cạnh tranh trên MongoDB. Browser chặn mạng ngoài trước khi nhập credential giả; không kiểm tra tài khoản production hoặc gửi thông tin ra dịch vụ khác.
 
-Report/screenshot ở `docs/local/security/accounts-ui-<id>/`, ignored; không đưa credential/hash/JWT lên Git/issue. Các lượt lỗi cũng giữ dấu vết và dọn đúng tài nguyên lab. Kết quả local không thay nghiệm thu của chủ dự án hoặc kiểm chứng deployment.
-
-## Phối hợp review
-
-Hai subagent Gemini ban đầu bị quota; agent chính triển khai trực tiếp. Lượt thử lại audit backend và review frontend đã trả kết quả, không phát hiện blocker; agent chính kiểm tra lại contract và tích hợp. Test thật vẫn phát hiện lỗi page/limit trả 500 và vấn đề label/harness ngoài review; các kết luận subagent không được dùng thay test. Primary chịu trách nhiệm cuối cho quyết định bảo mật và bàn giao.
-
-## Bằng chứng ngày 2026-11-14
-
-Source nhánh `feat/admin-account-management` trên develop `8d6e088`, chưa tự merge/phát hành:
-
-| Kiểm tra | Kết quả |
-|---|---|
-| Backend unit/HTTP | **139/139**, gồm lỗi pagination user trả 400 trước query collection |
-| Frontend | **97/97**, 15 suite; thêm form/filter/session và route/navbar |
-| Build frontend | Thành công; initial JS gzip **81,64 kB**, trang mới lazy-load |
-| Tài khoản: HTTP/MongoDB/Chromium | **27/27**: 3 nhóm HTTP/MongoDB + 8 nhóm UI/route cho mỗi viewport 1440×1000, 1024×900 và 390×844 |
-| Chromium hồi quy chung | **27/27** trên desktop/mobile, ba vai trò |
-| MongoDB hồi quy | **36/36**, 4 suite tính cả test bao ngoài (kháng cáo, lọc lớp, kiểm duyệt, học liệu) |
-| Audit backend `--omit=dev` | **0 vulnerabilities** tại thời điểm chạy; không đại diện audit frontend |
-
-Report cuối local: `accounts-ui-47ee3b6a170aa7b7ce839d6e/report.json`, hồi quy `browser-affc28444e2c3b09f41fe4b1/report.json`. Các lượt cuối tự xác nhận DB/container đã dọn. Đã xem ảnh form từ chối mobile và trang tablet; icon decor admin không còn đè nút, nhãn/textarea có liên kết rõ ràng.
-
-Dấu vết lỗi không bị bỏ qua: `accounts-ui-e3184d528f4ae0ca81a3d560` bắt lỗi backend 500 thay 400; `accounts-ui-fc2cec496791aead7eef15b7` lỗi label/waiter khiến tiến trình kết thúc trước cleanup; `accounts-ui-8eb9f5f5f74caa276e250764` lỗi harness unroute trước fulfill. Hai lượt kết thúc bất thường đã được agent xác minh **đúng nhãn owner/run + địa chỉ loopback**, drop đúng DB và xóa đúng container, ghi report local bổ sung. Không xóa container hoặc dữ liệu không thuộc lượt chạy. Đã sửa harness/label, chạy lại toàn bộ rồi mở rộng kiểm tra cạnh tranh thật và viewport tablet; không dùng lượt lỗi làm bằng chứng đạt.
-
-Issue #63 giữ Open / In review sau commit/push; chờ review, chủ dự án nghiệm thu và duyệt PR/merge. Không tự suy ra Done từ test local hoặc quyền commit/push.
+Report/screenshot ở `docs/local/security/accounts-ui-<id>/`, ignored; không đưa credential/hash/JWT lên Git. Kết quả kiểm tra và trạng thái triển khai ở [PROJECT_STATUS.md](PROJECT_STATUS.md).
