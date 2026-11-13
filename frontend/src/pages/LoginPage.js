@@ -70,8 +70,7 @@ const LoginPage = ({ onLogin }) => {
       // B3c: Chuyển vào Dashboard.
       navigate(response.data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      // B4a: In lỗi ra console để dev debug.
-      console.error('Login error:', err.response || err.message || err);
+      // Không log Axios response/config: chúng có thể chứa email/mật khẩu trong request.
       // B4b: Không có response = không tới được server (backend chưa chạy / sai URL).
       if (!err.response) {
         setError('Không kết nối được tới server backend. Hãy chắc chắn backend đang chạy.');
