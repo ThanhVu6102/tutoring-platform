@@ -18,6 +18,7 @@ import TeacherContentTools from '../components/TeacherContentTools';
 import { policyReasonLabels } from '../config/policyLabels';
 import usePagedList from '../hooks/usePagedList';
 import Pagination from '../components/Pagination';
+import AssignmentWorkspace from '../components/AssignmentWorkspace';
 
 // Component chi tiết lớp.
 const ClassDetail = () => {
@@ -52,6 +53,8 @@ const ClassDetail = () => {
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', priority: 'normal' });
   const [joinRequests, setJoinRequests] = useState([]);
   const [deletingResource, setDeletingResource] = useState('');
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const assignmentOpener = useRef(null);
   const [appealMessage, setAppealMessage] = useState('');
   const [submittingAppeal, setSubmittingAppeal] = useState(false);
   // State newAnnouncement: form đăng thông báo {title, content, priority}.
@@ -110,6 +113,7 @@ const ClassDetail = () => {
     setSummary(null);
     setSummaryError('');
     setJoinRequests([]);
+    setSelectedAssignment(null);
     fetchClassDetails();
     fetchSummary();
     return () => { currentId.current = null; };
@@ -150,6 +154,7 @@ const ClassDetail = () => {
     setDeletingResource(resourceKey);
     try {
       await axios.delete(`/api/${resourceType}/${resource._id}`);
+      if (resourceType === 'assignments' && selectedAssignment === resource._id) setSelectedAssignment(null);
       lists[resourceType].reload();
       fetchSummary();
     } catch (error) {
@@ -486,8 +491,9 @@ const ClassDetail = () => {
                     </small>
                   </div>
                   <div className="resource-actions resource-actions-stacked">
-                    <button className="btn btn-primary btn-block" type="button">
-                      {userRole === 'teacher' ? 'Xem Nộp Bài' : 'Nộp Bài'}
+                    <button className="btn btn-primary btn-block" type="button" aria-expanded={selectedAssignment === assign._id}
+                      onClick={(event) => { assignmentOpener.current = event.currentTarget; setSelectedAssignment(assign._id); }}>
+                      {userRole === 'teacher' || userRole === 'admin' ? 'Xem và chấm bài' : 'Nộp / xem bài của tôi'}
                     </button>
                     {(userRole === 'teacher' || userRole === 'admin') && (
                       <button className="resource-delete-button" disabled={deletingResource === `assignments:${assign._id}`} onClick={() => handleDeleteResource('assignments', assign)} type="button">
@@ -505,6 +511,13 @@ const ClassDetail = () => {
           </div>
         </div>
       )}
+
+      {/* Khung riêng chỉ tải chi tiết sau khi chọn, không gộp bài nộp vào thẻ danh sách. */}
+      {activeTab === 'assignments' && selectedAssignment && <AssignmentWorkspace
+        key={`${id}:${selectedAssignment}:${userRole}:${localStorage.getItem('userId')}:${token}`}
+        assignmentId={selectedAssignment} classId={id} userRole={userRole} students={classData.students || []}
+        onClose={() => { setSelectedAssignment(null); if (assignmentOpener.current?.isConnected) assignmentOpener.current.focus(); }}
+      />}
 
       {/* TAB Thông báo: form đăng (teacher) + danh sách thông báo. */}
       {activeTab === 'announcements' && (

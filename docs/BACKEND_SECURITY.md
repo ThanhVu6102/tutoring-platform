@@ -1,5 +1,7 @@
 # Bảo mật backend — phạm vi local và vận hành
 
+**Cập nhật 2026-11-13:** chủ dự án xác nhận đã kiểm tra vận hành #26–#27; hai mục được chuyển Done trên Project, không phải agent tự đọc/đổi secret hoặc độc lập xác minh production. Phần mã nền đã vào develop qua PR #51 và main qua PR #52. Phần UI #29 bên dưới là bổ sung trên nhánh `fix/be-08-assignment-ui`, không tự coi đã phát hành cùng hai PR trước.
+
 ## JWT — BE #06 / issue #27
 
 - `backend/config/jwt.js` kiểm tra cùng chính sách khi ký và xác minh; không có khóa dự phòng. Chỉ chấp nhận HS256, giữ hạn token 7 ngày.
@@ -12,7 +14,7 @@
 1. Tạm hạn chế truy cập môi trường bị ảnh hưởng theo quy trình vận hành; đánh giá log/phiên, không suy từ lỗ hổng rằng đã bị khai thác.
 2. Sinh khóa mới ngoài Git/log, lưu trong secret manager, cấu hình đồng nhất mọi instance và triển khai lại. Không duy trì cửa sổ chấp nhận khóa cũ/fallback.
 3. Kiểm chứng token cũ bị từ chối, token đăng nhập mới được chấp nhận trên môi trường thử nghiệm được phép; người dùng phải đăng nhập lại. Đối chiếu thêm [xoay thông tin admin](ADMIN_BOOTSTRAP.md).
-4. Người vận hành ghi xác nhận hoàn tất qua kênh riêng. **Chưa chạy xoay khóa/thu hồi phiên thật ở đây**; issue chưa đủ điều kiện nghiệm thu production chỉ từ test.
+4. Người vận hành ghi xác nhận hoàn tất qua kênh riêng. Agent không chạy xoay khóa/thu hồi phiên thật; ngày 2026-11-13, chủ dự án xác nhận đã kiểm tra vận hành #26–#27. Không suy ra kết quả vận hành chỉ từ test.
 
 Đổi mật khẩu từng user vẫn chưa tự thu hồi JWT đã cấp; xoay khóa toàn môi trường không thay cho cơ chế thu hồi từng phiên. Kiểm thử: `backend/tests/jwtSecurity.test.js`, `npm test --prefix backend`; chỉ khóa ngẫu nhiên/HTTP local và DB mock.
 
@@ -32,7 +34,37 @@
 - `assignmentClassAccess` xác minh lớp tồn tại, giáo viên đang phụ trách/thành viên học sinh và trạng thái lớp; không fail open khi thiếu lớp. Giáo viên phụ trách/admin mới nhận toàn bộ bài nộp; admin giữ quyền trên lớp khóa. Query `role`, `userId`, `fields` không mở rộng dữ liệu.
 - DTO `assignmentForViewer` chỉ lọc bản sao, không sửa mảng sẽ lưu trong DB. API nộp/chấm tiếp tục trả `{message}`, không trả document có bài nộp người khác; chỉ học sinh được nộp, teacher/admin phải đủ quyền lớp trước chấm.
 - `assignmentPrivacy.test.js` có hai học sinh, teacher/admin, quyền từ chối, danh sách/chi tiết, DTO không mutate và nộp/chấm. Suite MongoDB học liệu kiểm chứng payload và dữ liệu lưu thật, bảo toàn bài nộp người khác.
-- **Giới hạn UI:** danh sách thẻ frontend dùng metadata và được kiểm thử hồi quy/build; nút “Nộp Bài/Xem Nộp Bài” trong `frontend/src/pages/ClassDetail.js` hiện chưa có handler. Chưa có kiểm thử xuyên suốt UI nộp/chấm; không coi tiêu chí này đã đạt và không tự bổ sung màn hình trong gói BE.
+- Tab **Bài tập** mở `AssignmentWorkspace` ngay dưới danh sách, gọi endpoint chi tiết riêng; không tải submissions ở overview/danh sách. Học sinh nộp/cập nhật URL và xem thời gian, trạng thái muộn, điểm/nhận xét chính chủ; teacher/admin xem và chấm các bài nộp được cấp quyền. Tên lấy từ roster được phép xem, nếu không có thì dùng nhãn ID rút gọn, không mở quyền email.
+- `POST /api/assignments/:id/submit` vẫn nhận `{fileUrl}`, nay kiểm tra URL HTTP(S) không rỗng; chỉ lưu URL, không tải file từ server. `POST /:id/grade` vẫn nhận `{studentId, score, feedback?}`: ID 24 hex, điểm là số hữu hạn trong `[0, totalPoints]`, feedback nếu gửi phải là chuỗi. Payload sai trả `400`; không tìm thấy bài nộp cần chấm trả `404` thay vì báo thành công khi không đổi điểm.
+- Giữ chính sách hiện có: nộp sau hạn được ghi `isLate`; nộp lại đổi đường dẫn/thời gian và giữ điểm/nhận xét cũ. UI nói rõ và yêu cầu xác nhận thay bài nộp hoặc sửa điểm đã lưu. Không thêm upload nhị phân, endpoint, JSON key, quyền hoặc dependency mới; không migration dữ liệu.
+- UI có nhãn/focus bàn phím, responsive, loading/rỗng/lỗi/thử lại, chặn gửi lặp; URL legacy không phải HTTP(S) không trở thành liên kết thực thi. Lỗi 401/403/404/423 bỏ dữ liệu cũ, response bài/lớp/phiên cũ không cập nhật màn hình mới. POST thành công nhưng GET làm mới lỗi chỉ thử đọc lại, không tự gửi POST lần nữa; giữ bản nháp của hàng chưa lưu khác.
+
+### Chạy kiểm thử UI #29
+
+`npm test --prefix frontend -- --watchAll=false --runInBand` kiểm tra form, payload tối thiểu, xác nhận, gửi lặp, điểm 0, lỗi/quyền, response cũ và thay phiên. Unit/HTTP backend thêm `assignmentValidation.test.js`; MongoDB thật bổ sung ca URL/điểm sai không ghi dữ liệu.
+
+```powershell
+npm run build --prefix frontend
+npm run test:assignments:browser --prefix backend -- --tools-dir 'C:\path\to\temporary-playwright-tools'
+```
+
+Runner `assignment-ui-smoke.js` dùng Docker MongoDB riêng, router thật, production build và hai học sinh/teacher/admin, desktop/mobile; kiểm tra payload riêng tư, nộp/chấm qua UI và dữ liệu DB thực sự được lưu, bảo toàn bài người khác. Khóa/JWT/dữ liệu giả local, chặn mạng ngoài; không phải test đăng nhập, quyền truy cập file ngoài hoặc deployment production. Report/screenshot chỉ ở `docs/local/security/assignment-ui-<id>/`, không đưa lên Git.
+
+### Bằng chứng bổ sung #29 ngày 2026-11-13
+
+| Kiểm tra source nhánh `fix/be-08-assignment-ui` | Kết quả |
+|---|---|
+| Backend unit/HTTP | **138/138**, 16 file; thêm URL, thang điểm và bài nộp thiếu không ghi |
+| Frontend | **64/64**, 12 suite; gồm 18 test bổ sung form/workspace/tích hợp tab |
+| MongoDB thật | **36/36**, 4 suite tính cả test bao ngoài; DB/container đã dọn |
+| Build frontend | Thành công, initial JS gzip **81,32 kB** |
+| Chromium UI bài tập | **12/12**, hai học sinh + teacher/admin ở 1440×1000 và 390×844; report `assignment-ui-a1228be0d64518c60c718f46/report.json`; DB/container đã dọn |
+| Chromium hồi quy chung | **27/27**, report `browser-b0c29a1467c1152bb900ef04/report.json`; DB/container đã dọn |
+| Audit backend `--omit=dev` | **0 vulnerabilities** tại thời điểm chạy, không thay audit frontend |
+
+Lượt UI đầu `assignment-ui-6ccab5ac28380a0059e0be83` dừng khi tìm ô nhận xét đã có nội dung; đã tách nhãn/textarea và gắn `htmlFor`/`id` để tên truy cập ổn định. Lượt hồi quy `browser-0b4a06992ec9701236f4ff42` dừng ở kiểm tra retry quá sớm; harness nay chờ HTTP 200, nút trở lại “Làm mới” và alert biến mất, **giữ assertion không còn alert**. Hai lượt lỗi đã dọn tài nguyên và giữ report local, không dùng làm bằng chứng đạt.
+
+Audit read-only ban đầu từ subagent có kết quả; lượt review triển khai sau đó bị quota, không coi đã có review code độc lập thành công. Agent chính rà soát/tích hợp và chạy các kiểm tra trên. Chỉ commit/push nhánh riêng theo phạm vi được duyệt, không tự tạo PR, merge hoặc chạy ghi dữ liệu production. #29 giữ In review chờ review/tích hợp; kết quả local không tự đại diện bản đang phát hành.
 
 ## Dependency HTTP redirect — BE #09 / issue #30
 
@@ -57,7 +89,7 @@
 
 `npm ci` có cảnh báo deprecated Multer 1.x; không nâng major ngoài phạm vi #30. Audit không phải kiểm chứng không còn mọi rủi ro dependency. Các lượt subagent Gemini bị quota, không cung cấp kết quả được chấp nhận; thay đổi do agent chính thực hiện/rà soát, không tuyên bố đã có review độc lập thành công.
 
-Các nhánh nối tiếp trên nền `fix/admin-profile-and-vietnamese-messages`: `fix/be-06-jwt-fail-closed` → `fix/be-07-quiz-grading-scope` → `fix/be-08-assignment-submission-privacy` → `fix/be-09-follow-redirects`. Mỗi issue có commit riêng; review theo thứ tự nền hoặc chọn commit có kiểm tra phụ thuộc, không coi chúng là bốn nhánh độc lập so với develop. Chưa tự tạo PR, merge, đóng issue, deploy hoặc ghi dữ liệu production. #27 còn xác nhận xoay khóa/phiên của vận hành; #29 còn tiêu chí UI nộp/chấm nêu trên.
+Tại lượt bàn giao 2026-11-11, các nhánh nối tiếp trên nền `fix/admin-profile-and-vietnamese-messages`: `fix/be-06-jwt-fail-closed` → `fix/be-07-quiz-grading-scope` → `fix/be-08-assignment-submission-privacy` → `fix/be-09-follow-redirects`. Mỗi issue có commit riêng, không phải bốn nhánh độc lập so với develop. Khi đó chưa tạo PR/merge theo tác vụ này; #27 còn xác nhận vận hành, #29 còn UI. Đây là trạng thái lịch sử, không thay trạng thái cập nhật đầu tài liệu.
 
 ### Kiểm tra tích hợp vào develop theo yêu cầu tiếp theo
 
