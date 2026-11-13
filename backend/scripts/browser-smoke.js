@@ -129,7 +129,12 @@ async function main() {
             await page.route('**/api/classes?*', handler);
             await pagination().getByRole('button', { name: 'Làm mới', exact: true }).click();
             await pagination().getByRole('button', { name: 'Thử lại', exact: true }).waitFor();
+            // Chờ response và trạng thái UI mới, tránh đọc trạng thái cũ ngay sau click.
+            const retried = page.waitForResponse((res) => new URL(res.url()).pathname === '/api/classes' && res.status() === 200);
             await pagination().getByRole('button', { name: 'Thử lại', exact: true }).click();
+            await retried;
+            await pagination().getByRole('button', { name: 'Làm mới', exact: true }).waitFor();
+            await pagination().getByRole('alert').waitFor({ state: 'hidden' });
             await waitReady();
             assert.equal(await pagination().getByRole('alert').count(), 0);
             await page.unroute('**/api/classes?*', handler);

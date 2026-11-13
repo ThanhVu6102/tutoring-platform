@@ -126,4 +126,13 @@ test('bảo mật học liệu trên MongoDB thật', { timeout: 120000 }, async
     assert.equal(visible.body.submissions[0].fileUrl, 'https://example.test/A-new.pdf');
     assert.equal(visible.body.submissions[0].feedback, 'Đã duyệt');
   });
+  await t.test('MongoDB: validation URL/điểm và bài nộp thiếu không ghi thay đổi', async () => {
+    const before = await Assignment.findById(assignment._id).lean();
+    assert.equal((await request('studentA', `${assignmentRoute}/submit`, { fileUrl: 'javascript:alert(1)' })).status, 400);
+    for (const score of [null, -1, 11, '5']) {
+      assert.equal((await request('teacherA', `${assignmentRoute}/grade`, { studentId: String(users.studentA._id), score })).status, 400);
+    }
+    assert.equal((await request('admin', `${assignmentRoute}/grade`, { studentId: String(new mongoose.Types.ObjectId()), score: 5 })).status, 404);
+    assert.deepEqual(await Assignment.findById(assignment._id).lean(), before);
+  });
 });

@@ -4,6 +4,7 @@ const classAvailability = require('../middleware/classAvailability');
 const Assignment = require('../models/Assignment');
 const { readPage } = require('../utils/pagination');
 const { assignmentClassAccess, assignmentForViewer } = require('../utils/assignmentPrivacy');
+const { assignmentSubmissionInput, assignmentGradeInput } = require('../utils/assignmentValidation');
 
 const router = express.Router();
 // Lọc hồ sơ giáo viên/học sinh lồng trong bài tập, không thay đổi quyền truy cập bài.
@@ -64,7 +65,6 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Submit assignment
 router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async (req, res) => {
   try {
-    const { fileUrl } = req.body;
     const assignment = await Assignment.findById(req.params.id);
 
     if (!assignment) {
@@ -73,6 +73,7 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
 
     await assignmentClassAccess(assignment.class, req);
     if (req.userRole !== 'student') return res.status(403).json({ message: 'Chỉ học sinh được nộp bài tập' });
+    const fileUrl = assignmentSubmissionInput(req.body);
     const existingSubmission = assignment.submissions.find(
       s => s.student.toString() === req.userId
     );
@@ -102,7 +103,6 @@ router.post('/:id/submit', authMiddleware, classAvailability(Assignment), async 
 // Grade assignment submission
 router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacherOnly, async (req, res) => {
   try {
-    const { studentId, score, feedback } = req.body;
     const assignment = await Assignment.findById(req.params.id);
 
     if (!assignment) {
@@ -110,15 +110,15 @@ router.post('/:id/grade', authMiddleware, classAvailability(Assignment), teacher
     }
 
     await assignmentClassAccess(assignment.class, req);
+    const { studentId, score, feedback } = assignmentGradeInput(req.body, assignment.totalPoints);
     const submission = assignment.submissions.find(
       s => s.student.toString() === studentId
     );
 
-    if (submission) {
-      submission.score = score;
-      submission.feedback = feedback;
-      submission.gradedAt = new Date();
-    }
+    if (!submission) return res.status(404).json({ message: 'Không tìm thấy bài nộp của học sinh' });
+    submission.score = score;
+    submission.feedback = feedback;
+    submission.gradedAt = new Date();
 
     await assignment.save();
     res.json({ message: 'Đã chấm điểm bài tập' });

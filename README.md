@@ -88,6 +88,7 @@ graph TD
 * **Video:** thêm video theo URL + thumbnail, đếm lượt xem theo học sinh (`POST /api/videos/:id/view`).
 * **Tài liệu:** thêm tài liệu theo URL + loại/dung lượng file, đếm lượt tải (`POST /api/documents/:id/download`).
 * **Bài tập:** giao bài có hạn nộp + tổng điểm, học sinh nộp file URL, giáo viên chấm điểm + feedback.
+* Tab **Bài tập** có khung nộp/xem kết quả chính chủ và chấm bài cho giáo viên phụ trách/admin; danh sách chỉ tải metadata. URL chỉ nhận HTTP(S), điểm trong thang của bài; xem [contract và kiểm thử #29](docs/BACKEND_SECURITY.md).
 * **Thông báo:** đăng thông báo theo lớp, theo dõi ai đã đọc (`readBy`).
 
 ### 2.6. Quyền riêng tư hồ sơ — BE #01 / BE #02 ([#22](https://github.com/ThanhVu6102/tutoring-platform/issues/22), [#23](https://github.com/ThanhVu6102/tutoring-platform/issues/23))
