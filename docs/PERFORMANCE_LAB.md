@@ -1,6 +1,6 @@
 # Công cụ kiểm chứng hiệu năng
 
-Contract và [kết quả nghiệm thu](PERFORMANCE.md#ket-qua) ở [PERFORMANCE.md](PERFORMANCE.md). Các lệnh tạo Docker/ghi dữ liệu chỉ chạy sau khi được phép.
+Contract và [kết quả đo](PERFORMANCE.md#ket-qua) ở [PERFORMANCE.md](PERFORMANCE.md). Các lệnh tạo Docker/ghi dữ liệu chỉ chạy trên môi trường kiểm thử được phép.
 
 ## 1. Yêu cầu và chạy nhanh
 
