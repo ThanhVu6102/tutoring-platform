@@ -118,3 +118,18 @@ test('luồng API nộp/chấm giữ response message và không làm mất bài
   assert.equal((await f.request(`/${ids.assignment}/grade`, { studentId: ids.studentA, score: 10 })).status, 403);
   assert.equal(f.saves(), 2);
 });
+
+test('API bài tập từ chối URL/điểm sai và bài nộp không tồn tại trước khi ghi', async (t) => {
+  const f = await fixture(t);
+  const original = JSON.stringify(f.assignment.submissions);
+  for (const fileUrl of ['javascript:alert(1)', '', null, {}, 'relative.pdf']) {
+    assert.equal((await f.request(`/${ids.assignment}/submit`, { fileUrl })).status, 400);
+  }
+  f.actor(ids.teacher, 'teacher');
+  for (const score of [-1, 11, null, '5']) {
+    assert.equal((await f.request(`/${ids.assignment}/grade`, { studentId: ids.studentA, score })).status, 400);
+  }
+  assert.equal((await f.request(`/${ids.assignment}/grade`, { studentId: ids.outsider, score: 5 })).status, 404);
+  assert.equal(f.saves(), 0);
+  assert.equal(JSON.stringify(f.assignment.submissions), original);
+});
