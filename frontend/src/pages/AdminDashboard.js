@@ -1,22 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import usePagedList from '../hooks/usePagedList';
 import useDebouncedValue from '../hooks/useDebouncedValue';
 import Pagination from '../components/Pagination';
 
 const AdminDashboard = () => {
-  const [search, setSearch] = useState('');
-  const [subject, setSubject] = useState('');
-  const [grade, setGrade] = useState('');
-  const [status, setStatus] = useState('');
-  const [teacher, setTeacher] = useState('');
-  const [sort, setSort] = useState('newest');
+  // URL là nguồn trạng thái duy nhất để bộ lọc còn nguyên sau tải lại hoặc mở chi tiết lớp.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('q') || '';
+  const subject = searchParams.get('subject') || '';
+  const grade = searchParams.get('grade') || '';
+  const status = searchParams.get('status') || '';
+  const teacher = searchParams.get('teacher') || '';
+  const sort = searchParams.get('sort') || 'newest';
+  const changeFilter = (key, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value && !(key === 'sort' && value === 'newest')) next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
+  const clearFilters = () => setSearchParams(new URLSearchParams(), { replace: true });
   const debouncedSearch = useDebouncedValue(search);
   const debouncedTeacher = useDebouncedValue(teacher);
   // Các bộ lọc được gửi tới server để tổng và phân trang dùng cùng tập kết quả.
   const list = usePagedList('/api/classes', { summary: 'true', q: debouncedSearch, subject, grade, status, teacher: debouncedTeacher, sort });
   const { data: classes, loading, error } = list;
   const navigate = useNavigate();
+  const location = useLocation();
 
 
   const teacherGroups = classes.reduce((groups, classItem) => {
@@ -51,13 +61,13 @@ const AdminDashboard = () => {
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
       <div className="admin-filter-bar" aria-label="Bộ lọc lớp học">
-        <label>Tìm tên hoặc mô tả lớp <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-        <label>Môn học <input type="text" value={subject} onChange={(event) => setSubject(event.target.value)} /></label>
-        <label>Khối / trình độ <input type="text" value={grade} onChange={(event) => setGrade(event.target.value)} /></label>
-        <label>Trạng thái <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Tất cả</option><option value="active">Đang mở</option><option value="inactive">Đã khóa</option></select></label>
-        <label>Giáo viên (email hoặc ID) <input type="text" value={teacher} onChange={(event) => setTeacher(event.target.value)} /></label>
-        <label>Sắp xếp <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Mới nhất</option><option value="oldest">Cũ nhất</option><option value="name_asc">Tên A–Z</option><option value="name_desc">Tên Z–A</option></select></label>
-        <button className="btn btn-secondary" type="button" onClick={() => { setSearch(''); setSubject(''); setGrade(''); setStatus(''); setTeacher(''); setSort('newest'); }}>Xóa bộ lọc</button>
+        <label>Tìm tên hoặc mô tả lớp <input type="search" value={search} onChange={(event) => changeFilter('q', event.target.value)} /></label>
+        <label>Môn học <input type="text" value={subject} onChange={(event) => changeFilter('subject', event.target.value)} /></label>
+        <label>Khối / trình độ <input type="text" value={grade} onChange={(event) => changeFilter('grade', event.target.value)} /></label>
+        <label>Trạng thái <select value={status} onChange={(event) => changeFilter('status', event.target.value)}><option value="">Tất cả</option><option value="active">Đang mở</option><option value="inactive">Đã khóa</option></select></label>
+        <label>Giáo viên (email hoặc ID) <input type="text" value={teacher} onChange={(event) => changeFilter('teacher', event.target.value)} /></label>
+        <label>Sắp xếp <select value={sort} onChange={(event) => changeFilter('sort', event.target.value)}><option value="newest">Mới nhất</option><option value="oldest">Cũ nhất</option><option value="name_asc">Tên A–Z</option><option value="name_desc">Tên Z–A</option></select></label>
+        <button className="btn btn-secondary" type="button" onClick={clearFilters}>Xóa bộ lọc</button>
       </div>
       <Pagination list={list} label="lớp quản trị" />
       <section className="admin-archive-shortcut">
@@ -84,7 +94,7 @@ const AdminDashboard = () => {
                   <button
                     className="admin-class-tile"
                     key={classItem._id}
-                    onClick={() => navigate(`/admin/classes/${classItem._id}`)}
+                    onClick={() => navigate(`/admin/classes/${classItem._id}`, { state: { adminListSearch: location.search } })}
                     type="button"
                   >
                       <span className={`status-indicator ${classItem.status === 'inactive' || ['pending', 'appealed'].includes(classItem.lockNotice?.status) ? 'is-locked' : ''}`}>

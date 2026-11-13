@@ -29,6 +29,11 @@
   --danger: #E74C3C; /* đỏ nút nguy hiểm */
 }
 
+/* Control gốc của trình duyệt luôn giữ nền/chữ sáng khi OS đổi dark mode. */
+input, select, textarea, button, dialog {
+  color-scheme: light;
+}
+
 /* ----- Kiểu chữ + màu nền chung cho body ----- */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -537,6 +542,12 @@ html, body, #root {
 .admin-filter-bar input, .admin-filter-bar select { width: 100%; min-height: 44px; padding: 0.5rem; border: 1px solid #aebdb5; border-radius: 5px; background: #fff; color: #26342e; }
 .admin-filter-bar button { min-height: 44px; }
 
+/* Cặp ô tạo lớp tự xếp dọc khi chiều ngang không đủ cho nhãn và bàn phím ảo. */
+.class-create-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 420px) {
+  .class-create-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ----- Nội dung chính các trang (Dashboard, ClassDetail...) ----- */
 .main-content {
   flex: 1;
@@ -900,7 +911,7 @@ input:focus, select:focus, textarea:focus {
 /* ----- Responsive: mobile <=768px giữ thương hiệu trên một hàng và mở menu bằng nút. ----- */
 @media (max-width: 768px) {
   /* Vùng chạm của nút và liên kết thao tác đạt ít nhất 44px trên màn hình nhỏ. */
-  .btn, .admin-back, .password-visibility-button, .policy-modal-close { min-height: 44px; }
+  .btn, .admin-back, .password-visibility-button, .policy-modal-close, .student-warning-trigger { min-height: 44px; }
   .policy-open-link { display: inline-flex; align-items: center; min-height: 44px; }
   .navbar {
     flex-direction: row;
@@ -1003,6 +1014,11 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid #cbd6d1;
 }
 
+/* Tiêu đề và mô tả lớp có thể là chuỗi dài không có khoảng trắng. */
+.admin-detail-heading > div { min-width: 0; }
+.admin-detail-heading h1,
+.admin-detail-heading p { overflow-wrap: anywhere; }
+
 .admin-eyebrow {
   margin-bottom: 0.65rem;
   color: #447465;
@@ -1062,6 +1078,20 @@ input:focus, select:focus, textarea:focus {
   margin-top: 2rem;
 }
 
+/* Dữ liệu tên/email không có dấu cách vẫn co trong cột và xuống dòng. */
+.teacher-group,
+.teacher-group-heading > div,
+.admin-class-tile {
+  min-width: 0;
+}
+
+.teacher-group-heading h2,
+.teacher-group-heading p,
+.admin-class-tile > strong,
+.admin-class-meta {
+  overflow-wrap: anywhere;
+}
+
 .teacher-group-heading,
 .admin-student-heading {
   display: flex;
@@ -1113,7 +1143,8 @@ input:focus, select:focus, textarea:focus {
   transform: translateY(-2px);
   border-color: #6f9c89;
   box-shadow: 0 8px 18px rgba(35, 77, 64, 0.1);
-  outline: none;
+  outline: 3px solid #286044;
+  outline-offset: 2px;
 }
 
 .admin-class-tile > strong {
@@ -1281,6 +1312,7 @@ input:focus, select:focus, textarea:focus {
 
 .admin-student-row strong {
   color: #263a33;
+  overflow-wrap: anywhere;
 }
 
 .student-warning-trigger {
@@ -1316,6 +1348,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (max-width: 760px) {
+  .teacher-group-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .admin-heading,
   .admin-detail-heading {
     align-items: flex-start;
