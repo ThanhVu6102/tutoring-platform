@@ -12,6 +12,7 @@
     "test:filters:integration": "node --test tests/classFilters.integration.test.js",
     "test:filters:lab": "node scripts/test-class-filters.js",
     "test:content:lab": "node scripts/test-content-security.js",
+    "test:password:browser": "node scripts/password-ui-smoke.js",
     "test:appeals:integration": "node --test tests/appeals.integration.test.js",
     "perf:benchmark": "node scripts/benchmark-api.js",
     "perf:indexes": "node scripts/api-indexes.js",
