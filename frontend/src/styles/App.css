@@ -507,7 +507,8 @@ html, body, #root {
 .main-content,
 .auth-container,
 .auth-box,
-.card {
+.card,
+.appeal-page {
   position: relative;
   z-index: 1;
 }
@@ -1352,6 +1353,15 @@ input:focus, select:focus, textarea:focus {
   .admin-summary strong,
   .admin-detail-stats strong {
     font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 360px) {
+  /* Hai cột giúp số liệu quản trị vừa màn hình 320px mà nhãn vẫn đọc được. */
+  .admin-summary,
+  .admin-detail-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
   }
 }
 
