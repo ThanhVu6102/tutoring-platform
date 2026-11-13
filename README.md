@@ -10,7 +10,7 @@ Tài liệu kỹ thuật và hướng dẫn liên quan được tập trung tạ
 
 | Môi trường | Địa chỉ | Ghi chú |
 |------------|---------|---------|
-| Production (Vercel) | `https://<domain-cua-ban>.vercel.app` | Frontend + API fullstack chung 1 domain (thay `<domain-cua-ban>` bằng domain thật sau khi deploy) |
+| Production (Vercel) | `https://tutoring-platform-pi-beige.vercel.app/login?fbclid=IwY2xjawVj8ndleHRuA2FlbQIxMQBwZG9mA3NydGMGYXBwX2lkATAAAR9_wia8QGr6BbRDXPzAeQa3IHnaCIYKxGy1V7PABdxPGpF8F2di7qlVPwZVGA_aem_BSzupzMycDZxjweQqAtvhg` | Frontend + API fullstack chung 1 domain (thay `<domain-cua-ban>` bằng domain thật sau khi deploy) |
 | Health check (production) | `https://<domain-cua-ban>.vercel.app/api/health` | Phải trả về `{"status":"ok"}` thì backend mới sống |
 | API docs (production) | `https://<domain-cua-ban>.vercel.app/api/docs` | Danh sách endpoint rút gọn |
 | Local frontend | `http://localhost:3000` | Chạy bằng `npm start --prefix frontend` |
