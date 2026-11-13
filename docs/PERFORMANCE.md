@@ -40,6 +40,10 @@ Bảy danh sách luôn trả object, kể cả khi không truyền page/limit:
 - `sort`: `newest`, `oldest`, `name_asc`, `name_desc`; ngoài allowlist trả `400`.
 - `summary=true`: total/active/inactive trên toàn bộ filter, không phải length trang.
 
+Contract FE/BE #01: `search` là tham số cũ chỉ tìm trong tên; admin dùng `q` để tìm trong cả tên và mô tả. Nếu gửi cả hai, `q` được ưu tiên. `subject` và `grade` khớp giá trị chính xác; `teacher` nhận ObjectId hoặc email chính xác (không tìm gần đúng); `status` nhận `active`/`inactive`; `sort` sai allowlist trả `400`. Trang `/admin` lưu `q`, `subject`, `grade`, `status`, `teacher`, `sort` trên URL để tải lại và quay từ chi tiết lớp vẫn giữ bộ lọc. Nút **Xóa bộ lọc** xóa các tham số đó; thay đổi bộ lọc đặt phân trang về trang đầu. Mỗi request danh sách vẫn dùng `page`/`limit` và quyền từ database như trước.
+
+Kiểm tra `explain('executionStats')` trên MongoDB replica set QA riêng với 1.200 lớp giả: lọc teacher + mới nhất dùng `teacher_1_createdAt_-1__id_-1`, lọc subject/grade + mới nhất dùng `subject_1_grade_1_createdAt_-1__id_-1`, sắp xếp tên dùng `name_1__id_1` (mỗi ca đọc 20 key/document cho 20 kết quả đầu). Bộ dữ liệu/DB tạm đã được xóa sau phép đo. Tìm `q` kiểu contains không đảm bảo dùng index tìm kiếm; planner có thể quét nhiều key/document khi dữ liệu lớn. Đây là giới hạn hiện có, không phải kết quả hiệu năng production.
+
 Các query không mở rộng quyền role khác; student không được dùng status để xem lớp inactive. `view=history` lọc hồ sơ/lịch sử cho quản lý lớp; `view=notifications` lấy thông báo xử lý liên quan.
 
 Tối ưu cuối: count lớp không filter dùng index `_id_`; contains/history có admin summary gộp ba count thành group theo status, query trang vẫn chạy song song. Bản ghi status cũ/thiếu vẫn góp vào total. Không dùng estimated count hoặc facet gom payload trang lớn.

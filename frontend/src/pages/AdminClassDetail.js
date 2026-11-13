@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 
 const AdminClassDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Quay lại URL danh sách đã lọc; truy cập trực tiếp vẫn về danh sách mặc định.
+  const backToClasses = () => navigate(`/admin${location.state?.adminListSearch || ''}`);
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
@@ -139,7 +142,7 @@ const AdminClassDetail = () => {
   if (!classData) {
     return (
       <main className="admin-page">
-        <button className="admin-back" onClick={() => navigate('/admin')} type="button">← Danh sách lớp</button>
+        <button className="admin-back" onClick={backToClasses} type="button">← Danh sách lớp</button>
         <div className="admin-alert" role="alert">{error || 'Không tìm thấy lớp học.'}</div>
       </main>
     );
@@ -161,7 +164,7 @@ const AdminClassDetail = () => {
 
   return (
     <main className="admin-page">
-      <button className="admin-back" onClick={() => navigate('/admin')} type="button">← Danh sách lớp</button>
+      <button className="admin-back" onClick={backToClasses} type="button">← Danh sách lớp</button>
       {error && <div className="admin-alert" role="alert">{error}</div>}
       {warningSuccess && <div className="warning-success-banner" role="status">{warningSuccess}</div>}
 

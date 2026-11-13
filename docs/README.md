@@ -8,6 +8,7 @@
 | [Bảo mật backend](BACKEND_SECURITY.md) | JWT fail closed, giới hạn kiểm thử và checklist xoay khóa vận hành |
 | [Kháng cáo và kiểm duyệt](APPEALS.md) | Cảnh báo/chế tài, khóa lớp, lịch sử và [API kiểm duyệt](APPEALS.md#kiem-duyet) |
 | [Hiệu năng](PERFORMANCE.md) | Phân trang, truy vấn, tải frontend, số đo và [nghiệm thu BE #04](PERFORMANCE.md#ket-qua) |
+| [Kiểm tra giao diện](FRONTEND_QA.md) | Bằng chứng FE04/FE11 trên bản build và giới hạn kiểm tra |
 | [Công cụ kiểm chứng](PERFORMANCE_LAB.md) | Chạy benchmark, MongoDB integration và Chromium an toàn |
 
 ## Quy ước

@@ -34,6 +34,8 @@ const Dashboard = ({ userRole }) => {
   });
   // State loading: chống bấm "Tạo Lớp" 2 lần.
   const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [joinResult, setJoinResult] = useState(null);
   const [joinMessage, setJoinMessage] = useState('');
@@ -122,6 +124,8 @@ const Dashboard = ({ userRole }) => {
   const handleCreateClass = async (e) => {
     e.preventDefault(); // B1a: chặn reload.
     setLoading(true); // B1b: bật loading.
+    setCreateError('');
+    setCreateSuccess('');
 
     try {
       const token = localStorage.getItem('token');
@@ -136,8 +140,10 @@ const Dashboard = ({ userRole }) => {
       classList.setPage(1);
       // B3c: Đóng form, về tab danh sách.
       setActiveTab('classes');
+      setCreateSuccess('Đã tạo lớp học. Danh sách lớp đang được cập nhật.');
     } catch (error) {
-      console.error('Error creating class:', error);
+      // Giữ dữ liệu đã nhập để giáo viên thử lại sau khi API báo lỗi.
+      setCreateError(error.response?.data?.message || 'Không thể tạo lớp học. Vui lòng thử lại.');
     } finally {
       setLoading(false); // tắt loading.
     }
@@ -213,17 +219,19 @@ const Dashboard = ({ userRole }) => {
           <button
             className="btn btn-primary"
             // Bấm thì đảo tab: đang xem -> mở form, đang mở -> đóng lại.
-            onClick={() => setActiveTab(activeTab === 'create' ? 'classes' : 'create')}
+            onClick={() => { setCreateError(''); setActiveTab(activeTab === 'create' ? 'classes' : 'create'); }}
           >
             {activeTab === 'create' ? '✕ Đóng' : '+ Tạo Lớp Học Mới'}
           </button>
         </div>
       )}
+      {createSuccess && <p className="join-feedback" role="status">{createSuccess}</p>}
 
       {/* Form tạo lớp: chỉ hiện khi activeTab === 'create' và là teacher/admin. */}
       {activeTab === 'create' && (userRole === 'teacher' || userRole === 'admin') && (
         <div className="card" style={{ marginBottom: '2rem' }}>
           <h3>Tạo Lớp Học Mới</h3>
+          {createError && <p className="join-feedback is-error" role="alert">{createError}</p>}
           <form onSubmit={handleCreateClass}>
             {/* Ô tên lớp (bắt buộc). */}
             <div className="form-group">
@@ -250,7 +258,7 @@ const Dashboard = ({ userRole }) => {
             </div>
 
             {/* 2 ô cạnh nhau: môn học (bắt buộc) + khối lớp. */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="class-create-fields">
               <div className="form-group">
                 <label>Môn học</label>
                 <input
