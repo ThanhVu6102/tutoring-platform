@@ -75,5 +75,7 @@ test('quản trị viên mở được hồ sơ và mật khẩu từ menu trên
     expect(navigate).toHaveBeenCalledWith('/profile');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(container.textContent).toContain('Quản trị lớp');
+    await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Quản lý tài khoản').click());
+    expect(navigate).toHaveBeenCalledWith('/admin/accounts');
   } finally { act(() => root.unmount()); container.remove(); jest.clearAllMocks(); }
 });
