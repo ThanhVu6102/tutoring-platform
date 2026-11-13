@@ -4,7 +4,7 @@ import { act as legacyAct } from 'react-dom/test-utils';
 import App from './App';
 
 jest.mock('./config/api', () => ({}));
-jest.mock('./components/Navbar', () => () => null);
+jest.mock('./components/Navbar', () => () => <nav aria-label="Điều hướng chính">Navbar kiểm thử</nav>);
 jest.mock('./pages/ProfilePage', () => () => <h1>Hồ sơ chính chủ kiểm thử</h1>);
 jest.mock('./pages/LoginPage', () => () => <h1>Đăng nhập kiểm thử</h1>);
 jest.mock('./pages/AdminModeration', () => () => <h1>Quản trị tài khoản kiểm thử</h1>);
@@ -51,4 +51,25 @@ test.each(['student', 'teacher'])('vai trò %s không mở được trang xóa t
   await act(async () => root.render(<App />));
   expect(window.location.pathname).toBe('/dashboard');
   expect(container.textContent).not.toContain('Quản trị tài khoản kiểm thử');
+});
+
+test.each(['/login', '/register', '/login/?next=profile'])('ẩn navbar trên trang xác thực %s', async (path) => {
+  window.history.replaceState({}, '', path);
+  await act(async () => root.render(<App />));
+  expect(container.querySelector('nav[aria-label="Điều hướng chính"]')).toBeNull();
+});
+
+test('ẩn navbar trên trang đăng nhập cả khi phiên cũ còn trong storage', async () => {
+  localStorage.setItem('token', 'synthetic-route-test-token');
+  localStorage.setItem('userRole', 'student');
+  window.history.replaceState({}, '', '/login');
+  await act(async () => root.render(<App />));
+  expect(container.querySelector('nav[aria-label="Điều hướng chính"]')).toBeNull();
+});
+
+test('navbar vẫn hiện trên trang khác', async () => {
+  localStorage.setItem('token', 'synthetic-route-test-token');
+  localStorage.setItem('userRole', 'student');
+  await act(async () => root.render(<App />));
+  expect(container.querySelector('nav[aria-label="Điều hướng chính"]')).not.toBeNull();
 });

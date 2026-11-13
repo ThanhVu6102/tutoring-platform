@@ -10,7 +10,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 // Nạp các công cụ điều hướng: Router (bao toàn app), Routes/Route (khai báo đường dẫn),
 // Navigate (tự chuyển hướng).
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 // Nạp CSS chung cho toàn web.
 import './styles/App.css';
 // Nạp cấu hình axios (tự gắn token vào mọi request). Chỉ cần import để kích hoạt.
@@ -34,6 +34,13 @@ const ClassDetail = lazy(() => import('./pages/ClassDetail'));
 const QuizTaking = lazy(() => import('./pages/QuizTaking'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AppealPage = lazy(() => import('./pages/AppealPage'));
+
+// Trang xác thực đã có logo và điều hướng riêng; không dựng navbar ở hai trang này.
+const RouteNavbar = (props) => {
+  const { pathname } = useLocation();
+  const route = pathname.replace(/\/+$/, '').toLowerCase();
+  return route === '/login' || route === '/register' ? null : <Navbar {...props} />;
+};
 
 // Component App: bao toàn bộ website.
 const App = () => {
@@ -101,8 +108,8 @@ const App = () => {
           ))}
         </div>
 
-        {/* Chỉ hiện Navbar khi đã đăng nhập; truyền role để hiện chữ + nút phù hợp. */}
-        <Navbar userRole={userRole} onLogout={handleLogout} isAuthenticated={isAuthenticated} />
+        {/* Trang đăng nhập/đăng ký dùng toàn màn hình; các route còn lại giữ navbar hiện có. */}
+        <RouteNavbar userRole={userRole} onLogout={handleLogout} isAuthenticated={isAuthenticated} />
         {/* Khai báo các Route của web. */}
         <RouteBoundary>
         <Suspense fallback={<main className="main-content" role="status">Đang tải màn hình...</main>}>
