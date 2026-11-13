@@ -48,3 +48,24 @@ test('loads resources on demand, uses real totals and retains a previously opene
   expect(axios.get).toHaveBeenCalledTimes(3);
   expect(container.textContent).toContain('42 kết quả');
 });
+
+test('mở bài tập mới gọi chi tiết, đóng trả focus về nút và không tải submissions trong overview', async () => {
+  localStorage.setItem('userId', 'student-a');
+  axios.get.mockImplementation(async (url) => ({ data: url.endsWith('/content-summary')
+    ? { videos: 0, documents: 0, quizzes: 0, assignments: 1 }
+    : url === '/api/classes/class-a' ? { _id: 'class-a', name: 'Lớp A', students: [], capacity: 50 }
+      : url === '/api/assignments/assignment-a'
+        ? { _id: 'assignment-a', class: 'class-a', title: 'Bài tập A', totalPoints: 10, submissions: [] }
+        : { data: [{ _id: 'assignment-a', title: 'Bài tập A', totalPoints: 10 }], total: 1, totalPages: 1, page: 1, limit: 20 } }));
+  await act(async () => root.render(<ClassDetail />));
+  expect(axios.get).toHaveBeenCalledTimes(2);
+  await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Bài Tập').click());
+  expect(axios.get).toHaveBeenCalledTimes(3);
+  const opener = [...container.querySelectorAll('button')].find((button) => button.textContent === 'Nộp / xem bài của tôi');
+  await act(async () => opener.click());
+  expect(axios.get).toHaveBeenCalledWith('/api/assignments/assignment-a');
+  expect(container.querySelector('form[aria-label="Nộp bài tập"]')).not.toBeNull();
+  await act(async () => [...container.querySelectorAll('button')].find((button) => button.textContent === 'Đóng chi tiết').click());
+  expect(document.activeElement).toBe(opener);
+  expect(container.querySelector('form[aria-label="Nộp bài tập"]')).toBeNull();
+});
