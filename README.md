@@ -130,6 +130,12 @@ Dữ liệu hồ sơ được lọc **ở backend trước khi gửi response**,
 
 ---
 
+## 2.9. Quản lý tài khoản — FE/BE #03 ([issue #63](https://github.com/ThanhVu6102/tutoring-platform/issues/63))
+
+Admin mở **Quản lý tài khoản** (`/admin/accounts`) để tìm tên/email, lọc học sinh/giáo viên/quản trị và trạng thái, phân trang, duyệt/từ chối giáo viên chờ duyệt. Dùng API/phân quyền hiện có; không thêm đổi vai trò hoặc reset mật khẩu. Contract, cách kiểm thử và giới hạn: [docs/ADMIN_ACCOUNTS.md](docs/ADMIN_ACCOUNTS.md).
+
+---
+
 ## 3. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
 
 MongoDB gồm 8 collections chính:

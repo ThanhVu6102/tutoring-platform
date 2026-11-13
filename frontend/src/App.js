@@ -29,6 +29,7 @@ import RouteBoundary from './components/RouteBoundary';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminModeration = lazy(() => import('./pages/AdminModeration'));
+const AdminAccounts = lazy(() => import('./pages/AdminAccounts'));
 const AdminClassDetail = lazy(() => import('./pages/AdminClassDetail'));
 const ClassDetail = lazy(() => import('./pages/ClassDetail'));
 const QuizTaking = lazy(() => import('./pages/QuizTaking'));
@@ -126,6 +127,7 @@ const App = () => {
               {/* Dashboard: truyền userRole để hiện "Tất cả lớp / Lớp của tôi / Lớp đã tham gia". */}
               <Route path="/admin" element={userRole === 'admin' ? <AdminDashboard /> : <Navigate to="/dashboard" replace />} />
               <Route path="/admin/moderation" element={userRole === 'admin' ? <AdminModeration /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/admin/accounts" element={userRole === 'admin' ? <AdminAccounts /> : <Navigate to="/dashboard" replace />} />
               <Route path="/admin/classes/:id" element={userRole === 'admin' ? <AdminClassDetail /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={userRole === 'admin' ? <Navigate to="/admin" replace /> : <Dashboard userRole={userRole} />} />
               {/* Mọi vai trò hợp lệ đều được quản lý hồ sơ và mật khẩu chính chủ. */}
