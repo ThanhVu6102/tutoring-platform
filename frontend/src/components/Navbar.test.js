@@ -10,6 +10,28 @@ jest.mock('react-router-dom', () => ({ useNavigate: jest.fn(), useLocation: jest
 jest.mock('./NotificationsBell', () => () => <span>Chuông</span>);
 const act = React.act || legacyAct;
 
+// Logo tối ưu phải được dùng cho mọi vai trò, không tải trễ ảnh thương hiệu.
+test.each([
+  [null, false, '/logo1.webp'],
+  ['admin', true, '/logo1.webp'],
+  ['teacher', true, '/GiaoVienLogo.webp'],
+  ['student', true, '/HocSinhLogo.webp'],
+])('logo WebP đúng cho vai trò %s', async (role, authenticated, source) => {
+  global.IS_REACT_ACT_ENVIRONMENT = true;
+  useLocation.mockReturnValue({ pathname: '/dashboard' });
+  useNavigate.mockReturnValue(jest.fn());
+  axios.get.mockResolvedValue({ data: { name: 'An', avatar: '' } });
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Navbar userRole={role} isAuthenticated={authenticated} onLogout={jest.fn()} />));
+    const logo = container.querySelector('img[alt="EKLASSES"]');
+    expect(logo.getAttribute('src')).toBe(source);
+    expect(logo.getAttribute('loading')).not.toBe('lazy');
+    expect(container.querySelector('.nav-decor img').getAttribute('src')).toBe('/centerlogo.webp');
+  } finally { act(() => root.unmount()); jest.clearAllMocks(); }
+});
+
 test('mobile menu exposes its state and closes after navigation; profile falls back to initial', async () => {
   global.IS_REACT_ACT_ENVIRONMENT = true;
   useLocation.mockReturnValue({ pathname: '/dashboard' });
