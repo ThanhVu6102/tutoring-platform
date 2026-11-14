@@ -107,7 +107,8 @@ const ProfilePage = () => {
 
       <section className="profile-editor">
         <div className="profile-avatar-column">
-          <img className="profile-avatar-preview" src={form.avatar || '/centerlogo.png'} alt="Ảnh đại diện" />
+          {/* Chỉ tối ưu ảnh mặc định; giữ nguyên URL avatar do người dùng cung cấp. */}
+          <img className="profile-avatar-preview" src={form.avatar || '/centerlogo.webp'} alt="Ảnh đại diện" />
           <label className="avatar-upload-button">
             Đổi ảnh đại diện
             <input accept="image/png,image/jpeg,image/webp" onChange={handleAvatarChange} type="file" />

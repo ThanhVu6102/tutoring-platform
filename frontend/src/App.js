@@ -83,18 +83,18 @@ const App = () => {
     setUserRole(null);
   };
 
-  // Mảng ảnh watermark nền trang trí (icon mờ chìm dưới nội dung).
+  // Watermark dùng WebP lossless để giảm tải mà giữ nguyên nét và độ trong suốt.
   // Mỗi phần tử gồm src ảnh + class CSS quy định vị trí (wm-1...wm-9).
   const watermarks = [
-    { src: '/icon1.png', className: 'wm wm-1' },
-    { src: '/icon2.png', className: 'wm wm-2' },
-    { src: '/centerlogo.png', className: 'wm wm-3' },
-    { src: '/icon1.png', className: 'wm wm-4' },
-    { src: '/icon2.png', className: 'wm wm-5' },
-    { src: '/centerlogo.png', className: 'wm wm-6' },
-    { src: '/icon1.png', className: 'wm wm-7' },
-    { src: '/icon2.png', className: 'wm wm-8' },
-    { src: '/centerlogo.png', className: 'wm wm-9' },
+    { src: '/icon1.webp', className: 'wm wm-1' },
+    { src: '/icon2.webp', className: 'wm wm-2' },
+    { src: '/centerlogo.webp', className: 'wm wm-3' },
+    { src: '/icon1.webp', className: 'wm wm-4' },
+    { src: '/icon2.webp', className: 'wm wm-5' },
+    { src: '/centerlogo.webp', className: 'wm wm-6' },
+    { src: '/icon1.webp', className: 'wm wm-7' },
+    { src: '/icon2.webp', className: 'wm wm-8' },
+    { src: '/centerlogo.webp', className: 'wm wm-9' },
   ];
 
   return (

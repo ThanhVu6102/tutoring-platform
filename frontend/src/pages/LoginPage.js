@@ -94,7 +94,8 @@ const LoginPage = ({ onLogin }) => {
       <div className="auth-box">
         {/* Logo EKLASSES trên cùng. */}
         <div className="auth-brand">
-          <img src="/logo1.png" alt="EKLASSES" />
+          {/* Logo WebP lossless giữ nguyên hình ảnh, giảm dung lượng tải ban đầu. */}
+          <img src="/logo1.webp" alt="EKLASSES" />
         </div>
         {/* Tiêu đề trang. */}
         <h2>Đăng Nhập</h2>
