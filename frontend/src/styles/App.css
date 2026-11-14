@@ -143,8 +143,9 @@ html, body, #root {
 
 .navbar-role-logo {
   display: block;
-  width: min(190px, 38vw);
-  height: 38px;
+  width: auto;
+  max-width: min(210px, 38vw);
+  height: 56px;
   object-fit: contain;
 }
 
@@ -926,7 +927,7 @@ input:focus, select:focus, textarea:focus {
   }
 
   .navbar .nav-icon-group { display: none; }
-  .navbar-role-logo { width: min(160px, 42vw); }
+  .navbar-role-logo { max-width: min(180px, 48vw); height: 50px; }
   .navbar-brand-logo { max-width: 42vw; }
   .navbar-brand { max-width: calc(100% - 55px); }
   .navbar .navbar-menu-toggle { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin-left: auto; font-size: 1.4rem; }
