@@ -33,15 +33,18 @@ afterEach(() => {
 });
 
 function fill(confirmPassword = 'New-password!') {
+  if (!passwordForm()) selectSection('password');
   for (const [name, value] of Object.entries({ currentPassword: 'Old-password!', newPassword: 'New-password!', confirmPassword })) {
     act(() => Simulate.change(container.querySelector(`input[name="${name}"]`), { target: { value } }));
   }
 }
 const passwordForm = () => container.querySelector('form[aria-label="Đổi mật khẩu"]');
+const selectSection = (id) => act(() => container.querySelector(`#profile-menu-${id}`).click());
 
 test('profile renders independent accessible password fields and rejects mismatched confirmation', async () => {
   expect(container.querySelector('form input').value).toBe('Học sinh test');
   expect(container.textContent).not.toContain('Tài khoản quản trị được quản lý bằng cấu hình');
+  selectSection('password');
   expect(container.querySelector('input[name="currentPassword"]').autocomplete).toBe('current-password');
   expect(container.querySelector('input[name="newPassword"]').type).toBe('password');
   fill('Not matching!');
@@ -54,6 +57,7 @@ test('hồ sơ admin cho phép đổi mật khẩu và không hiện hạn chế
   localStorage.setItem('userRole', 'admin');
   await act(async () => renderProfile());
   expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
+  selectSection('password');
   expect(container.textContent).toContain('Mọi tài khoản, kể cả quản trị viên, đều có thể đổi mật khẩu');
   expect(container.textContent).not.toContain('không thể đổi mật khẩu tại đây');
   expect(passwordForm()).not.toBeNull();
@@ -85,6 +89,7 @@ test('password API errors remain visible and profile saving still works independ
   expect(container.querySelector('[role="alert"]').textContent).toBe('Mật khẩu hiện tại không đúng');
   expect(passwordForm().querySelector('button').disabled).toBe(false);
   axios.put.mockResolvedValue({ data: { user: { name: 'Tên mới' } } });
+  selectSection('personal');
   const profileForm = container.querySelector('form');
   await act(async () => Simulate.submit(profileForm));
   expect(axios.put).toHaveBeenCalledWith('/api/users/profile', expect.not.objectContaining({ currentPassword: expect.anything() }));
@@ -113,6 +118,7 @@ test('quản trị viên đổi mật khẩu chính chủ mà không tải lịc
   expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
   expect(container.textContent).not.toContain('Lịch sử cảnh báo');
   expect(container.textContent).not.toContain('không thể đổi mật khẩu');
+  selectSection('password');
   expect(passwordForm()).not.toBeNull();
   axios.patch.mockResolvedValue({ data: { message: 'Đổi mật khẩu thành công.' } });
   fill();
@@ -134,6 +140,7 @@ test.each(['student', 'teacher'])('%s can open appeals from their personal profi
       </Routes>
     </MemoryRouter>
   ));
+  selectSection('appeals');
   const section = container.querySelector('section[aria-labelledby="profile-appeals-title"]');
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(section).not.toBeNull();
@@ -149,4 +156,31 @@ test('admin profile does not expose the teacher and student appeals entry', asyn
   await act(async () => renderProfile('admin'));
   expect(container.querySelector('.profile-appeals')).toBeNull();
   expect(container.querySelector('a[href="/appeals"]')).toBeNull();
+  expect(container.querySelector('#profile-menu-appeals')).toBeNull();
+  expect(container.querySelector('#profile-menu-history')).toBeNull();
+});
+
+test.each(['student', 'teacher'])('%s profile shows only the selected section and preserves unsaved personal details', async (role) => {
+  localStorage.setItem('userRole', role);
+  await act(async () => renderProfile(role));
+  const nav = container.querySelector('nav[aria-label="Các mục hồ sơ cá nhân"]');
+  expect(nav.querySelectorAll('button')).toHaveLength(4);
+  expect(nav.querySelector('[aria-current="page"]').id).toBe('profile-menu-personal');
+  expect(container.querySelector('.profile-editor')).not.toBeNull();
+  expect(passwordForm()).toBeNull();
+  expect(container.querySelector('.profile-appeals')).toBeNull();
+  expect(container.querySelector('.profile-history')).toBeNull();
+  act(() => Simulate.change(container.querySelector('.profile-form input'), { target: { value: 'Tên đang chỉnh sửa' } }));
+  selectSection('password');
+  expect(passwordForm()).not.toBeNull();
+  expect(container.querySelector('.profile-editor')).toBeNull();
+  expect(container.querySelector('#profile-panel').getAttribute('aria-labelledby')).toBe('profile-menu-password');
+  selectSection('history');
+  expect(passwordForm()).toBeNull();
+  expect(container.querySelector('.profile-history').textContent).toContain(role === 'teacher'
+    ? 'Chưa có thông báo xử lý lớp học.' : 'Bạn chưa nhận cảnh báo nào.');
+  selectSection('personal');
+  expect(container.querySelector('.profile-form input').value).toBe('Tên đang chỉnh sửa');
+  expect(nav.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  expect(axios.put).not.toHaveBeenCalled();
 });

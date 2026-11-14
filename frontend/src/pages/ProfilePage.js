@@ -12,8 +12,16 @@ const warningStatusLabels = {
   dismissed: 'Đã gỡ cảnh báo',
 };
 
+const profileIcons = {
+  personal: <><circle cx="12" cy="8" r="3" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></>,
+  password: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></>,
+  appeals: <><path d="M21 11a8 8 0 0 1-8 8H7l-5 3V11a9 9 0 0 1 18-4" /><path d="M8 9h7M8 13h5" /></>,
+  history: <><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6" /><path d="M12 7v5l3 2" /></>,
+};
+
 const ProfilePage = () => {
   const role = localStorage.getItem('userRole');
+  const [activeSection, setActiveSection] = useState('personal');
   const [profile, setProfile] = useState(null);
   const [classes, setClasses] = useState([]);
   const [warnings, setWarnings] = useState([]);
@@ -95,18 +103,45 @@ const ProfilePage = () => {
 
   if (loading) return <main className="main-content"><p role="status">Đang tải hồ sơ cá nhân...</p></main>;
 
+  const hasActivity = ['student', 'teacher'].includes(role);
+  const selectedSection = hasActivity || ['personal', 'password'].includes(activeSection) ? activeSection : 'personal';
+  const menuGroups = [
+    { label: 'Tài khoản', items: [{ id: 'personal', label: 'Thông tin cá nhân' }, { id: 'password', label: 'Đổi mật khẩu' }] },
+    ...(hasActivity ? [{ label: 'Hoạt động', items: [
+      { id: 'appeals', label: 'Kháng cáo' },
+      { id: 'history', label: role === 'teacher' ? 'Lịch sử xử lý lớp' : 'Lịch sử cảnh báo' },
+    ] }] : []),
+  ];
+
   return (
     <main className="profile-page">
       <header className="profile-heading">
         <p className="admin-eyebrow">TÀI KHOẢN</p>
-        <h1>Thông tin cá nhân</h1>
+        <h1>Hồ sơ cá nhân</h1>
         <p>{role === 'admin' ? 'Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.' : role === 'teacher' ? 'Quản lý hồ sơ giáo viên và xem lịch sử xử lý lớp học.' : 'Quản lý hồ sơ học sinh và xem lịch sử cảnh báo.'}</p>
       </header>
 
+      <div className="profile-layout">
+        <nav className="profile-sidebar" aria-label="Các mục hồ sơ cá nhân">
+          {menuGroups.map((group) => (
+            <div className="profile-menu-group" key={group.label}>
+              <p className="profile-menu-label">{group.label}</p>
+              {group.items.map((item) => (
+                <button key={item.id} id={`profile-menu-${item.id}`} type="button"
+                  className="profile-menu-item" aria-current={selectedSection === item.id ? 'page' : undefined}
+                  aria-controls="profile-panel" onClick={() => setActiveSection(item.id)}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{profileIcons[item.id]}</svg>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="profile-panel" id="profile-panel" role="region" aria-labelledby={`profile-menu-${selectedSection}`}>
       {error && <div className="admin-alert" role="alert">{error}</div>}
       {notice && <div className="tool-notice" role="status">{notice}</div>}
 
-      {['student', 'teacher'].includes(role) && (
+      {hasActivity && selectedSection === 'appeals' && (
         <section className="profile-appeals" aria-labelledby="profile-appeals-title">
           <h2 id="profile-appeals-title">Kháng cáo</h2>
           <p>{role === 'teacher'
@@ -116,7 +151,9 @@ const ProfilePage = () => {
         </section>
       )}
 
-      <section className="profile-editor">
+      {selectedSection === 'personal' && <section aria-labelledby="profile-personal-title">
+        <h2 className="profile-panel-title" id="profile-personal-title">Thông tin cá nhân</h2>
+        <div className="profile-editor">
         <div className="profile-avatar-column">
           {/* Chỉ tối ưu ảnh mặc định; giữ nguyên URL avatar do người dùng cung cấp. */}
           <img className="profile-avatar-preview" src={form.avatar || '/centerlogo.webp'} alt="Ảnh đại diện" />
@@ -134,13 +171,14 @@ const ProfilePage = () => {
           <label>Giới thiệu<textarea onChange={(event) => setForm({ ...form, bio: event.target.value })} rows="4" value={form.bio} /></label>
           <button className="btn btn-primary" disabled={saving} type="submit">{saving ? 'Đang lưu...' : 'Lưu hồ sơ'}</button>
         </form>
-      </section>
+        </div>
+      </section>}
 
       {/* Form mật khẩu độc lập với lưu hồ sơ để không truyền nhầm thông tin bí mật. */}
-      <ChangePasswordForm />
+      {selectedSection === 'password' && <ChangePasswordForm />}
 
       {/* Lịch sử cảnh báo và xử lý lớp chỉ thuộc hồ sơ học sinh, giáo viên. */}
-      {role !== 'admin' && <section className="profile-history">
+      {hasActivity && selectedSection === 'history' && <section className="profile-history">
         <header><h2>{role === 'teacher' ? 'Lịch sử thông báo về lớp' : 'Lịch sử cảnh báo'}</h2></header>
         {role === 'student' && warnings.length === 0 && <p className="admin-state">Bạn chưa nhận cảnh báo nào.</p>}
         {role === 'student' && warnings.map((warning) => (
@@ -170,6 +208,8 @@ const ProfilePage = () => {
           </article>
         ))}
       </section>}
+        </div>
+      </div>
     </main>
   );
 };
