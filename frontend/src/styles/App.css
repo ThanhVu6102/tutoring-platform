@@ -335,21 +335,21 @@ html, body, #root {
 
 .profile-sidebar {
   padding: 0.75rem;
-  border: 1px solid #30363d;
+  border: 1px solid #d4ded9;
   border-radius: 8px;
-  background: #10161b;
-  color: #f0f3f6;
+  background: #fff;
+  color: #234d40;
 }
 
 .profile-menu-group + .profile-menu-group {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #30363d;
+  border-top: 1px solid #d4ded9;
 }
 
 .profile-menu-label {
   padding: 0.5rem 0.75rem;
-  color: #a5afb9;
+  color: #65736c;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -374,9 +374,9 @@ html, body, #root {
   cursor: pointer;
 }
 
-.profile-menu-item svg { flex: 0 0 20px; color: #a5afb9; }
-.profile-menu-item:hover { background: #1c242d; }
-.profile-menu-item[aria-current="page"] { background: #242c35; font-weight: 700; }
+.profile-menu-item svg { flex: 0 0 20px; color: #65736c; }
+.profile-menu-item:hover { background: #f1f3f2; }
+.profile-menu-item[aria-current="page"] { background: #fcebed; color: #a4161a; font-weight: 700; }
 .profile-menu-item[aria-current="page"]::before {
   content: '';
   position: absolute;
@@ -387,7 +387,7 @@ html, body, #root {
   border-radius: 2px;
   background: #e63946;
 }
-.profile-menu-item:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.profile-menu-item:focus-visible { outline: 2px solid #a4161a; outline-offset: 2px; }
 
 .profile-panel { min-width: 0; }
 .profile-panel-title { margin-bottom: 1rem; color: #234d40; font-size: 1.2rem; }
