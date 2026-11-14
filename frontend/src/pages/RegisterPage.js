@@ -130,7 +130,7 @@ const RegisterPage = ({ onLogin }) => {
         {/* Logo. */}
         <div className="auth-brand">
           {/* Dùng cùng logo WebP với trang đăng nhập để tái sử dụng cache. */}
-          <img src="/logo1.webp" alt="EKLASSES" />
+          <img src="/logo1.webp" alt="Eklasses" />
         </div>
         <h2>Đăng Ký Tài Khoản</h2>
 

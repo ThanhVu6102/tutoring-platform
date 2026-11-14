@@ -42,7 +42,7 @@ const Navbar = ({ userRole, onLogout, isAuthenticated }) => {
     <nav className={`navbar${userRole === 'admin' ? ' navbar-admin' : ''}`} aria-label="Điều hướng chính">
       <div className="nav-icon-group" aria-hidden="true"><div className="nav-decor nav-decor-center"><img src="/centerlogo.webp" alt="" /></div></div>
       <div className="navbar-brand">
-        <img src={isAuthenticated ? roleLogo : '/logo1.webp'} alt="EKLASSES" className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'} />
+        <img src={isAuthenticated ? roleLogo : '/logo1.webp'} alt="Eklasses" className={isAuthenticated && ['teacher', 'student'].includes(userRole) ? 'navbar-role-logo' : 'navbar-brand-logo'} />
         {isAuthenticated && userRole === 'admin' && <span className="navbar-role-label">ADMIN</span>}
         {isAuthenticated && ['student', 'teacher'].includes(userRole) && (
           <button className="navbar-avatar" type="button" aria-label="Mở hồ sơ cá nhân" onClick={() => go('/profile')}>

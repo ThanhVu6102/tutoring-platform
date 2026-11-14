@@ -27,7 +27,7 @@ const PoliciesPage = ({ embedded = false, onRead }) => {
   const pageContent = (
     <main className="policy-page">
       <header className="policy-header">
-        <p className="policy-eyebrow">EKLASSES · PHIÊN BẢN {POLICY_VERSION}</p>
+        <p className="policy-eyebrow">Eklasses · PHIÊN BẢN {POLICY_VERSION}</p>
         <h1>Chính sách &amp; Quy định ứng xử</h1>
         <p>Quy định áp dụng cho học sinh, phụ huynh, giáo viên và hoạt động trên nền tảng.</p>
       </header>

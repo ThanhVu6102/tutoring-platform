@@ -25,7 +25,7 @@ test.each([
   const root = createRoot(container);
   try {
     await act(async () => root.render(<Navbar userRole={role} isAuthenticated={authenticated} onLogout={jest.fn()} />));
-    const logo = container.querySelector('img[alt="EKLASSES"]');
+    const logo = container.querySelector('img[alt="Eklasses"]');
     expect(logo.getAttribute('src')).toBe(source);
     expect(logo.getAttribute('loading')).not.toBe('lazy');
     expect(container.querySelector('.nav-decor img').getAttribute('src')).toBe('/centerlogo.webp');
