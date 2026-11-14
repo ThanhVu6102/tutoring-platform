@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { getAllPages } from '../utils/listRequests';
 import { lockStatusLabels, policyReasonLabels } from '../config/policyLabels';
 import ChangePasswordForm from '../components/ChangePasswordForm';
@@ -104,6 +105,16 @@ const ProfilePage = () => {
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
       {notice && <div className="tool-notice" role="status">{notice}</div>}
+
+      {['student', 'teacher'].includes(role) && (
+        <section className="profile-appeals" aria-labelledby="profile-appeals-title">
+          <h2 id="profile-appeals-title">Kháng cáo</h2>
+          <p>{role === 'teacher'
+            ? 'Gửi giải trình về thông báo khóa lớp và theo dõi kết quả xét duyệt.'
+            : 'Gửi giải trình về cảnh báo vi phạm và theo dõi kết quả xét duyệt.'}</p>
+          <Link className="btn btn-primary" to="/appeals">Mở trung tâm kháng cáo</Link>
+        </section>
+      )}
 
       <section className="profile-editor">
         <div className="profile-avatar-column">

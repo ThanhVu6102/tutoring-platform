@@ -32,7 +32,7 @@ test.each([
   } finally { act(() => root.unmount()); jest.clearAllMocks(); }
 });
 
-test('mobile menu exposes its state and closes after navigation; profile falls back to initial', async () => {
+test.each(['student', 'teacher'])('%s navbar opens profile without a standalone appeals action on desktop or mobile', async (role) => {
   global.IS_REACT_ACT_ENVIRONMENT = true;
   useLocation.mockReturnValue({ pathname: '/dashboard' });
   const navigate = jest.fn();
@@ -42,11 +42,13 @@ test('mobile menu exposes its state and closes after navigation; profile falls b
   document.body.appendChild(container);
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<Navbar userRole="student" isAuthenticated onLogout={jest.fn()} />));
+    await act(async () => root.render(<Navbar userRole={role} isAuthenticated onLogout={jest.fn()} />));
+    expect(container.textContent).not.toContain('Kháng cáo');
     expect(container.querySelector('.navbar-avatar').textContent).toBe('A');
     const toggle = container.querySelector('.navbar-menu-toggle');
     await act(async () => toggle.click());
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(container.textContent).not.toContain('Kháng cáo');
     await act(async () => [...container.querySelectorAll('#navbar-actions button')].find((button) => button.textContent === 'Trang chủ').click());
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(navigate).toHaveBeenCalledWith('/dashboard');

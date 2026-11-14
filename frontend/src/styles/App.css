@@ -301,6 +301,7 @@ html, body, #root {
 }
 
 .profile-heading,
+.profile-appeals,
 .profile-editor,
 .profile-history {
   width: min(100%, 1040px);
@@ -322,6 +323,25 @@ html, body, #root {
 .profile-heading > p:last-child {
   margin-top: 0.4rem;
   color: #65736c;
+}
+
+.profile-appeals {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid #d4ded9;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.profile-appeals h2 {
+  color: #234d40;
+  font-size: 1.2rem;
+}
+
+.profile-appeals .btn {
+  justify-self: start;
 }
 
 .profile-editor {

@@ -2,22 +2,29 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act as legacyAct, Simulate } from 'react-dom/test-utils';
 import axios from 'axios';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProfilePage from './ProfilePage';
 
 jest.mock('axios');
 const act = React.act || legacyAct;
 let container;
 let root;
+const renderProfile = (key) => root.render(
+  <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <ProfilePage key={key} />
+  </MemoryRouter>
+);
 beforeEach(async () => {
   jest.clearAllMocks();
   global.IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.setItem('userRole', 'student');
   axios.get.mockImplementation(async (url) => ({ data: url === '/api/users/profile'
-    ? { name: 'Học sinh test', email: 'test@example.test', phone: '', bio: '' } : [] }));
+    ? { name: 'Học sinh test', email: 'test@example.test', phone: '', bio: '' }
+    : url === '/api/classes' ? { data: [], page: 1, totalPages: 1 } : [] }));
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  await act(async () => root.render(<ProfilePage />));
+  await act(async () => renderProfile());
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -45,7 +52,7 @@ test('profile renders independent accessible password fields and rejects mismatc
 
 test('hồ sơ admin cho phép đổi mật khẩu và không hiện hạn chế cấu hình đã bỏ', async () => {
   localStorage.setItem('userRole', 'admin');
-  await act(async () => root.render(<ProfilePage />));
+  await act(async () => renderProfile());
   expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
   expect(container.textContent).toContain('Mọi tài khoản, kể cả quản trị viên, đều có thể đổi mật khẩu');
   expect(container.textContent).not.toContain('không thể đổi mật khẩu tại đây');
@@ -100,7 +107,7 @@ test('quản trị viên đổi mật khẩu chính chủ mà không tải lịc
   localStorage.setItem('userRole', 'admin');
   axios.get.mockClear();
   axios.get.mockResolvedValue({ data: { name: 'Quản trị viên kiểm thử', email: 'admin@example.test', role: 'admin' } });
-  await act(async () => root.render(<ProfilePage key="admin" />));
+  await act(async () => renderProfile('admin'));
   expect(axios.get).toHaveBeenCalledTimes(1);
   expect(axios.get).toHaveBeenCalledWith('/api/users/profile');
   expect(container.textContent).toContain('Quản lý hồ sơ và mật khẩu tài khoản quản trị của bạn.');
@@ -115,4 +122,31 @@ test('quản trị viên đổi mật khẩu chính chủ mà không tải lịc
   });
   expect(container.textContent).toContain('Đổi mật khẩu thành công.');
   expect(axios.put).not.toHaveBeenCalled();
+});
+
+test.each(['student', 'teacher'])('%s can open appeals from their personal profile', async (role) => {
+  localStorage.setItem('userRole', role);
+  await act(async () => root.render(
+    <MemoryRouter key={role} initialEntries={['/profile']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Routes>
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/appeals" element={<h1>Appeals destination</h1>} />
+      </Routes>
+    </MemoryRouter>
+  ));
+  const section = container.querySelector('section[aria-labelledby="profile-appeals-title"]');
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(section).not.toBeNull();
+  expect(section.textContent).toContain(role === 'teacher' ? 'thông báo khóa lớp' : 'cảnh báo vi phạm');
+  const link = section.querySelector('a');
+  expect(link.getAttribute('href')).toBe('/appeals');
+  await act(async () => link.click());
+  expect(container.textContent).toBe('Appeals destination');
+});
+
+test('admin profile does not expose the teacher and student appeals entry', async () => {
+  localStorage.setItem('userRole', 'admin');
+  await act(async () => renderProfile('admin'));
+  expect(container.querySelector('.profile-appeals')).toBeNull();
+  expect(container.querySelector('a[href="/appeals"]')).toBeNull();
 });
