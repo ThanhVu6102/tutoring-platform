@@ -301,6 +301,8 @@ html, body, #root {
 }
 
 .profile-heading,
+.profile-layout,
+.profile-appeals,
 .profile-editor,
 .profile-history {
   width: min(100%, 1040px);
@@ -322,6 +324,92 @@ html, body, #root {
 .profile-heading > p:last-child {
   margin-top: 0.4rem;
   color: #65736c;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.profile-sidebar {
+  padding: 0.75rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #10161b;
+  color: #f0f3f6;
+}
+
+.profile-menu-group + .profile-menu-group {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #30363d;
+}
+
+.profile-menu-label {
+  padding: 0.5rem 0.75rem;
+  color: #a5afb9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-menu-item svg { flex: 0 0 20px; color: #a5afb9; }
+.profile-menu-item:hover { background: #1c242d; }
+.profile-menu-item[aria-current="page"] { background: #242c35; font-weight: 700; }
+.profile-menu-item[aria-current="page"]::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: #e63946;
+}
+.profile-menu-item:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.profile-panel { min-width: 0; }
+.profile-panel-title { margin-bottom: 1rem; color: #234d40; font-size: 1.2rem; }
+.profile-panel > .profile-history { margin-top: 0; }
+
+.profile-appeals {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid #d4ded9;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.profile-appeals h2 {
+  color: #234d40;
+  font-size: 1.2rem;
+}
+
+.profile-appeals .btn {
+  justify-self: start;
 }
 
 .profile-editor {
@@ -462,7 +550,15 @@ html, body, #root {
   line-height: 1.5;
 }
 
+@media (max-width: 900px) {
+  .profile-editor { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 700px) {
+  .profile-layout { grid-template-columns: 1fr; gap: 1rem; }
+  .profile-menu-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-menu-label { grid-column: 1 / -1; }
+
   .profile-editor {
     grid-template-columns: 1fr;
   }
