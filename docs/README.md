@@ -2,6 +2,7 @@
 
 | Tài liệu | Nội dung |
 |---|---|
+| [Swagger / OpenAPI](API.md) | Tài liệu API đầy đủ, xác thực JWT, request/response, ví dụ và cách thử an toàn |
 | [Luồng dữ liệu](MONGODB_WORKFLOW.md) | Tài khoản, buổi học, điểm danh và transaction |
 | [Quản lý tài khoản](ADMIN_ACCOUNTS.md) | Tra cứu vai trò/trạng thái và duyệt giáo viên trên giao diện admin |
 | [Hồ sơ và mật khẩu](USER_PRIVACY.md) | Quyền riêng tư, trường được phép trả và [đổi mật khẩu](USER_PRIVACY.md#doi-mat-khau) |
@@ -19,4 +20,4 @@
 - Nội dung tiếng Việt; giữ định danh mã nguồn, URL, khóa JSON và giá trị kỹ thuật để khớp hệ thống. Số test gắn với source/thời điểm đã chạy, không tự đại diện cho bản mới.
 - `local/` giữ tài liệu nội bộ, mẫu tham khảo và report thô, được ignore và không có sẵn khi clone; không dọn/xóa dữ liệu trong đó. Mẫu README không phải đặc tả dự án.
 - Các trang chức năng tập trung vào dự án: hành vi, API, sử dụng và kiểm thử. Quá trình hợp nhất tài liệu, trạng thái issue/phát hành và hạn chế kiểm chứng giữ riêng trong [PROJECT_STATUS.md](PROJECT_STATUS.md).
-- Không đưa mật khẩu/token/URI thật vào tài liệu chia sẻ. `/api/docs` chỉ liệt kê endpoint rút gọn, không phải OpenAPI đầy đủ.
+- Không đưa mật khẩu/token/URI thật vào tài liệu chia sẻ. `/api/docs` là Swagger UI; đặc tả máy đọc được nằm tại `/api/openapi.json` (alias `/api/docs.json`).
