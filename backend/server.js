@@ -3,7 +3,7 @@
 // MỤC ĐÍCH: Khởi tạo Express server, kết nối MongoDB, gắn các nhóm API.
 // - Hỗ trợ chạy local (node server.js) và serverless Vercel (cache kết nối).
 // - Kết nối DB không tạo hoặc khôi phục tài khoản quản trị.
-// - Mọi request /api/* đều chờ DB nối xong mới xử lý để chống cold-start fail.
+// - API nghiệp vụ chờ DB; tài liệu Swagger/OpenAPI công khai không cần DB.
 // ============================================================================
 
 // Nạp express để tạo web server và định nghĩa middleware/routes.
@@ -35,6 +35,8 @@ app.use(express.json({ limit: '7mb' }));
 // Cho phép parse form urlencoded dung lượng lớn (tối đa 50mb cho nội dung học liệu).
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', require('./middleware/apiPerformance'));
+// Tài liệu chỉ là nội dung công khai; vẫn tải được khi database chưa sẵn sàng.
+app.use('/api', require('./routes/apiDocs'));
 
 // ----- Cache kết nối MongoDB cho Vercel serverless -----
 // Vercel tái sử dụng global giữa các lần gọi nên lưu conn/promise vào global
@@ -106,83 +108,6 @@ app.use('/api/documents', require('./routes/documents')); // tài liệu.
 app.use('/api/quizzes', require('./routes/quizzes')); // kiểm tra.
 app.use('/api/assignments', require('./routes/assignments')); // bài tập.
 app.use('/api/announcements', require('./routes/announcements')); // thông báo.
-
-// ----- Tài liệu API rút gọn -----
-// API: GET /api/docs -> trả JSON liệt kê các endpoint chính để frontend tra cứu.
-app.get('/api/docs', (req, res) => {
-  // Chỉ cache tài liệu công khai; API tài khoản/lớp vẫn private, no-store.
-  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
-  res.json({
-    name: 'Tutoring Platform API',
-    version: '1.0.0',
-    baseURL: process.env.API_URL || 'http://localhost:5000',
-    // Contract dùng chung cho bảy endpoint danh sách chính ở BE #04.
-    pagination: {
-      defaultLimit: 20, maxLimit: 100, maxPage: 10000,
-      response: '{ data: [], page, limit, total, totalPages }',
-      scope: ['classes', 'users', 'videos/class/:classId', 'documents/class/:classId',
-        'assignments/class/:classId', 'announcements/class/:classId', 'quizzes/class/:classId'],
-    },
-    endpoints: {
-      auth: {
-        register: 'POST /api/auth/register', // đăng ký student/teacher.
-        login: 'POST /api/auth/login', // mọi tài khoản dùng mật khẩu trong DB.
-        logout: 'POST /api/auth/logout' // (frontend tự xóa token).
-      },
-      users: {
-        changePassword: 'PATCH /api/users/password (chính chủ, body: {currentPassword, newPassword})',
-        list: 'GET /api/users (admin)', // admin xem toàn bộ user.
-        updateRole: 'PUT /api/users/:id/role (admin, body: {role})', // cấp/thu hồi admin.
-        delete: 'DELETE /api/users/:id (admin, không xóa được super admin)' // xóa user.
-      },
-      classes: {
-        create: 'POST /api/classes', // giáo viên/admin tạo lớp.
-        getAll: 'GET /api/classes?page=1&limit=20&search=&subject=&grade=&status=', // danh sách phân trang.
-        contentSummary: 'GET /api/classes/:id/content-summary (theo quyền lớp)',
-        getById: 'GET /api/classes/:id', // chi tiết 1 lớp.
-        update: 'PUT /api/classes/:id', // sửa lớp.
-        delete: 'DELETE /api/classes/:id', // xóa lớp.
-        enroll: 'POST /api/classes/:id/enroll', // thêm học sinh bằng email.
-        getStudents: 'GET /api/classes/:id/students', // danh sách học sinh.
-        lookupByCode: 'GET /api/classes/lookup/:joinCode',
-        requestToJoin: 'POST /api/classes/join/:joinCode/request',
-        reviewJoinRequest: 'PATCH /api/classes/:id/join-requests/:studentId',
-        lockNotice: 'PATCH /api/classes/:id/lock-notice (admin, body: {reasonCode, policyLevel, details})',
-        lockAppeal: 'POST /api/classes/:id/lock-appeal (giáo viên phụ trách, body: {message}, hạn 24 giờ)',
-        lockReview: 'PATCH /api/classes/:id/lock-review (admin, body: {decision: lock|dismiss, response?})',
-        reopen: 'PATCH /api/classes/:id/status (admin, body: {status: active})'
-      },
-      // Hai luồng kháng cáo hiện có; danh sách cảnh báo vẫn trả mảng để tương thích UI.
-      studentWarnings: {
-        issue: 'POST /api/student-warnings/:studentId (admin, body: {classId, reasonCode, policyLevel, details})',
-        mine: 'GET /api/student-warnings/mine (học sinh, mảng cảnh báo của chính mình)',
-        list: 'GET /api/student-warnings?status=pending|appealed|confirmed|dismissed (admin)',
-        appeal: 'POST /api/student-warnings/:warningId/appeal (chính chủ, body: {message}, hạn 7 ngày)',
-        review: 'PATCH /api/student-warnings/:warningId/review (admin, body: {decision: confirm|dismiss, response?})',
-        transaction: 'Xác nhận vi phạm và xử lý hết hạn cần MongoDB replica set/Atlas',
-      },
-      moderation: {
-        summary: 'GET /api/moderation/summary (admin, exact totals)',
-        warnings: 'GET /api/moderation/warnings?page=1&limit=20&status=appealed (admin)',
-        students: 'GET /api/moderation/students?page=1&limit=20 (admin)',
-        classes: 'GET /api/moderation/classes?page=1&limit=20 (admin)',
-      },
-      sessions: {
-        create: 'POST /api/classes/:id/sessions (giáo viên phụ trách/admin)',
-        list: 'GET /api/classes/:id/sessions?page=1&limit=20',
-        detail: 'GET /api/sessions/:id',
-        updateStatus: 'PUT /api/sessions/:id/status (body: {status})',
-        attendances: 'GET /api/sessions/:id/attendances',
-        checkIn: 'POST /api/sessions/:id/check-in (body: {student_id, status, note})'
-      },
-      quizzes: {
-        create: 'POST /api/quizzes', // tạo bài kiểm tra.
-        getAll: 'GET /api/quizzes', // lấy danh sách.
-        submit: 'POST /api/quizzes/:id/submit' // nộp bài.
-      }
-    }
-  });
-});
 
 // ----- Bắt route không tồn tại (tránh treo request) -----
 app.use((req, res) => {
