@@ -124,4 +124,4 @@ Kết quả kiểm tra và trạng thái phát hành được theo dõi tại [P
 - `backend/utils/classLockNotices.js`: chuyển trạng thái/lịch sử nguyên tử và lọc hồ sơ kháng cáo của giáo viên.
 - `backend/routes/studentWarnings.js`, `backend/routes/classes.js`: quyền theo vai trò và contract HTTP.
 - Các model `StudentWarning`, `Class`, `User`: metadata/phiên bản nội bộ tương thích hồ sơ cũ.
-- `backend/server.js`: danh sách endpoint rút gọn tại `/api/docs`.
+- `backend/openapi/`: đặc tả request/response và quyền của API kháng cáo; Swagger UI tại `/api/docs`, OpenAPI JSON tại `/api/openapi.json`.

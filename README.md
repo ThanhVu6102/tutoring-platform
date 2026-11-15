@@ -12,12 +12,18 @@ Tra cứu nhanh: [quản lý tài khoản](docs/ADMIN_ACCOUNTS.md), [hồ sơ v�
 
 | Môi trường | Địa chỉ | Ghi chú |
 |------------|---------|---------|
-| Production (Vercel) | https://tutoring-platform-pi-beige.vercel.app | Frontend + API chung một domain |
-| Health check (production) | https://tutoring-platform-pi-beige.vercel.app/api/health | Kiểm tra backend; không thay kiểm chứng đăng nhập/database |
-| API docs (production) | https://tutoring-platform-pi-beige.vercel.app/api/docs | Danh sách endpoint rút gọn, không phải OpenAPI đầy đủ |
+| Production (domain chính thức) | https://eklasses.id.vn/ | Frontend + API chung một domain, triển khai trên Vercel |
+| Health check (production) | https://eklasses.id.vn/api/health | Kiểm tra backend; không thay kiểm chứng đăng nhập/database |
+| Swagger UI (production) | https://eklasses.id.vn/api/docs | Nhóm API, JWT Authorize, request/response và Try it out |
+| OpenAPI JSON (production) | https://eklasses.id.vn/api/openapi.json | Đặc tả OpenAPI 3.0.3; import vào Postman hoặc client hỗ trợ OpenAPI |
 | Local frontend | `http://localhost:3000` | Chạy bằng `npm start --prefix frontend` |
 | Local backend | `http://localhost:5000` | Chạy bằng `npm run dev --prefix backend` |
 | Health check (local) | `http://localhost:5000/api/health` | Phải trả về `{"status":"ok"}` |
+| Swagger UI (local) | http://localhost:5000/api/docs | Tài liệu và thử API backend local |
+
+Domain chính thức của EKLASSES là **https://eklasses.id.vn/**. Dùng domain này cho truy cập và chia sẻ liên kết; các URL deployment/preview của Vercel có thể thay đổi theo phiên bản. Frontend production gọi API cùng origin qua `/api`, không cần cấu hình URL preview vào `REACT_APP_API_URL`.
+
+Swagger có trên production sau khi triển khai phiên bản chứa thay đổi tài liệu này. **Try it out gửi request thật**; nên dùng local/QA để tránh thay đổi dữ liệu production. Xem [hướng dẫn Swagger/OpenAPI](docs/API.md) về đăng nhập, Authorize, schema, phân quyền và kiểm thử. `/api/docs` nay trả HTML thay cho JSON rút gọn cũ; lấy đặc tả tại `/api/openapi.json` hoặc `/api/docs.json`.
 
 ---
 

@@ -52,7 +52,7 @@ Tối ưu cuối: count lớp không filter dùng index `_id_`; contains/history
 
 - Cache promise kết nối MongoDB trong **mỗi instance**; lỗi kết nối được thử lại. Không chia sẻ connection giữa các instance serverless; không tự tạo/khôi phục admin khi kết nối lại. Tạo admin ban đầu bằng [thao tác thủ công](ADMIN_BOOTSTRAP.md).
 - `Server-Timing: app;dur=...` đo đến lúc ghi header, không phải toàn bộ thời gian tải mạng/body. `PERF_LOG_ENABLED=true` bật log method/mẫu route/status/duration, không log ID/query/body/token/URI.
-- API riêng tư dùng `Cache-Control: private, no-store`; `/api/docs` công khai cache 300 giây. Brotli đã quan sát trên `/api/docs`, không suy ra mọi response riêng tư đều nén.
+- API riêng tư dùng `Cache-Control: private, no-store`; Swagger UI `/api/docs` và đặc tả `/api/openapi.json` công khai cache 300 giây. Brotli đã quan sát trên bản JSON `/api/docs` trước khi chuyển sang Swagger, không suy ra mọi response riêng tư hoặc asset UI mới đều nén.
 - Index schema phục vụ sort/filter lớp, user, học liệu, quiz submissions và cảnh báo. Script `perf:indexes` xem định nghĩa; `--apply` dùng createIndexes, không sync/drop index ngoài schema. Chỉ apply trên DB được phép; Mongoose autoIndex cũng có thể tạo index khi khởi động.
 - Contains có thể còn COLLSCAN; exact count vẫn tăng theo số key/document. Offset trang sâu vẫn tốn chi phí. Không ép hint hoặc đổi semantics tìm kiếm chỉ để làm đẹp EXPLAIN.
 
